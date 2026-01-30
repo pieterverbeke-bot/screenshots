@@ -1,218 +1,144 @@
 # Website Screenshot Monitor
 
-Automatisch periodieke screenshots nemen van websites en opslaan in Google Drive.
+**100% Gratis** website monitoring met GitHub Actions. Neemt automatisch screenshots van websites en bewaart ze als artifacts.
 
 ## Features
 
-- Monitor meerdere websites tegelijk
-- Configureerbaar interval per website (minuten, uren, dagen)
-- Volledige pagina screenshots
-- Automatische upload naar Google Drive (shared folders ondersteund)
-- Organiseert screenshots per website in submappen
-- CLI interface voor eenvoudig beheer
+- ✅ Volledig gratis (GitHub Actions)
+- ✅ Geen server of hosting nodig
+- ✅ Automatische scheduling (elk uur, dagelijks, etc.)
+- ✅ Screenshots 90 dagen bewaard als artifacts
+- ✅ Meerdere websites tegelijk
+- ✅ Volledige pagina screenshots
 
-## Installatie
+## Snelle Start
 
-```bash
-npm install
-```
+### 1. Fork of clone deze repo
 
-### Browser Setup
+### 2. Configureer je websites
 
-De app gebruikt Puppeteer voor screenshots. Je hebt Chrome/Chromium nodig:
-
-**Linux (Ubuntu/Debian):**
-```bash
-sudo apt-get install chromium-browser
-# Of Google Chrome
-wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-sudo dpkg -i google-chrome-stable_current_amd64.deb
-```
-
-**Mac:**
-Chrome is meestal al geinstalleerd. Anders: https://www.google.com/chrome/
-
-Stel het browser pad in als de automatische detectie niet werkt:
-```bash
-node src/cli.js set-browser /usr/bin/chromium-browser
-```
-
-## Google Drive Setup
-
-### 1. Maak een Google Cloud Project
-
-1. Ga naar [Google Cloud Console](https://console.cloud.google.com)
-2. Maak een nieuw project
-3. Activeer de **Google Drive API**
-
-### 2. Maak OAuth2 Credentials
-
-1. Ga naar "APIs & Services" > "Credentials"
-2. Klik "Create Credentials" > "OAuth client ID"
-3. Kies "Desktop app"
-4. Download het JSON bestand en bewaar als `credentials.json` in de project root
-
-### 3. Authenticeer
-
-```bash
-npm run auth
-```
-
-Volg de instructies om in te loggen met je Google account.
-
-### 4. Stel de Drive folder in
-
-1. Open Google Drive en ga naar je (shared) folder
-2. Kopieer de folder ID uit de URL: `drive.google.com/drive/folders/[FOLDER_ID]`
-3. Configureer:
-
-```bash
-node src/cli.js set-folder JOUW_FOLDER_ID
-```
-
-## Gebruik
-
-### Websites toevoegen
-
-```bash
-# Interactief
-npm run add
-
-# Of met opties
-node src/cli.js add --name "mijn-site" --url "https://example.com" --interval 60
-```
-
-### Websites beheren
-
-```bash
-# Lijst alle websites
-npm run list
-
-# Verwijder een website
-npm run remove
-
-# Bekijk volledige configuratie
-node src/cli.js config
-```
-
-### Test een screenshot
-
-```bash
-npm run test-screenshot
-```
-
-### Start de monitor
-
-```bash
-npm start
-```
-
-De monitor:
-1. Neemt direct een screenshot van alle geconfigureerde websites
-2. Upload naar Google Drive (als geconfigureerd)
-3. Herhaalt dit volgens het ingestelde interval per website
-
-## Configuratie
-
-De configuratie wordt opgeslagen in `config.json`:
+Bewerk `websites.json`:
 
 ```json
-{
-  "websites": [
-    {
-      "name": "voorbeeld",
-      "url": "https://example.com",
-      "intervalMinutes": 60
-    }
-  ],
-  "googleDrive": {
-    "folderId": "jouw-folder-id",
-    "credentialsPath": "./credentials.json"
+[
+  {
+    "name": "mijn-site",
+    "url": "https://mijnwebsite.nl"
   },
-  "screenshot": {
-    "width": 1920,
-    "height": 1080,
-    "fullPage": true
+  {
+    "name": "google",
+    "url": "https://www.google.com"
   },
-  "browser": {
-    "executablePath": null,
-    "headless": true
+  {
+    "name": "nieuws",
+    "url": "https://nos.nl"
   }
-}
+]
 ```
 
-### Interval voorbeelden
+### 3. Pas het schedule aan (optioneel)
 
-| Minuten | Beschrijving |
-|---------|--------------|
-| 15 | Elk kwartier |
-| 60 | Elk uur |
-| 360 | Elke 6 uur |
-| 1440 | Eens per dag |
+Bewerk `.github/workflows/screenshot.yml`:
 
-## Folder structuur in Google Drive
+```yaml
+schedule:
+  # Elk uur
+  - cron: '0 * * * *'
 
-Screenshots worden automatisch georganiseerd:
+  # Of kies een ander interval:
+  # Elke 30 minuten:
+  # - cron: '*/30 * * * *'
 
+  # Elke 6 uur:
+  # - cron: '0 */6 * * *'
+
+  # Eens per dag om 9:00 UTC (10:00 NL):
+  # - cron: '0 9 * * *'
+
+  # Alleen doordeweeks om 9:00:
+  # - cron: '0 9 * * 1-5'
 ```
-Shared Drive Folder/
-├── website-naam-1/
-│   ├── website-naam-1_2024-01-15T10-00-00-000Z.png
-│   ├── website-naam-1_2024-01-15T11-00-00-000Z.png
-│   └── ...
-├── website-naam-2/
-│   └── ...
-```
 
-## Als achtergrond service draaien
-
-### Met PM2 (aanbevolen)
+### 4. Push naar GitHub
 
 ```bash
-npm install -g pm2
-
-pm2 start src/index.js --name "screenshot-monitor"
-pm2 save
-pm2 startup  # Om te starten bij boot
+git add .
+git commit -m "Configure websites"
+git push
 ```
 
-### Met systemd (Linux)
+### 5. Klaar!
 
-Maak `/etc/systemd/system/screenshot-monitor.service`:
+De workflow draait automatisch volgens je schedule. Je kunt ook handmatig triggeren:
 
-```ini
-[Unit]
-Description=Website Screenshot Monitor
-After=network.target
+1. Ga naar je repo op GitHub
+2. Klik op **Actions**
+3. Klik op **Website Screenshots**
+4. Klik op **Run workflow**
 
-[Service]
-Type=simple
-User=jouw-gebruiker
-WorkingDirectory=/pad/naar/project
-ExecStart=/usr/bin/node src/index.js
-Restart=on-failure
+## Screenshots bekijken
 
-[Install]
-WantedBy=multi-user.target
-```
+1. Ga naar **Actions** in je GitHub repo
+2. Klik op een workflow run
+3. Scroll naar beneden naar **Artifacts**
+4. Download `screenshots-X-X.zip`
+
+## Screenshots in de repo bewaren (optioneel)
+
+Wil je screenshots direct in de repo bewaren in plaats van als artifacts?
+
+1. Ga naar je repo **Settings** → **Variables** → **Repository variables**
+2. Klik **New repository variable**
+3. Name: `SAVE_TO_REPO`
+4. Value: `true`
+
+Let op: dit gebruikt meer storage van je repo.
+
+## Lokaal testen
 
 ```bash
-sudo systemctl enable screenshot-monitor
-sudo systemctl start screenshot-monitor
+# Install dependencies
+npm install
+
+# Install Chrome
+npx puppeteer browsers install chrome
+
+# Run
+npm run screenshots
 ```
+
+## Cron Schedule Voorbeelden
+
+| Schedule | Cron expressie |
+|----------|---------------|
+| Elk uur | `0 * * * *` |
+| Elke 30 min | `*/30 * * * *` |
+| Elke 6 uur | `0 */6 * * *` |
+| Dagelijks 9:00 UTC | `0 9 * * *` |
+| Dagelijks 18:00 UTC | `0 18 * * *` |
+| Maandag t/m vrijdag 9:00 | `0 9 * * 1-5` |
+| Elke maandag 8:00 | `0 8 * * 1` |
+
+> **Tip:** GitHub Actions cron gebruikt UTC tijd. Nederland is UTC+1 (winter) of UTC+2 (zomer).
+
+## Limieten (gratis)
+
+- **2000 minuten/maand** voor private repos
+- **Onbeperkt** voor public repos
+- **Artifacts**: 90 dagen bewaard, max 500MB per artifact
+- **Repo storage**: 500MB-2GB afhankelijk van account type
+
+Voor de meeste use cases is dit ruim voldoende.
 
 ## Problemen oplossen
 
-### Browser niet gevonden
-```bash
-node src/cli.js set-browser /pad/naar/chrome
-```
+### Workflow draait niet
+- Check of Actions is ingeschakeld in je repo settings
+- De eerste schedule kan tot een uur duren voordat hij start
 
-### Google Drive authenticatie mislukt
-- Verwijder `token.json` en run `npm run auth` opnieuw
-- Controleer of de Drive API is ingeschakeld in Google Cloud
+### Screenshot mislukt
+- Controleer of de URL correct is in `websites.json`
+- Sommige sites blokkeren headless browsers - niet veel aan te doen
 
-### Screenshots mislukken
-- Controleer of de URL correct is
-- Test handmatig met `npm run test-screenshot`
-- Bekijk de console output voor foutmeldingen
+### Artifacts niet zichtbaar
+- Artifacts verschijnen pas nadat de workflow volledig klaar is

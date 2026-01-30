@@ -1,12 +1,7 @@
 # Dependencies
 node_modules/
 
-# Config files with secrets
-credentials.json
-token.json
-config.json
-
-# Screenshots (local only)
+# Screenshots (local testing)
 screenshots/
 
 # Logs
