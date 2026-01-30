@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Config files with secrets
+credentials.json
+token.json
+config.json
+
+# Screenshots (local only)
+screenshots/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

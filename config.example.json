@@ -1,0 +1,22 @@
+{
+  "websites": [
+    {
+      "name": "example",
+      "url": "https://example.com",
+      "intervalMinutes": 60
+    }
+  ],
+  "googleDrive": {
+    "folderId": "YOUR_SHARED_DRIVE_FOLDER_ID",
+    "credentialsPath": "./credentials.json"
+  },
+  "screenshot": {
+    "width": 1920,
+    "height": 1080,
+    "fullPage": true
+  },
+  "browser": {
+    "executablePath": null,
+    "headless": true
+  }
+}

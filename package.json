@@ -1,0 +1,30 @@
+{
+  "name": "website-screenshot-monitor",
+  "version": "1.0.0",
+  "description": "Monitor websites by taking periodic screenshots and saving them to Google Drive",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "add": "node src/cli.js add",
+    "remove": "node src/cli.js remove",
+    "list": "node src/cli.js list",
+    "auth": "node src/cli.js auth",
+    "test-screenshot": "node src/cli.js test"
+  },
+  "keywords": [
+    "screenshot",
+    "monitor",
+    "website",
+    "google-drive",
+    "puppeteer"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^12.0.0",
+    "googleapis": "^130.0.0",
+    "node-cron": "^3.0.3",
+    "puppeteer": "^22.0.0"
+  }
+}
