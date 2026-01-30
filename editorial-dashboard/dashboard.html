@@ -1,0 +1,2146 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editorial Dashboard | de Volkskrant</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+/* ===================================
+   Editorial Dashboard - Whoop Style
+   ================================= */
+
+:root {
+    /* Colors - Dark Theme */
+    --bg-primary: #0a0a0f;
+    --bg-secondary: #12121a;
+    --bg-card: #1a1a24;
+    --bg-card-hover: #22222e;
+
+    /* Accent Colors */
+    --accent-cyan: #00F0FF;
+    --accent-green: #00FF94;
+    --accent-purple: #9D4EDD;
+    --accent-blue: #3A86FF;
+    --accent-orange: #FF9F1C;
+    --accent-red: #FF4757;
+
+    /* Gradients */
+    --gradient-cyan: linear-gradient(135deg, #00F0FF 0%, #00D4AA 100%);
+    --gradient-green: linear-gradient(135deg, #00FF94 0%, #00D68F 100%);
+    --gradient-purple: linear-gradient(135deg, #9D4EDD 0%, #7B2CBF 100%);
+    --gradient-blue: linear-gradient(135deg, #3A86FF 0%, #0066FF 100%);
+
+    /* Text */
+    --text-primary: #ffffff;
+    --text-secondary: #a0a0b0;
+    --text-muted: #606070;
+
+    /* Borders */
+    --border-color: rgba(255, 255, 255, 0.08);
+    --border-glow: rgba(0, 240, 255, 0.3);
+
+    /* Shadows */
+    --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4);
+    --shadow-glow: 0 0 40px rgba(0, 240, 255, 0.15);
+
+    /* Spacing */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 20px;
+    --radius-xl: 28px;
+}
+
+/* Reset & Base */
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    font-size: 16px;
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+/* App Container */
+.app {
+    min-height: 100vh;
+    background:
+        radial-gradient(ellipse at 20% 0%, rgba(0, 240, 255, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 100%, rgba(157, 78, 221, 0.08) 0%, transparent 50%),
+        var(--bg-primary);
+}
+
+/* Header */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+    background: rgba(18, 18, 26, 0.8);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+}
+
+.logo svg {
+    width: 28px;
+    height: 28px;
+    color: var(--accent-cyan);
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+}
+
+.date-selector {
+    display: flex;
+    gap: 0.25rem;
+    background: var(--bg-card);
+    padding: 0.25rem;
+    border-radius: var(--radius-md);
+}
+
+.date-btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 500;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.date-btn:hover {
+    color: var(--text-primary);
+}
+
+.date-btn.active {
+    background: var(--gradient-cyan);
+    color: var(--bg-primary);
+}
+
+.profile {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--accent-cyan);
+}
+
+.profile-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.profile-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.profile-role {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+/* Main Content */
+.main {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+/* AI Hero Section */
+.ai-hero {
+    position: relative;
+    background: var(--bg-card);
+    border-radius: var(--radius-xl);
+    padding: 2.5rem;
+    margin-bottom: 2rem;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+.ai-hero-glow {
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 60%;
+    height: 200%;
+    background: radial-gradient(ellipse, rgba(0, 240, 255, 0.1) 0%, transparent 60%);
+    pointer-events: none;
+}
+
+.ai-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(0, 240, 255, 0.1);
+    border: 1px solid rgba(0, 240, 255, 0.3);
+    padding: 0.4rem 0.8rem;
+    border-radius: 50px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--accent-cyan);
+    margin-bottom: 1rem;
+    position: relative;
+}
+
+.ai-badge svg {
+    width: 16px;
+    height: 16px;
+}
+
+.ai-pulse {
+    position: absolute;
+    left: 8px;
+    width: 8px;
+    height: 8px;
+    background: var(--accent-cyan);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.5);
+        opacity: 0.5;
+    }
+}
+
+.ai-title {
+    position: relative;
+    z-index: 1;
+}
+
+.greeting {
+    display: block;
+    font-size: 1rem;
+    font-weight: 400;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.insight-text {
+    display: block;
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1.3;
+    background: var(--gradient-cyan);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    min-height: 2.3em;
+}
+
+.ai-summary {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+    position: relative;
+    z-index: 1;
+    flex-wrap: wrap;
+}
+
+.summary-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.summary-icon {
+    font-size: 1rem;
+    color: var(--text-muted);
+}
+
+.summary-item.positive .summary-icon {
+    color: var(--accent-green);
+}
+
+.summary-item.highlight .summary-icon {
+    color: var(--accent-orange);
+}
+
+.summary-value {
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.summary-item.positive .summary-value {
+    color: var(--accent-green);
+}
+
+.summary-label {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.summary-divider {
+    width: 1px;
+    height: 24px;
+    background: var(--border-color);
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--border-glow);
+    box-shadow: var(--shadow-glow);
+    transform: translateY(-2px);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+}
+
+.card-header h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.card-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.3rem 0.6rem;
+    border-radius: 50px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.card-badge.green {
+    background: rgba(0, 255, 148, 0.15);
+    color: var(--accent-green);
+}
+
+.card-badge.blue {
+    background: rgba(58, 134, 255, 0.15);
+    color: var(--accent-blue);
+}
+
+.card-badge.purple {
+    background: rgba(157, 78, 221, 0.15);
+    color: var(--accent-purple);
+}
+
+/* Score Card */
+.score-ring-container {
+    position: relative;
+    width: 140px;
+    height: 140px;
+    margin: 0 auto 1rem;
+}
+
+.score-ring {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.ring-bg {
+    fill: none;
+    stroke: var(--bg-secondary);
+    stroke-width: 10;
+}
+
+.ring-progress {
+    fill: none;
+    stroke: url(#gradient-green);
+    stroke-width: 10;
+    stroke-linecap: round;
+    stroke-dasharray: 326.73;
+    stroke-dashoffset: 326.73;
+    transition: stroke-dashoffset 1.5s ease-out;
+}
+
+.score-value {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+.score-number {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--accent-green);
+}
+
+.score-unit {
+    font-size: 1rem;
+    color: var(--text-secondary);
+}
+
+.score-description {
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+/* Strain Card */
+.strain-bar-container {
+    height: 12px;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+}
+
+.strain-bar {
+    height: 100%;
+    width: 0%;
+    background: var(--gradient-blue);
+    border-radius: 6px;
+    transition: width 1.5s ease-out;
+}
+
+.strain-stats {
+    display: flex;
+    justify-content: space-between;
+}
+
+.strain-stat {
+    text-align: center;
+}
+
+.strain-value {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--accent-blue);
+}
+
+.strain-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+/* Reach Card */
+.reach-visual {
+    text-align: center;
+}
+
+.reach-number {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--accent-purple);
+    line-height: 1;
+}
+
+.reach-label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+}
+
+.reach-chart {
+    height: 60px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 4px;
+}
+
+.reach-bar {
+    width: 20px;
+    background: var(--gradient-purple);
+    border-radius: 4px 4px 0 0;
+    transition: height 0.5s ease-out;
+}
+
+/* Analytics Section */
+.analytics-section {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    border: 1px solid var(--border-color);
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.section-header h2 {
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.section-tabs {
+    display: flex;
+    gap: 0.25rem;
+    background: var(--bg-secondary);
+    padding: 0.25rem;
+    border-radius: var(--radius-md);
+}
+
+.tab-btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 500;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+    color: var(--text-primary);
+}
+
+.tab-btn.active {
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+
+/* Articles List */
+.articles-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.article-item {
+    display: grid;
+    grid-template-columns: 1fr auto auto auto auto;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 1rem 1.25rem;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+}
+
+.article-item:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--border-glow);
+}
+
+.article-info {
+    min-width: 0;
+}
+
+.article-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 0.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.article-meta {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.article-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 70px;
+}
+
+.stat-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.stat-value.cyan { color: var(--accent-cyan); }
+.stat-value.green { color: var(--accent-green); }
+.stat-value.purple { color: var(--accent-purple); }
+.stat-value.orange { color: var(--accent-orange); }
+
+.stat-label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.article-trend {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.article-trend.up {
+    color: var(--accent-green);
+}
+
+.article-trend.down {
+    color: var(--accent-red);
+}
+
+/* Flow Section */
+.flow-section {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    border: 1px solid var(--border-color);
+}
+
+.info-tooltip {
+    position: relative;
+    cursor: help;
+}
+
+.info-tooltip svg {
+    width: 18px;
+    height: 18px;
+    color: var(--text-muted);
+}
+
+.tooltip-text {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    margin-top: 0.5rem;
+    background: var(--bg-secondary);
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    z-index: 10;
+}
+
+.info-tooltip:hover .tooltip-text {
+    opacity: 1;
+    visibility: visible;
+}
+
+.flow-container {
+    margin-top: 1rem;
+}
+
+.flow-article-select {
+    margin-bottom: 1.5rem;
+}
+
+.flow-article-select select {
+    width: 100%;
+    max-width: 400px;
+    padding: 0.75rem 1rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.flow-article-select select:focus {
+    outline: none;
+    border-color: var(--accent-cyan);
+}
+
+.flow-visualization {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.flow-bar-container {
+    position: relative;
+}
+
+.flow-bar {
+    height: 40px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    display: flex;
+    overflow: hidden;
+}
+
+.flow-segment {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: width 0.5s ease-out;
+}
+
+.segment-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--bg-primary);
+    opacity: 0.8;
+}
+
+.flow-markers {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.5rem;
+    padding: 0 0.5rem;
+}
+
+.flow-marker {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.flow-stats {
+    display: flex;
+    justify-content: center;
+    gap: 3rem;
+    flex-wrap: wrap;
+}
+
+.flow-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.flow-stat-ring {
+    position: relative;
+    width: 60px;
+    height: 60px;
+}
+
+.flow-stat-ring svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.ring-bg-small {
+    fill: none;
+    stroke: var(--bg-secondary);
+    stroke-width: 6;
+}
+
+.ring-progress-small {
+    fill: none;
+    stroke-width: 6;
+    stroke-linecap: round;
+    stroke-dasharray: 163.36;
+    transition: stroke-dashoffset 1s ease-out;
+}
+
+.ring-progress-small.intro {
+    stroke: var(--accent-cyan);
+    stroke-dashoffset: 3.27;
+}
+
+.ring-progress-small.middle {
+    stroke: var(--accent-blue);
+    stroke-dashoffset: 39.21;
+}
+
+.ring-progress-small.end {
+    stroke: var(--accent-purple);
+    stroke-dashoffset: 52.28;
+}
+
+.flow-stat-value {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.flow-stat-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.flow-insight {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+    background: rgba(0, 240, 255, 0.05);
+    border: 1px solid rgba(0, 240, 255, 0.2);
+    border-radius: var(--radius-md);
+}
+
+.insight-icon {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    background: var(--gradient-cyan);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.insight-icon svg {
+    width: 18px;
+    height: 18px;
+    color: var(--bg-primary);
+}
+
+.flow-insight p {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.flow-insight strong {
+    color: var(--accent-cyan);
+}
+
+/* Trends Section */
+.trends-section {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    border: 1px solid var(--border-color);
+}
+
+.trends-chart-container {
+    margin-top: 1rem;
+}
+
+.trends-legend {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.legend-dot.views {
+    background: var(--accent-cyan);
+}
+
+.legend-dot.completion {
+    background: var(--accent-purple);
+}
+
+.trends-chart {
+    height: 200px;
+    position: relative;
+}
+
+#trends-canvas {
+    width: 100%;
+    height: 100%;
+}
+
+.trends-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.75rem;
+    padding: 0 0.5rem;
+}
+
+.trend-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+/* Modal */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-content {
+    background: var(--bg-card);
+    border-radius: var(--radius-xl);
+    width: 90%;
+    max-width: 700px;
+    max-height: 85vh;
+    overflow-y: auto;
+    position: relative;
+    border: 1px solid var(--border-color);
+    transform: scale(0.9) translateY(20px);
+    transition: transform 0.3s ease;
+}
+
+.modal-overlay.active .modal-content {
+    transform: scale(1) translateY(0);
+}
+
+.modal-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: var(--bg-secondary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 10;
+    transition: all 0.2s ease;
+}
+
+.modal-close:hover {
+    background: var(--bg-card-hover);
+}
+
+.modal-close svg {
+    width: 20px;
+    height: 20px;
+    color: var(--text-secondary);
+}
+
+.modal-body {
+    padding: 2rem;
+}
+
+.modal-header {
+    margin-bottom: 1.5rem;
+}
+
+.modal-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.modal-meta {
+    display: flex;
+    gap: 1.5rem;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    flex-wrap: wrap;
+}
+
+.modal-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.modal-stat {
+    background: var(--bg-secondary);
+    padding: 1rem;
+    border-radius: var(--radius-md);
+    text-align: center;
+}
+
+.modal-stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
+.modal-stat-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.modal-section {
+    margin-bottom: 1.5rem;
+}
+
+.modal-section h4 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: var(--text-secondary);
+}
+
+.reading-flow-mini {
+    display: flex;
+    gap: 0.5rem;
+    height: 8px;
+}
+
+.flow-mini-segment {
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.flow-mini-segment:hover {
+    transform: scaleY(1.5);
+}
+
+/* Animations */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.ai-hero,
+.stat-card,
+.analytics-section,
+.flow-section,
+.trends-section {
+    animation: fadeInUp 0.6s ease-out forwards;
+}
+
+.stat-card:nth-child(1) { animation-delay: 0.1s; }
+.stat-card:nth-child(2) { animation-delay: 0.2s; }
+.stat-card:nth-child(3) { animation-delay: 0.3s; }
+
+.analytics-section { animation-delay: 0.4s; }
+.flow-section { animation-delay: 0.5s; }
+.trends-section { animation-delay: 0.6s; }
+
+/* Responsive */
+@media (max-width: 1200px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .stat-card:nth-child(3) {
+        grid-column: span 2;
+    }
+}
+
+@media (max-width: 900px) {
+    .header {
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1rem;
+    }
+
+    .header-right {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .stat-card:nth-child(3) {
+        grid-column: span 1;
+    }
+
+    .ai-summary {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .summary-divider {
+        display: none;
+    }
+
+    .article-item {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .article-stats-row {
+        display: flex;
+        justify-content: space-around;
+    }
+
+    .modal-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 600px) {
+    .main {
+        padding: 1rem;
+    }
+
+    .ai-hero {
+        padding: 1.5rem;
+    }
+
+    .insight-text {
+        font-size: 1.25rem;
+    }
+
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .section-tabs {
+        width: 100%;
+        overflow-x: auto;
+    }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--bg-card-hover);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
+/* SVG Gradients */
+.svg-defs {
+    position: absolute;
+    width: 0;
+    height: 0;
+}
+    </style>
+</head>
+<body>
+    <!-- SVG Gradients -->
+    <svg class="svg-defs">
+        <defs>
+            <linearGradient id="gradient-green" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#00FF94"/>
+                <stop offset="100%" style="stop-color:#00D68F"/>
+            </linearGradient>
+            <linearGradient id="gradient-cyan" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#00F0FF"/>
+                <stop offset="100%" style="stop-color:#00D4AA"/>
+            </linearGradient>
+            <linearGradient id="gradient-purple" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#9D4EDD"/>
+                <stop offset="100%" style="stop-color:#7B2CBF"/>
+            </linearGradient>
+            <linearGradient id="gradient-blue" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#3A86FF"/>
+                <stop offset="100%" style="stop-color:#0066FF"/>
+            </linearGradient>
+        </defs>
+    </svg>
+
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <div class="logo">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                    </svg>
+                    <span>Editorial Dashboard</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="date-selector">
+                    <button class="date-btn active" data-range="week">Week</button>
+                    <button class="date-btn" data-range="month">Maand</button>
+                    <button class="date-btn" data-range="quarter">Kwartaal</button>
+                </div>
+                <div class="profile">
+                    <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face" alt="Profiel" class="avatar">
+                    <div class="profile-info">
+                        <span class="profile-name">Thomas van der Berg</span>
+                        <span class="profile-role">Hoofdredacteur Economie</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- AI Insight Hero -->
+            <section class="ai-hero">
+                <div class="ai-hero-glow"></div>
+                <div class="ai-badge">
+                    <div class="ai-pulse"></div>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2z"/>
+                        <circle cx="7.5" cy="14.5" r="1.5"/>
+                        <circle cx="16.5" cy="14.5" r="1.5"/>
+                    </svg>
+                    <span>AI Insight</span>
+                </div>
+                <h1 class="ai-title">
+                    <span class="greeting">Goedemorgen Thomas,</span>
+                    <span class="insight-text" id="ai-insight-text"></span>
+                </h1>
+                <div class="ai-summary">
+                    <div class="summary-item positive">
+                        <span class="summary-icon">↑</span>
+                        <span class="summary-value">+34%</span>
+                        <span class="summary-label">meer lezers dan vorige week</span>
+                    </div>
+                    <div class="summary-divider"></div>
+                    <div class="summary-item">
+                        <span class="summary-icon">◎</span>
+                        <span class="summary-value">73%</span>
+                        <span class="summary-label">gemiddeld uitgelezen</span>
+                    </div>
+                    <div class="summary-divider"></div>
+                    <div class="summary-item highlight">
+                        <span class="summary-icon">★</span>
+                        <span class="summary-value">1 artikel</span>
+                        <span class="summary-label">in top 10 van vandaag</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Stats Grid -->
+            <section class="stats-grid">
+                <!-- Score Card -->
+                <div class="stat-card score-card">
+                    <div class="card-header">
+                        <h3>Lezersprestatie</h3>
+                        <span class="card-badge green">Uitstekend</span>
+                    </div>
+                    <div class="score-ring-container">
+                        <svg class="score-ring" viewBox="0 0 120 120">
+                            <circle class="ring-bg" cx="60" cy="60" r="52"/>
+                            <circle class="ring-progress" cx="60" cy="60" r="52" id="score-ring"/>
+                        </svg>
+                        <div class="score-value">
+                            <span class="score-number" id="score-number">0</span>
+                            <span class="score-unit">%</span>
+                        </div>
+                    </div>
+                    <p class="score-description">Je artikelen worden bovengemiddeld uitgelezen. Blijf zo doorgaan!</p>
+                </div>
+
+                <!-- Strain Card -->
+                <div class="stat-card strain-card">
+                    <div class="card-header">
+                        <h3>Productiviteit</h3>
+                        <span class="card-badge blue">Actief</span>
+                    </div>
+                    <div class="strain-visual">
+                        <div class="strain-bar-container">
+                            <div class="strain-bar" id="strain-bar"></div>
+                        </div>
+                        <div class="strain-stats">
+                            <div class="strain-stat">
+                                <span class="strain-value" id="articles-count">0</span>
+                                <span class="strain-label">Artikelen</span>
+                            </div>
+                            <div class="strain-stat">
+                                <span class="strain-value" id="words-count">0</span>
+                                <span class="strain-label">Woorden</span>
+                            </div>
+                            <div class="strain-stat">
+                                <span class="strain-value" id="avg-time">0</span>
+                                <span class="strain-label">Min gem. leestijd</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reach Card -->
+                <div class="stat-card sleep-card">
+                    <div class="card-header">
+                        <h3>Bereik</h3>
+                        <span class="card-badge purple">Groeiend</span>
+                    </div>
+                    <div class="reach-visual">
+                        <div class="reach-number" id="reach-number">0</div>
+                        <div class="reach-label">unieke lezers deze week</div>
+                        <div class="reach-chart" id="reach-chart"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Detailed Analytics -->
+            <section class="analytics-section">
+                <div class="section-header">
+                    <h2>Jouw Artikelen</h2>
+                    <div class="section-tabs">
+                        <button class="tab-btn active" data-tab="recent">Recent</button>
+                        <button class="tab-btn" data-tab="popular">Meest Gelezen</button>
+                        <button class="tab-btn" data-tab="engagement">Beste Engagement</button>
+                    </div>
+                </div>
+                <div class="articles-list" id="articles-list"></div>
+            </section>
+
+            <!-- Reading Flow Analysis -->
+            <section class="flow-section">
+                <div class="section-header">
+                    <h2>Leesgedrag Analyse</h2>
+                    <div class="info-tooltip">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 16v-4M12 8h.01"/>
+                        </svg>
+                        <span class="tooltip-text">Waar haken lezers af in je artikelen?</span>
+                    </div>
+                </div>
+
+                <div class="flow-container">
+                    <div class="flow-article-select">
+                        <select id="flow-article-select"></select>
+                    </div>
+
+                    <div class="flow-visualization">
+                        <div class="flow-bar-container">
+                            <div class="flow-bar" id="flow-bar"></div>
+                            <div class="flow-markers" id="flow-markers"></div>
+                        </div>
+
+                        <div class="flow-stats">
+                            <div class="flow-stat">
+                                <div class="flow-stat-ring">
+                                    <svg viewBox="0 0 60 60">
+                                        <circle class="ring-bg-small" cx="30" cy="30" r="26"/>
+                                        <circle class="ring-progress-small intro" cx="30" cy="30" r="26"/>
+                                    </svg>
+                                    <span class="flow-stat-value">98%</span>
+                                </div>
+                                <span class="flow-stat-label">Intro gelezen</span>
+                            </div>
+                            <div class="flow-stat">
+                                <div class="flow-stat-ring">
+                                    <svg viewBox="0 0 60 60">
+                                        <circle class="ring-bg-small" cx="30" cy="30" r="26"/>
+                                        <circle class="ring-progress-small middle" cx="30" cy="30" r="26"/>
+                                    </svg>
+                                    <span class="flow-stat-value">76%</span>
+                                </div>
+                                <span class="flow-stat-label">Middenstuk</span>
+                            </div>
+                            <div class="flow-stat">
+                                <div class="flow-stat-ring">
+                                    <svg viewBox="0 0 60 60">
+                                        <circle class="ring-bg-small" cx="30" cy="30" r="26"/>
+                                        <circle class="ring-progress-small end" cx="30" cy="30" r="26"/>
+                                    </svg>
+                                    <span class="flow-stat-value">68%</span>
+                                </div>
+                                <span class="flow-stat-label">Einde bereikt</span>
+                            </div>
+                        </div>
+
+                        <div class="flow-insight">
+                            <div class="insight-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2z"/>
+                                </svg>
+                            </div>
+                            <p id="flow-insight-text">
+                                <strong>AI Tip:</strong> Je langere paragrafen (>200 woorden) zorgen voor 23% meer afhakers.
+                                Probeer meer tussenkopjes te gebruiken om de leesbaarheid te verbeteren.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Trends Section -->
+            <section class="trends-section">
+                <div class="section-header">
+                    <h2>Prestaties over tijd</h2>
+                </div>
+
+                <div class="trends-chart-container">
+                    <div class="trends-legend">
+                        <div class="legend-item">
+                            <span class="legend-dot views"></span>
+                            <span>Weergaven</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-dot completion"></span>
+                            <span>Uitgelezen %</span>
+                        </div>
+                    </div>
+                    <div class="trends-chart" id="trends-chart">
+                        <canvas id="trends-canvas"></canvas>
+                    </div>
+                    <div class="trends-labels" id="trends-labels"></div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Article Detail Modal -->
+        <div class="modal-overlay" id="article-modal">
+            <div class="modal-content">
+                <button class="modal-close" id="modal-close">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+                <div class="modal-body" id="modal-body"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+// ============================================
+// FAKE DATA
+// ============================================
+
+const articlesData = [
+    {
+        id: 1,
+        title: 'De onzichtbare hand achter de huizenmarkt',
+        publishDate: '2025-01-28',
+        category: 'Economie',
+        readTime: 8,
+        views: 24850,
+        completionRate: 78,
+        avgReadTime: 6.2,
+        trend: +12,
+        sections: [
+            { name: 'Intro', readRate: 98, words: 180 },
+            { name: 'Analyse', readRate: 85, words: 450 },
+            { name: 'Data', readRate: 72, words: 320 },
+            { name: 'Impact', readRate: 68, words: 280 },
+            { name: 'Conclusie', readRate: 65, words: 150 }
+        ],
+        dropoffPoints: [
+            { position: 35, reason: 'Lange paragraaf zonder tussenkop' },
+            { position: 62, reason: 'Technisch jargon' }
+        ]
+    },
+    {
+        id: 2,
+        title: 'Waarom de rente blijft stijgen: een diepteanalyse',
+        publishDate: '2025-01-26',
+        category: 'Financien',
+        readTime: 12,
+        views: 31200,
+        completionRate: 65,
+        avgReadTime: 7.8,
+        trend: +28,
+        sections: [
+            { name: 'Intro', readRate: 97, words: 200 },
+            { name: 'ECB Beleid', readRate: 78, words: 520 },
+            { name: 'Historisch', readRate: 62, words: 480 },
+            { name: 'Voorspelling', readRate: 58, words: 350 },
+            { name: 'Tips', readRate: 55, words: 180 }
+        ],
+        dropoffPoints: [
+            { position: 28, reason: 'Complex financieel model' },
+            { position: 55, reason: 'Gebrek aan visuele elementen' }
+        ]
+    },
+    {
+        id: 3,
+        title: 'Interview: CEO van ING over de toekomst van bankieren',
+        publishDate: '2025-01-24',
+        category: 'Interview',
+        readTime: 15,
+        views: 42100,
+        completionRate: 82,
+        avgReadTime: 12.3,
+        trend: +45,
+        sections: [
+            { name: 'Intro', readRate: 99, words: 150 },
+            { name: 'Achtergrond', readRate: 92, words: 380 },
+            { name: 'Digitalisering', readRate: 88, words: 520 },
+            { name: 'Duurzaamheid', readRate: 85, words: 450 },
+            { name: 'Toekomst', readRate: 80, words: 320 }
+        ],
+        dropoffPoints: [
+            { position: 72, reason: 'Kleine dip bij technische details' }
+        ]
+    },
+    {
+        id: 4,
+        title: 'Inflatie daalt sneller dan verwacht: wat betekent dit?',
+        publishDate: '2025-01-22',
+        category: 'Economie',
+        readTime: 6,
+        views: 18400,
+        completionRate: 88,
+        avgReadTime: 5.3,
+        trend: +8,
+        sections: [
+            { name: 'Intro', readRate: 99, words: 120 },
+            { name: 'Cijfers', readRate: 94, words: 280 },
+            { name: 'Analyse', readRate: 90, words: 320 },
+            { name: 'Consument', readRate: 86, words: 240 }
+        ],
+        dropoffPoints: []
+    },
+    {
+        id: 5,
+        title: 'De stille revolutie in de pensioenwereld',
+        publishDate: '2025-01-20',
+        category: 'Pensioen',
+        readTime: 10,
+        views: 15600,
+        completionRate: 71,
+        avgReadTime: 7.1,
+        trend: -3,
+        sections: [
+            { name: 'Intro', readRate: 96, words: 160 },
+            { name: 'Nieuwe wet', readRate: 82, words: 420 },
+            { name: 'Impact', readRate: 70, words: 380 },
+            { name: 'Actie', readRate: 68, words: 280 }
+        ],
+        dropoffPoints: [
+            { position: 42, reason: 'Juridische terminologie' }
+        ]
+    },
+    {
+        id: 6,
+        title: 'Crypto in 2025: renaissance of requiem?',
+        publishDate: '2025-01-18',
+        category: 'Technologie',
+        readTime: 9,
+        views: 28900,
+        completionRate: 76,
+        avgReadTime: 6.8,
+        trend: +19,
+        sections: [
+            { name: 'Intro', readRate: 98, words: 140 },
+            { name: 'Markt', readRate: 88, words: 360 },
+            { name: 'Regulering', readRate: 75, words: 420 },
+            { name: 'Outlook', readRate: 72, words: 280 }
+        ],
+        dropoffPoints: [
+            { position: 48, reason: 'Technische blockchain uitleg' }
+        ]
+    }
+];
+
+const weeklyStats = {
+    totalViews: 161050,
+    avgCompletion: 73,
+    articlesPublished: 6,
+    totalWords: 8420,
+    avgReadTime: 7.6,
+};
+
+const trendsData = {
+    labels: ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'],
+    views: [12400, 18200, 24100, 31500, 28900, 22300, 23650],
+    completion: [68, 72, 75, 82, 78, 71, 73]
+};
+
+const aiInsights = [
+    "Je interview met de ING-CEO scoorde 45% boven gemiddeld. Persoonlijke verhalen werken!",
+    "Artikelen onder 8 minuten leestijd worden 23% vaker uitgelezen.",
+    "Je economie-analyses trekken 34% meer lezers dan vorige maand.",
+    "Tip: je stukken met bullet points hebben 18% hogere engagement.",
+    "Donderdag was je beste dag qua bereik. Plan je belangrijkste artikelen dan!"
+];
+
+const flowInsights = [
+    "Je langere paragrafen (>200 woorden) zorgen voor 23% meer afhakers. Probeer meer tussenkopjes te gebruiken.",
+    "Lezers haken af bij technisch jargon. Overweeg een 'in het kort' box toe te voegen.",
+    "Dit artikel scoort uitstekend! De persoonlijke quotes houden lezers geboeid tot het einde."
+];
+
+// ============================================
+// STATE
+// ============================================
+
+let currentTab = 'recent';
+let currentFlowArticle = 0;
+
+// ============================================
+// INITIALIZATION
+// ============================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    initAIHero();
+    initScoreCards();
+    initArticlesList();
+    initFlowAnalysis();
+    initTrendsChart();
+    initModal();
+    initDateSelector();
+});
+
+// ============================================
+// AI HERO
+// ============================================
+
+function initAIHero() {
+    const insightText = document.getElementById('ai-insight-text');
+    const randomInsight = aiInsights[Math.floor(Math.random() * aiInsights.length)];
+    typeWriter(insightText, randomInsight, 30);
+}
+
+function typeWriter(element, text, speed) {
+    let i = 0;
+    element.textContent = '';
+    function type() {
+        if (i < text.length) {
+            element.textContent += text.charAt(i);
+            i++;
+            setTimeout(type, speed);
+        }
+    }
+    setTimeout(type, 500);
+}
+
+// ============================================
+// SCORE CARDS
+// ============================================
+
+function initScoreCards() {
+    setTimeout(() => {
+        animateScoreRing();
+        animateStrainBar();
+        animateReachNumber();
+        animateReachChart();
+    }, 300);
+}
+
+function animateScoreRing() {
+    const ring = document.getElementById('score-ring');
+    const number = document.getElementById('score-number');
+    const targetValue = weeklyStats.avgCompletion;
+    const circumference = 326.73;
+    const offset = circumference - (targetValue / 100) * circumference;
+    ring.style.strokeDashoffset = offset;
+    animateNumber(number, 0, targetValue, 1500);
+}
+
+function animateStrainBar() {
+    const bar = document.getElementById('strain-bar');
+    const articlesEl = document.getElementById('articles-count');
+    const wordsEl = document.getElementById('words-count');
+    const avgTimeEl = document.getElementById('avg-time');
+    const productivity = (weeklyStats.articlesPublished / 10) * 100;
+    bar.style.width = `${Math.min(productivity * 1.5, 100)}%`;
+    animateNumber(articlesEl, 0, weeklyStats.articlesPublished, 1000);
+    animateNumber(wordsEl, 0, Math.round(weeklyStats.totalWords / 1000), 1000, 'k');
+    animateNumber(avgTimeEl, 0, weeklyStats.avgReadTime, 1000, '', 1);
+}
+
+function animateReachNumber() {
+    const reachEl = document.getElementById('reach-number');
+    animateNumber(reachEl, 0, weeklyStats.totalViews, 2000, '', 0, true);
+}
+
+function animateReachChart() {
+    const container = document.getElementById('reach-chart');
+    const maxViews = Math.max(...trendsData.views);
+    trendsData.views.forEach((views, index) => {
+        const bar = document.createElement('div');
+        bar.className = 'reach-bar';
+        bar.style.height = '0px';
+        container.appendChild(bar);
+        setTimeout(() => {
+            bar.style.height = `${(views / maxViews) * 60}px`;
+        }, index * 100);
+    });
+}
+
+function animateNumber(element, start, end, duration, suffix = '', decimals = 0, format = false) {
+    const startTime = performance.now();
+    function update(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const easeOut = 1 - Math.pow(1 - progress, 3);
+        const current = start + (end - start) * easeOut;
+        let displayValue = decimals > 0 ? current.toFixed(decimals) : Math.round(current);
+        if (format && displayValue >= 1000) {
+            displayValue = new Intl.NumberFormat('nl-NL').format(Math.round(displayValue));
+        }
+        element.textContent = displayValue + suffix;
+        if (progress < 1) {
+            requestAnimationFrame(update);
+        }
+    }
+    requestAnimationFrame(update);
+}
+
+// ============================================
+// ARTICLES LIST
+// ============================================
+
+function initArticlesList() {
+    renderArticles(getArticlesByTab(currentTab));
+    initTabSwitching();
+}
+
+function getArticlesByTab(tab) {
+    const articles = [...articlesData];
+    switch (tab) {
+        case 'popular':
+            return articles.sort((a, b) => b.views - a.views);
+        case 'engagement':
+            return articles.sort((a, b) => b.completionRate - a.completionRate);
+        default:
+            return articles.sort((a, b) => new Date(b.publishDate) - new Date(a.publishDate));
+    }
+}
+
+function renderArticles(articles) {
+    const container = document.getElementById('articles-list');
+    container.innerHTML = '';
+    articles.forEach((article, index) => {
+        const item = document.createElement('div');
+        item.className = 'article-item';
+        item.style.animationDelay = `${index * 0.1}s`;
+        item.onclick = () => openArticleModal(article);
+        const trendClass = article.trend >= 0 ? 'up' : 'down';
+        const trendIcon = article.trend >= 0 ? '↑' : '↓';
+        item.innerHTML = `
+            <div class="article-info">
+                <div class="article-title">${article.title}</div>
+                <div class="article-meta">
+                    <span>${formatDate(article.publishDate)}</span>
+                    <span>${article.category}</span>
+                    <span>${article.readTime} min leestijd</span>
+                </div>
+            </div>
+            <div class="article-stat">
+                <span class="stat-value cyan">${formatNumber(article.views)}</span>
+                <span class="stat-label">Views</span>
+            </div>
+            <div class="article-stat">
+                <span class="stat-value green">${article.completionRate}%</span>
+                <span class="stat-label">Uitgelezen</span>
+            </div>
+            <div class="article-stat">
+                <span class="stat-value purple">${article.avgReadTime}m</span>
+                <span class="stat-label">Gem. tijd</span>
+            </div>
+            <div class="article-trend ${trendClass}">
+                ${trendIcon} ${Math.abs(article.trend)}%
+            </div>
+        `;
+        container.appendChild(item);
+    });
+}
+
+function initTabSwitching() {
+    const tabs = document.querySelectorAll('.tab-btn');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            currentTab = tab.dataset.tab;
+            renderArticles(getArticlesByTab(currentTab));
+        });
+    });
+}
+
+// ============================================
+// FLOW ANALYSIS
+// ============================================
+
+function initFlowAnalysis() {
+    const select = document.getElementById('flow-article-select');
+    select.innerHTML = articlesData.slice(0, 3).map((article, index) =>
+        `<option value="${index}">${article.title}</option>`
+    ).join('');
+    select.addEventListener('change', (e) => {
+        currentFlowArticle = parseInt(e.target.value);
+        updateFlowVisualization();
+    });
+    updateFlowVisualization();
+}
+
+function updateFlowVisualization() {
+    const article = articlesData[currentFlowArticle];
+    const flowBar = document.getElementById('flow-bar');
+    const flowMarkers = document.getElementById('flow-markers');
+    const insightText = document.getElementById('flow-insight-text');
+    const totalWords = article.sections.reduce((sum, s) => sum + s.words, 0);
+    flowBar.innerHTML = article.sections.map((section, index) => {
+        const width = (section.words / totalWords) * 100;
+        const opacity = section.readRate / 100;
+        const colors = ['#00F0FF', '#00D4AA', '#3A86FF', '#9D4EDD', '#7B2CBF'];
+        return `
+            <div class="flow-segment" style="
+                width: ${width}%;
+                background: ${colors[index % colors.length]};
+                opacity: ${0.4 + opacity * 0.6};
+            ">
+                <span class="segment-label">${section.name}</span>
+            </div>
+        `;
+    }).join('');
+    flowMarkers.innerHTML = `
+        <span class="flow-marker">0%</span>
+        <span class="flow-marker">25%</span>
+        <span class="flow-marker">50%</span>
+        <span class="flow-marker">75%</span>
+        <span class="flow-marker">100%</span>
+    `;
+    insightText.innerHTML = `<strong>AI Tip:</strong> ${flowInsights[currentFlowArticle % flowInsights.length]}`;
+    updateFlowRings(article);
+}
+
+function updateFlowRings(article) {
+    const sections = article.sections;
+    const introRate = sections[0]?.readRate || 0;
+    const middleRate = sections[Math.floor(sections.length / 2)]?.readRate || 0;
+    const endRate = sections[sections.length - 1]?.readRate || 0;
+    const valueElements = document.querySelectorAll('.flow-stat-value');
+    if (valueElements.length >= 3) {
+        valueElements[0].textContent = `${introRate}%`;
+        valueElements[1].textContent = `${middleRate}%`;
+        valueElements[2].textContent = `${endRate}%`;
+    }
+}
+
+// ============================================
+// TRENDS CHART
+// ============================================
+
+function initTrendsChart() {
+    const canvas = document.getElementById('trends-canvas');
+    const ctx = canvas.getContext('2d');
+    const labelsContainer = document.getElementById('trends-labels');
+    const container = canvas.parentElement;
+    canvas.width = container.offsetWidth * 2;
+    canvas.height = 400;
+    ctx.scale(2, 2);
+    const width = container.offsetWidth;
+    const height = 200;
+    const padding = { top: 20, right: 20, bottom: 20, left: 40 };
+    labelsContainer.innerHTML = trendsData.labels.map(label =>
+        `<span class="trend-label">${label}</span>`
+    ).join('');
+    animateTrendsChart(ctx, width, height, padding);
+}
+
+function animateTrendsChart(ctx, width, height, padding) {
+    const chartWidth = width - padding.left - padding.right;
+    const chartHeight = height - padding.top - padding.bottom;
+    const maxViews = Math.max(...trendsData.views) * 1.1;
+    const pointsViews = trendsData.views.map((v, i) => ({
+        x: padding.left + (i / (trendsData.views.length - 1)) * chartWidth,
+        y: padding.top + chartHeight - (v / maxViews) * chartHeight
+    }));
+    const pointsCompletion = trendsData.completion.map((c, i) => ({
+        x: padding.left + (i / (trendsData.completion.length - 1)) * chartWidth,
+        y: padding.top + chartHeight - (c / 100) * chartHeight
+    }));
+    let progress = 0;
+    const duration = 1500;
+    const startTime = performance.now();
+    function draw(currentTime) {
+        const elapsed = currentTime - startTime;
+        progress = Math.min(elapsed / duration, 1);
+        const easeProgress = 1 - Math.pow(1 - progress, 3);
+        ctx.clearRect(0, 0, width, height);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 4; i++) {
+            const y = padding.top + (i / 4) * chartHeight;
+            ctx.beginPath();
+            ctx.moveTo(padding.left, y);
+            ctx.lineTo(width - padding.right, y);
+            ctx.stroke();
+        }
+        drawAnimatedLine(ctx, pointsViews, easeProgress, '#00F0FF', 'rgba(0, 240, 255, 0.1)');
+        drawAnimatedLine(ctx, pointsCompletion, easeProgress, '#9D4EDD', 'rgba(157, 78, 221, 0.1)');
+        if (progress === 1) {
+            drawPoints(ctx, pointsViews, '#00F0FF');
+            drawPoints(ctx, pointsCompletion, '#9D4EDD');
+        }
+        if (progress < 1) {
+            requestAnimationFrame(draw);
+        }
+    }
+    requestAnimationFrame(draw);
+}
+
+function drawAnimatedLine(ctx, points, progress, color, fillColor) {
+    const visiblePoints = Math.ceil(points.length * progress);
+    if (visiblePoints < 2) return;
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < visiblePoints; i++) {
+        const xc = (points[i - 1].x + points[i].x) / 2;
+        const yc = (points[i - 1].y + points[i].y) / 2;
+        ctx.quadraticCurveTo(points[i - 1].x, points[i - 1].y, xc, yc);
+    }
+    if (visiblePoints <= points.length) {
+        const lastIndex = visiblePoints - 1;
+        ctx.lineTo(points[lastIndex].x, points[lastIndex].y);
+    }
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+    if (progress === 1) {
+        ctx.lineTo(points[points.length - 1].x, 180);
+        ctx.lineTo(points[0].x, 180);
+        ctx.closePath();
+        ctx.fillStyle = fillColor;
+        ctx.fill();
+    }
+}
+
+function drawPoints(ctx, points, color) {
+    points.forEach(point => {
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, 5, 0, Math.PI * 2);
+        ctx.fillStyle = '#0a0a0f';
+        ctx.fill();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    });
+}
+
+// ============================================
+// MODAL
+// ============================================
+
+function initModal() {
+    const modal = document.getElementById('article-modal');
+    const closeBtn = document.getElementById('modal-close');
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeModal();
+    });
+}
+
+function openArticleModal(article) {
+    const modal = document.getElementById('article-modal');
+    const body = document.getElementById('modal-body');
+    const flowColors = ['#00F0FF', '#00D4AA', '#3A86FF', '#9D4EDD', '#7B2CBF'];
+    body.innerHTML = `
+        <div class="modal-header">
+            <h3 class="modal-title">${article.title}</h3>
+            <div class="modal-meta">
+                <span>${formatDate(article.publishDate)}</span>
+                <span>${article.category}</span>
+                <span>${article.readTime} min leestijd</span>
+            </div>
+        </div>
+        <div class="modal-stats">
+            <div class="modal-stat">
+                <div class="modal-stat-value" style="color: var(--accent-cyan)">
+                    ${formatNumber(article.views)}
+                </div>
+                <div class="modal-stat-label">Weergaven</div>
+            </div>
+            <div class="modal-stat">
+                <div class="modal-stat-value" style="color: var(--accent-green)">
+                    ${article.completionRate}%
+                </div>
+                <div class="modal-stat-label">Uitgelezen</div>
+            </div>
+            <div class="modal-stat">
+                <div class="modal-stat-value" style="color: var(--accent-purple)">
+                    ${article.avgReadTime}m
+                </div>
+                <div class="modal-stat-label">Gem. leestijd</div>
+            </div>
+            <div class="modal-stat">
+                <div class="modal-stat-value" style="color: ${article.trend >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}">
+                    ${article.trend >= 0 ? '+' : ''}${article.trend}%
+                </div>
+                <div class="modal-stat-label">Trend</div>
+            </div>
+        </div>
+        <div class="modal-section">
+            <h4>Leesflow per sectie</h4>
+            <div class="reading-flow-mini">
+                ${article.sections.map((section, i) => `
+                    <div class="flow-mini-segment" style="
+                        flex: ${section.words};
+                        background: ${flowColors[i % flowColors.length]};
+                        opacity: ${0.3 + (section.readRate / 100) * 0.7};
+                    " title="${section.name}: ${section.readRate}% gelezen"></div>
+                `).join('')}
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-muted);">
+                ${article.sections.map(s => `<span>${s.name}</span>`).join('')}
+            </div>
+        </div>
+        ${article.dropoffPoints.length > 0 ? `
+            <div class="modal-section">
+                <h4>Afhaakmomenten</h4>
+                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    ${article.dropoffPoints.map(point => `
+                        <div style="
+                            display: flex;
+                            align-items: center;
+                            gap: 1rem;
+                            padding: 0.75rem;
+                            background: rgba(255, 71, 87, 0.1);
+                            border-radius: var(--radius-sm);
+                            border-left: 3px solid var(--accent-red);
+                        ">
+                            <span style="font-weight: 600; color: var(--accent-red);">${point.position}%</span>
+                            <span style="color: var(--text-secondary); font-size: 0.9rem;">${point.reason}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        ` : `
+            <div class="modal-section">
+                <div style="
+                    padding: 1rem;
+                    background: rgba(0, 255, 148, 0.1);
+                    border-radius: var(--radius-md);
+                    border-left: 3px solid var(--accent-green);
+                    color: var(--text-secondary);
+                ">
+                    Uitstekend! Dit artikel heeft geen significante afhaakmomenten.
+                </div>
+            </div>
+        `}
+    `;
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+    const modal = document.getElementById('article-modal');
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+// ============================================
+// DATE SELECTOR
+// ============================================
+
+function initDateSelector() {
+    const buttons = document.querySelectorAll('.date-btn');
+    buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            buttons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        });
+    });
+}
+
+// ============================================
+// UTILITIES
+// ============================================
+
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    const options = { day: 'numeric', month: 'short' };
+    return date.toLocaleDateString('nl-NL', options);
+}
+
+function formatNumber(num) {
+    if (num >= 1000) {
+        return (num / 1000).toFixed(1).replace('.', ',') + 'k';
+    }
+    return num.toString();
+}
+
+// Resize handler
+let resizeTimeout;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+        initTrendsChart();
+    }, 250);
+});
+    </script>
+</body>
+</html>
