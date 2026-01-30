@@ -1,6 +1,14 @@
 [
   {
-    "name": "example",
-    "url": "https://example.com"
+    "name": "hln",
+    "url": "https://www.hln.be"
+  },
+  {
+    "name": "ad",
+    "url": "https://www.ad.nl"
+  },
+  {
+    "name": "vk",
+    "url": "https://www.volkskrant.nl"
   }
 ]
