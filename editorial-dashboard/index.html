@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editorial Dashboard | de Volkskrant</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <div class="logo">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                    </svg>
+                    <span>Editorial Dashboard</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="date-selector">
+                    <button class="date-btn active" data-range="week">Week</button>
+                    <button class="date-btn" data-range="month">Maand</button>
+                    <button class="date-btn" data-range="quarter">Kwartaal</button>
+                </div>
+                <div class="profile">
+                    <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face" alt="Profiel" class="avatar">
+                    <div class="profile-info">
+                        <span class="profile-name">Thomas van der Berg</span>
+                        <span class="profile-role">Hoofdredacteur Economie</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- AI Insight Hero -->
+            <section class="ai-hero">
+                <div class="ai-hero-glow"></div>
+                <div class="ai-badge">
+                    <div class="ai-pulse"></div>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2z"/>
+                        <circle cx="7.5" cy="14.5" r="1.5"/>
+                        <circle cx="16.5" cy="14.5" r="1.5"/>
+                    </svg>
+                    <span>AI Insight</span>
+                </div>
+                <h1 class="ai-title">
+                    <span class="greeting">Goedemorgen Thomas,</span>
+                    <span class="insight-text" id="ai-insight-text"></span>
+                </h1>
+                <div class="ai-summary">
+                    <div class="summary-item positive">
+                        <span class="summary-icon">↑</span>
+                        <span class="summary-value">+34%</span>
+                        <span class="summary-label">meer lezers dan vorige week</span>
+                    </div>
+                    <div class="summary-divider"></div>
+                    <div class="summary-item">
+                        <span class="summary-icon">◎</span>
+                        <span class="summary-value">73%</span>
+                        <span class="summary-label">gemiddeld uitgelezen</span>
+                    </div>
+                    <div class="summary-divider"></div>
+                    <div class="summary-item highlight">
+                        <span class="summary-icon">★</span>
+                        <span class="summary-value">1 artikel</span>
+                        <span class="summary-label">in top 10 van vandaag</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Stats Grid -->
+            <section class="stats-grid">
+                <!-- Recovery Score Style Card -->
+                <div class="stat-card score-card">
+                    <div class="card-header">
+                        <h3>Lezersprestatie</h3>
+                        <span class="card-badge green">Uitstekend</span>
+                    </div>
+                    <div class="score-ring-container">
+                        <svg class="score-ring" viewBox="0 0 120 120">
+                            <circle class="ring-bg" cx="60" cy="60" r="52"/>
+                            <circle class="ring-progress" cx="60" cy="60" r="52" id="score-ring"/>
+                        </svg>
+                        <div class="score-value">
+                            <span class="score-number" id="score-number">0</span>
+                            <span class="score-unit">%</span>
+                        </div>
+                    </div>
+                    <p class="score-description">Je artikelen worden bovengemiddeld uitgelezen. Blijf zo doorgaan!</p>
+                </div>
+
+                <!-- Strain Score Style Card -->
+                <div class="stat-card strain-card">
+                    <div class="card-header">
+                        <h3>Productiviteit</h3>
+                        <span class="card-badge blue">Actief</span>
+                    </div>
+                    <div class="strain-visual">
+                        <div class="strain-bar-container">
+                            <div class="strain-bar" id="strain-bar"></div>
+                        </div>
+                        <div class="strain-stats">
+                            <div class="strain-stat">
+                                <span class="strain-value" id="articles-count">0</span>
+                                <span class="strain-label">Artikelen</span>
+                            </div>
+                            <div class="strain-stat">
+                                <span class="strain-value" id="words-count">0</span>
+                                <span class="strain-label">Woorden</span>
+                            </div>
+                            <div class="strain-stat">
+                                <span class="strain-value" id="avg-time">0</span>
+                                <span class="strain-label">Min gem. leestijd</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sleep Score Style Card -->
+                <div class="stat-card sleep-card">
+                    <div class="card-header">
+                        <h3>Bereik</h3>
+                        <span class="card-badge purple">Groeiend</span>
+                    </div>
+                    <div class="reach-visual">
+                        <div class="reach-number" id="reach-number">0</div>
+                        <div class="reach-label">unieke lezers deze week</div>
+                        <div class="reach-chart" id="reach-chart"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Detailed Analytics -->
+            <section class="analytics-section">
+                <div class="section-header">
+                    <h2>Jouw Artikelen</h2>
+                    <div class="section-tabs">
+                        <button class="tab-btn active" data-tab="recent">Recent</button>
+                        <button class="tab-btn" data-tab="popular">Meest Gelezen</button>
+                        <button class="tab-btn" data-tab="engagement">Beste Engagement</button>
+                    </div>
+                </div>
+
+                <div class="articles-list" id="articles-list">
+                    <!-- Articles will be injected by JS -->
+                </div>
+            </section>
+
+            <!-- Reading Flow Analysis -->
+            <section class="flow-section">
+                <div class="section-header">
+                    <h2>Leesgedrag Analyse</h2>
+                    <div class="info-tooltip">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 16v-4M12 8h.01"/>
+                        </svg>
+                        <span class="tooltip-text">Waar haken lezers af in je artikelen?</span>
+                    </div>
+                </div>
+
+                <div class="flow-container">
+                    <div class="flow-article-select">
+                        <select id="flow-article-select">
+                            <option value="0">De onzichtbare hand achter de huizenmarkt</option>
+                            <option value="1">Waarom de rente blijft stijgen</option>
+                            <option value="2">Interview: CEO van ING over de toekomst</option>
+                        </select>
+                    </div>
+
+                    <div class="flow-visualization">
+                        <div class="flow-bar-container">
+                            <div class="flow-bar" id="flow-bar">
+                                <div class="flow-segment" style="width: 100%; background: linear-gradient(90deg, #00F0FF, #00D4AA);">
+                                    <span class="segment-label">Intro</span>
+                                </div>
+                            </div>
+                            <div class="flow-markers" id="flow-markers"></div>
+                        </div>
+
+                        <div class="flow-stats">
+                            <div class="flow-stat">
+                                <div class="flow-stat-ring">
+                                    <svg viewBox="0 0 60 60">
+                                        <circle class="ring-bg-small" cx="30" cy="30" r="26"/>
+                                        <circle class="ring-progress-small intro" cx="30" cy="30" r="26"/>
+                                    </svg>
+                                    <span class="flow-stat-value">98%</span>
+                                </div>
+                                <span class="flow-stat-label">Intro gelezen</span>
+                            </div>
+                            <div class="flow-stat">
+                                <div class="flow-stat-ring">
+                                    <svg viewBox="0 0 60 60">
+                                        <circle class="ring-bg-small" cx="30" cy="30" r="26"/>
+                                        <circle class="ring-progress-small middle" cx="30" cy="30" r="26"/>
+                                    </svg>
+                                    <span class="flow-stat-value">76%</span>
+                                </div>
+                                <span class="flow-stat-label">Middenstuk</span>
+                            </div>
+                            <div class="flow-stat">
+                                <div class="flow-stat-ring">
+                                    <svg viewBox="0 0 60 60">
+                                        <circle class="ring-bg-small" cx="30" cy="30" r="26"/>
+                                        <circle class="ring-progress-small end" cx="30" cy="30" r="26"/>
+                                    </svg>
+                                    <span class="flow-stat-value">68%</span>
+                                </div>
+                                <span class="flow-stat-label">Einde bereikt</span>
+                            </div>
+                        </div>
+
+                        <div class="flow-insight">
+                            <div class="insight-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2z"/>
+                                </svg>
+                            </div>
+                            <p id="flow-insight-text">
+                                <strong>AI Tip:</strong> Je langere paragrafen (>200 woorden) zorgen voor 23% meer afhakers.
+                                Probeer meer tussenkopjes te gebruiken om de leesbaarheid te verbeteren.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Trends Section -->
+            <section class="trends-section">
+                <div class="section-header">
+                    <h2>Prestaties over tijd</h2>
+                </div>
+
+                <div class="trends-chart-container">
+                    <div class="trends-legend">
+                        <div class="legend-item">
+                            <span class="legend-dot views"></span>
+                            <span>Weergaven</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-dot completion"></span>
+                            <span>Uitgelezen %</span>
+                        </div>
+                    </div>
+                    <div class="trends-chart" id="trends-chart">
+                        <canvas id="trends-canvas"></canvas>
+                    </div>
+                    <div class="trends-labels" id="trends-labels"></div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Article Detail Modal -->
+        <div class="modal-overlay" id="article-modal">
+            <div class="modal-content">
+                <button class="modal-close" id="modal-close">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+                <div class="modal-body" id="modal-body">
+                    <!-- Content injected by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
