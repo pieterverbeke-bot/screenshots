@@ -848,6 +848,259 @@
             line-height: 1.5;
             color: var(--text-secondary);
         }
+
+        /* Clickable Articles */
+        .featured-article,
+        .article-item {
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .featured-article:hover,
+        .article-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        .featured-article:active,
+        .article-item:active {
+            transform: translateY(0);
+        }
+
+        /* Article Detail Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .modal-content {
+            background: var(--bg-secondary);
+            border-radius: 20px;
+            width: 100%;
+            max-width: 480px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            background: var(--bg-secondary);
+            z-index: 1;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: 32px;
+            height: 32px;
+            background: var(--bg-card);
+            border: none;
+            border-radius: 50%;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .modal-close:hover {
+            background: var(--bg-card-hover);
+            color: var(--text-primary);
+        }
+
+        .modal-category {
+            display: inline-block;
+            background: var(--accent-primary);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            line-height: 1.4;
+            padding-right: 40px;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .modal-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .modal-stat {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .modal-stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .modal-stat-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .modal-section {
+            margin-bottom: 20px;
+        }
+
+        .modal-section-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        /* Gender Distribution */
+        .gender-bar {
+            display: flex;
+            height: 24px;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .gender-male {
+            background: var(--accent-blue);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .gender-female {
+            background: var(--accent-purple);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .gender-legend {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* Age Distribution */
+        .age-bars {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .age-bar-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .age-label {
+            width: 60px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .age-bar-container {
+            flex: 1;
+            height: 20px;
+            background: var(--bg-card);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .age-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 8px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        /* Read Progress */
+        .read-progress {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .read-progress-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .read-progress-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .read-progress-value {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--accent-green);
+        }
+
+        .read-progress-bar {
+            height: 8px;
+            background: var(--bg-primary);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .read-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-green), #69db7c);
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
@@ -1036,7 +1289,7 @@
                         <div class="live-title">Nu op HLN</div>
                         <div class="live-badge">LIVE</div>
                     </div>
-                    <div class="live-number" id="live-users">18.432</div>
+                    <div class="live-number" id="live-users">51.234</div>
                     <div class="live-label">actieve lezers op dit moment</div>
                     <div class="live-breakdown">
                         <div class="breakdown-item">
@@ -1060,7 +1313,7 @@
                     <span class="section-badge">Live ranking</span>
                 </div>
 
-                <div class="featured-article">
+                <div class="featured-article" onclick="openModal('anderlecht')">
                     <div class="featured-article-image">
                         <div class="featured-category">Nieuws</div>
                         <div class="featured-rank gold">1</div>
@@ -1088,7 +1341,7 @@
                 </div>
 
                 <div class="articles-list">
-                    <div class="article-item">
+                    <div class="article-item" onclick="openModal('epstein')">
                         <div class="article-rank">2</div>
                         <div class="article-content">
                             <div class="article-category">Nieuws</div>
@@ -1099,7 +1352,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="article-item">
+                    <div class="article-item" onclick="openModal('nestle')">
                         <div class="article-rank">3</div>
                         <div class="article-content">
                             <div class="article-category">Nieuws</div>
@@ -1110,7 +1363,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="article-item">
+                    <div class="article-item" onclick="openModal('vogelgriep')">
                         <div class="article-rank">4</div>
                         <div class="article-content">
                             <div class="article-category">Regio West-Vlaanderen</div>
@@ -1121,7 +1374,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="article-item">
+                    <div class="article-item" onclick="openModal('begroting')">
                         <div class="article-rank">5</div>
                         <div class="article-content">
                             <div class="article-category">Nieuws</div>
@@ -1260,7 +1513,7 @@
                     <h2 class="section-title">Top Artikels Gisteren</h2>
                 </div>
 
-                <div class="featured-article">
+                <div class="featured-article" onclick="openModal('tiener-zee')">
                     <div class="featured-article-image">
                         <div class="featured-category">Binnenland</div>
                         <div class="featured-rank gold">1</div>
@@ -1281,7 +1534,7 @@
                 </div>
 
                 <div class="articles-list">
-                    <div class="article-item">
+                    <div class="article-item" onclick="openModal('club-brugge')">
                         <div class="article-rank">2</div>
                         <div class="article-content">
                             <div class="article-category">Sport</div>
@@ -1292,11 +1545,11 @@
                             </div>
                         </div>
                     </div>
-                    <div class="article-item">
+                    <div class="article-item" onclick="openModal('netflix')">
                         <div class="article-rank">3</div>
                         <div class="article-content">
                             <div class="article-category">Showbizz</div>
-                            <div class="article-title">Netlix-hit 'De Kraak' breekt Belgisch record: 2 miljoen kijkers in eerste week</div>
+                            <div class="article-title">Netflix-hit 'De Kraak' breekt Belgisch record: 2 miljoen kijkers in eerste week</div>
                             <div class="article-meta">
                                 <span>👁 234.890</span>
                                 <span>💬 567</span>
@@ -1704,7 +1957,253 @@
         </nav>
     </div>
 
+    <!-- Article Detail Modal -->
+    <div class="modal-overlay" id="article-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button class="modal-close" onclick="closeModal()">
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                </button>
+                <div class="modal-category" id="modal-category">Nieuws</div>
+                <div class="modal-title" id="modal-title">Artikel titel</div>
+            </div>
+            <div class="modal-body">
+                <div class="modal-stats-grid">
+                    <div class="modal-stat">
+                        <div class="modal-stat-value" id="modal-views">523.450</div>
+                        <div class="modal-stat-label">Pageviews</div>
+                    </div>
+                    <div class="modal-stat">
+                        <div class="modal-stat-value" id="modal-readtime">3m 45s</div>
+                        <div class="modal-stat-label">Gem. Leestijd</div>
+                    </div>
+                    <div class="modal-stat">
+                        <div class="modal-stat-value" id="modal-comments">3.287</div>
+                        <div class="modal-stat-label">Reacties</div>
+                    </div>
+                    <div class="modal-stat">
+                        <div class="modal-stat-value" id="modal-shares">8.4K</div>
+                        <div class="modal-stat-label">Social Shares</div>
+                    </div>
+                </div>
+
+                <div class="modal-section">
+                    <div class="modal-section-title">Uitleespercentage</div>
+                    <div class="read-progress">
+                        <div class="read-progress-header">
+                            <span class="read-progress-label">Lezers die het artikel uitlazen</span>
+                            <span class="read-progress-value" id="modal-readpct">67%</span>
+                        </div>
+                        <div class="read-progress-bar">
+                            <div class="read-progress-fill" id="modal-readbar" style="width: 67%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-section">
+                    <div class="modal-section-title">Doelgroep Geslacht</div>
+                    <div class="gender-bar">
+                        <div class="gender-male" id="modal-male" style="width: 45%">45%</div>
+                        <div class="gender-female" id="modal-female" style="width: 55%">55%</div>
+                    </div>
+                    <div class="gender-legend">
+                        <span>👨 Mannen</span>
+                        <span>👩 Vrouwen</span>
+                    </div>
+                </div>
+
+                <div class="modal-section">
+                    <div class="modal-section-title">Leeftijdsverdeling</div>
+                    <div class="age-bars">
+                        <div class="age-bar-row">
+                            <span class="age-label">18-24</span>
+                            <div class="age-bar-container">
+                                <div class="age-bar-fill" id="modal-age1" style="width: 18%">18%</div>
+                            </div>
+                        </div>
+                        <div class="age-bar-row">
+                            <span class="age-label">25-34</span>
+                            <div class="age-bar-container">
+                                <div class="age-bar-fill" id="modal-age2" style="width: 28%">28%</div>
+                            </div>
+                        </div>
+                        <div class="age-bar-row">
+                            <span class="age-label">35-44</span>
+                            <div class="age-bar-container">
+                                <div class="age-bar-fill" id="modal-age3" style="width: 24%">24%</div>
+                            </div>
+                        </div>
+                        <div class="age-bar-row">
+                            <span class="age-label">45-54</span>
+                            <div class="age-bar-container">
+                                <div class="age-bar-fill" id="modal-age4" style="width: 18%">18%</div>
+                            </div>
+                        </div>
+                        <div class="age-bar-row">
+                            <span class="age-label">55+</span>
+                            <div class="age-bar-container">
+                                <div class="age-bar-fill" id="modal-age5" style="width: 12%">12%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // Article Data
+        const articleData = {
+            'anderlecht': {
+                category: 'Nieuws',
+                title: 'Jongen (14) geeft zichzelf aan nadat tiener (15) in brand werd gestoken in Anderlecht: "We moeten jongeren van straat halen"',
+                views: '523.450',
+                readtime: '3m 45s',
+                comments: '3.287',
+                shares: '12.4K',
+                readpct: 72,
+                male: 48,
+                female: 52,
+                ages: [22, 26, 21, 18, 13]
+            },
+            'epstein': {
+                category: 'Nieuws',
+                title: 'Bill en Hillary Clinton zullen toch getuigen in Epstein-onderzoek, prins Laurent ontmoette zedendelinquent "2 keer"',
+                views: '387.230',
+                readtime: '5m 12s',
+                comments: '2.156',
+                shares: '18.7K',
+                readpct: 64,
+                male: 52,
+                female: 48,
+                ages: [15, 24, 28, 20, 13]
+            },
+            'nestle': {
+                category: 'Nieuws',
+                title: 'Baby besmet door Nestlé-babyvoeding in Vlaanderen is "waarschijnlijk onderschat": dokters hoeven niet te testen',
+                views: '298.670',
+                readtime: '4m 20s',
+                comments: '1.432',
+                shares: '6.2K',
+                readpct: 78,
+                male: 35,
+                female: 65,
+                ages: [12, 38, 32, 12, 6]
+            },
+            'vogelgriep': {
+                category: 'Regio West-Vlaanderen',
+                title: 'Vogelgriep H5 vastgesteld op pluimveebedrijf in Alveringem: alle dieren worden geruimd',
+                views: '187.450',
+                readtime: '2m 55s',
+                comments: '567',
+                shares: '2.1K',
+                readpct: 81,
+                male: 58,
+                female: 42,
+                ages: [8, 18, 26, 28, 20]
+            },
+            'begroting': {
+                category: 'Nieuws',
+                title: 'Federale begroting ontspoort: regering-De Wever haalt eigen doelstellingen niet, nieuwe cijfers tonen aan',
+                views: '156.890',
+                readtime: '6m 30s',
+                comments: '1.876',
+                shares: '4.8K',
+                readpct: 58,
+                male: 62,
+                female: 38,
+                ages: [10, 22, 28, 24, 16]
+            },
+            'tiener-zee': {
+                category: 'Nieuws',
+                title: 'Tiener (13) zwemt vier uur door woeste zee en redt zo zijn hele gezin van verdrinking',
+                views: '398.120',
+                readtime: '4m 15s',
+                comments: '1.876',
+                shares: '24.5K',
+                readpct: 85,
+                male: 45,
+                female: 55,
+                ages: [18, 28, 26, 16, 12]
+            },
+            'club-brugge': {
+                category: 'Sport',
+                title: 'Club Brugge wint topper tegen Anderlecht: 2-1 na felbevochten duel',
+                views: '287.650',
+                readtime: '3m 50s',
+                comments: '1.432',
+                shares: '5.6K',
+                readpct: 71,
+                male: 72,
+                female: 28,
+                ages: [24, 32, 22, 14, 8]
+            },
+            'netflix': {
+                category: 'Showbizz',
+                title: 'Netflix-hit "De Kraak" breekt Belgisch record: 2 miljoen kijkers in eerste week',
+                views: '234.890',
+                readtime: '3m 10s',
+                comments: '567',
+                shares: '8.9K',
+                readpct: 68,
+                male: 42,
+                female: 58,
+                ages: [28, 34, 20, 12, 6]
+            }
+        };
+
+        function openModal(articleId) {
+            const data = articleData[articleId];
+            if (!data) return;
+
+            document.getElementById('modal-category').textContent = data.category;
+            document.getElementById('modal-title').textContent = data.title;
+            document.getElementById('modal-views').textContent = data.views;
+            document.getElementById('modal-readtime').textContent = data.readtime;
+            document.getElementById('modal-comments').textContent = data.comments;
+            document.getElementById('modal-shares').textContent = data.shares;
+            document.getElementById('modal-readpct').textContent = data.readpct + '%';
+            document.getElementById('modal-readbar').style.width = data.readpct + '%';
+
+            document.getElementById('modal-male').style.width = data.male + '%';
+            document.getElementById('modal-male').textContent = data.male + '%';
+            document.getElementById('modal-female').style.width = data.female + '%';
+            document.getElementById('modal-female').textContent = data.female + '%';
+
+            document.getElementById('modal-age1').style.width = data.ages[0] + '%';
+            document.getElementById('modal-age1').textContent = data.ages[0] + '%';
+            document.getElementById('modal-age2').style.width = data.ages[1] + '%';
+            document.getElementById('modal-age2').textContent = data.ages[1] + '%';
+            document.getElementById('modal-age3').style.width = data.ages[2] + '%';
+            document.getElementById('modal-age3').textContent = data.ages[2] + '%';
+            document.getElementById('modal-age4').style.width = data.ages[3] + '%';
+            document.getElementById('modal-age4').textContent = data.ages[3] + '%';
+            document.getElementById('modal-age5').style.width = data.ages[4] + '%';
+            document.getElementById('modal-age5').textContent = data.ages[4] + '%';
+
+            document.getElementById('article-modal').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            document.getElementById('article-modal').classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        // Close modal on overlay click
+        document.getElementById('article-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'article-modal') {
+                closeModal();
+            }
+        });
+
+        // Close modal on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+
         // Navigation - both mobile and desktop
         function setupNavigation() {
             document.querySelectorAll('.nav-item, .mobile-nav-item').forEach(item => {
@@ -1744,8 +2243,8 @@
         function updateLiveUsers() {
             const liveNumber = document.getElementById('live-users');
             if (liveNumber) {
-                const base = 18000;
-                const variation = Math.floor(Math.random() * 1000) - 500;
+                const base = 50000;
+                const variation = Math.floor(Math.random() * 3000) - 1500;
                 liveNumber.textContent = (base + variation).toLocaleString('nl-BE');
             }
         }
