@@ -1,0 +1,1334 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HLN Dashboard - Virtuele Assistent</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0d0d0d;
+            --bg-secondary: #1a1a1a;
+            --bg-card: #242424;
+            --bg-card-hover: #2a2a2a;
+            --accent-primary: #e63946;
+            --accent-secondary: #ff6b6b;
+            --accent-green: #00d26a;
+            --accent-yellow: #ffc107;
+            --accent-blue: #4dabf7;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --text-muted: #666666;
+            --border-color: #333333;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar Navigation */
+        .sidebar {
+            width: 280px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 40px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .logo-text {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .logo-subtitle {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .nav-section {
+            margin-bottom: 32px;
+        }
+
+        .nav-section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-bottom: 4px;
+            color: var(--text-secondary);
+        }
+
+        .nav-item:hover {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .nav-icon {
+            width: 20px;
+            height: 20px;
+            opacity: 0.8;
+        }
+
+        .user-profile {
+            margin-top: auto;
+            padding: 20px;
+            background: var(--bg-card);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-avatar {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .user-info {
+            flex: 1;
+        }
+
+        .user-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .user-role {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            padding: 32px 40px;
+            max-width: calc(100vw - 280px);
+        }
+
+        .page-header {
+            margin-bottom: 32px;
+        }
+
+        .greeting {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .greeting-subtitle {
+            font-size: 16px;
+            color: var(--text-secondary);
+        }
+
+        .date-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg-card);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 16px;
+        }
+
+        .live-indicator {
+            width: 8px;
+            height: 8px;
+            background: var(--accent-green);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: 20px;
+            padding: 28px;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+        }
+
+        .stat-card.users::before {
+            background: linear-gradient(90deg, var(--accent-blue), #74c0fc);
+        }
+
+        .stat-card.pageviews::before {
+            background: linear-gradient(90deg, var(--accent-green), #69db7c);
+        }
+
+        .stat-card.articles::before {
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        .stat-card.users .stat-icon {
+            background: rgba(77, 171, 247, 0.15);
+        }
+
+        .stat-card.pageviews .stat-icon {
+            background: rgba(0, 210, 106, 0.15);
+        }
+
+        .stat-card.articles .stat-icon {
+            background: rgba(230, 57, 70, 0.15);
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .stat-change {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .stat-change.positive {
+            color: var(--accent-green);
+        }
+
+        .stat-change.negative {
+            color: var(--accent-primary);
+        }
+
+        /* Charts Section */
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section-badge {
+            background: var(--bg-card);
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr;
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .chart-card {
+            background: var(--bg-card);
+            border-radius: 20px;
+            padding: 28px;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .chart-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .chart-period {
+            display: flex;
+            gap: 8px;
+        }
+
+        .period-btn {
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 12px;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .period-btn.active {
+            background: var(--text-primary);
+            color: var(--bg-primary);
+            border-color: var(--text-primary);
+        }
+
+        /* Mini Chart */
+        .mini-chart {
+            height: 180px;
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+            padding: 20px 0;
+        }
+
+        .chart-bar {
+            flex: 1;
+            background: linear-gradient(180deg, var(--accent-primary), rgba(230, 57, 70, 0.3));
+            border-radius: 6px 6px 0 0;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .chart-bar:hover {
+            background: linear-gradient(180deg, var(--accent-secondary), rgba(255, 107, 107, 0.5));
+        }
+
+        .chart-bar::after {
+            content: attr(data-label);
+            position: absolute;
+            bottom: -24px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        /* Top Articles */
+        .articles-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .article-item {
+            display: flex;
+            gap: 16px;
+            padding: 16px;
+            background: var(--bg-card-hover);
+            border-radius: 14px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .article-item:hover {
+            background: #333;
+            transform: translateX(4px);
+        }
+
+        .article-rank {
+            width: 32px;
+            height: 32px;
+            background: var(--bg-primary);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            color: var(--accent-primary);
+        }
+
+        .article-rank.gold {
+            background: linear-gradient(135deg, #ffd700, #ffaa00);
+            color: var(--bg-primary);
+        }
+
+        .article-content {
+            flex: 1;
+        }
+
+        .article-title {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 6px;
+            line-height: 1.4;
+        }
+
+        .article-meta {
+            display: flex;
+            gap: 16px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .article-stat {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Real-time Activity */
+        .activity-card {
+            background: var(--bg-card);
+            border-radius: 20px;
+            padding: 28px;
+        }
+
+        .activity-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .activity-title {
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .realtime-badge {
+            background: var(--accent-green);
+            color: var(--bg-primary);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            animation: pulse 2s infinite;
+        }
+
+        .activity-number {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .activity-label {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+
+        .activity-breakdown {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .breakdown-item {
+            background: var(--bg-primary);
+            padding: 16px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .breakdown-value {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .breakdown-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* AI Assistant Section */
+        .ai-section {
+            background: linear-gradient(135deg, var(--bg-card), #1e1e2e);
+            border-radius: 20px;
+            padding: 32px;
+            margin-top: 32px;
+            border: 1px solid var(--border-color);
+        }
+
+        .ai-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .ai-icon {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, var(--accent-primary), #9b2c2c);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+        }
+
+        .ai-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .ai-subtitle {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .ai-insights {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .insight-card {
+            background: var(--bg-primary);
+            padding: 20px;
+            border-radius: 14px;
+            border-left: 3px solid var(--accent-primary);
+        }
+
+        .insight-title {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--accent-secondary);
+        }
+
+        .insight-text {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* Hidden Pages */
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                display: none;
+            }
+            .main-content {
+                margin-left: 0;
+                padding: 20px;
+                max-width: 100vw;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <div class="logo-icon">HLN</div>
+                <div>
+                    <div class="logo-text">HLN Assistent</div>
+                    <div class="logo-subtitle">Redactie Dashboard</div>
+                </div>
+            </div>
+
+            <nav class="nav-section">
+                <div class="nav-section-title">Overzicht</div>
+                <div class="nav-item active" data-page="today">
+                    <svg class="nav-icon" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"/></svg>
+                    Vandaag
+                </div>
+                <div class="nav-item" data-page="yesterday">
+                    <svg class="nav-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/></svg>
+                    Gisteren
+                </div>
+                <div class="nav-item" data-page="week">
+                    <svg class="nav-icon" fill="currentColor" viewBox="0 0 20 20"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM14 11a1 1 0 011 1v1h1a1 1 0 110 2h-1v1a1 1 0 11-2 0v-1h-1a1 1 0 110-2h1v-1a1 1 0 011-1z"/></svg>
+                    Deze Week
+                </div>
+            </nav>
+
+            <nav class="nav-section">
+                <div class="nav-section-title">Analyse</div>
+                <div class="nav-item" data-page="content">
+                    <svg class="nav-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"/></svg>
+                    Content Prestaties
+                </div>
+                <div class="nav-item" data-page="audience">
+                    <svg class="nav-icon" fill="currentColor" viewBox="0 0 20 20"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/></svg>
+                    Publiek Inzichten
+                </div>
+            </nav>
+
+            <nav class="nav-section">
+                <div class="nav-section-title">Tools</div>
+                <div class="nav-item" data-page="alerts">
+                    <svg class="nav-icon" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/></svg>
+                    Alerts
+                </div>
+            </nav>
+
+            <div class="user-profile">
+                <div class="user-avatar">DV</div>
+                <div class="user-info">
+                    <div class="user-name">Dimitri</div>
+                    <div class="user-role">Hoofdredacteur</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Today Page -->
+            <div class="page active" id="page-today">
+                <header class="page-header">
+                    <h1 class="greeting">Welkom Dimitri</h1>
+                    <p class="greeting-subtitle">Hier zie je hoe het vandaag met HLN loopt</p>
+                    <div class="date-badge">
+                        <span class="live-indicator"></span>
+                        <span id="current-date">maandag 3 februari 2026</span>
+                        <span>•</span>
+                        <span id="current-time">14:32</span>
+                    </div>
+                </header>
+
+                <div class="stats-grid">
+                    <div class="stat-card users">
+                        <div class="stat-icon">👥</div>
+                        <div class="stat-label">Unieke Bezoekers</div>
+                        <div class="stat-value">2,5M</div>
+                        <div class="stat-change positive">
+                            <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg>
+                            +12,3% vs vorige week
+                        </div>
+                    </div>
+                    <div class="stat-card pageviews">
+                        <div class="stat-icon">📊</div>
+                        <div class="stat-label">Pageviews</div>
+                        <div class="stat-value">25M</div>
+                        <div class="stat-change positive">
+                            <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg>
+                            +8,7% vs vorige week
+                        </div>
+                    </div>
+                    <div class="stat-card articles">
+                        <div class="stat-icon">📰</div>
+                        <div class="stat-label">Gepubliceerde Artikels</div>
+                        <div class="stat-value">342</div>
+                        <div class="stat-change positive">
+                            <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg>
+                            +15 meer dan gisteren
+                        </div>
+                    </div>
+                </div>
+
+                <div class="content-grid">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title">Bezoekers per Uur</div>
+                            <div class="chart-period">
+                                <button class="period-btn active">Vandaag</button>
+                                <button class="period-btn">Gisteren</button>
+                            </div>
+                        </div>
+                        <div class="mini-chart">
+                            <div class="chart-bar" style="height: 25%" data-label="00u"></div>
+                            <div class="chart-bar" style="height: 15%" data-label="02u"></div>
+                            <div class="chart-bar" style="height: 10%" data-label="04u"></div>
+                            <div class="chart-bar" style="height: 20%" data-label="06u"></div>
+                            <div class="chart-bar" style="height: 55%" data-label="08u"></div>
+                            <div class="chart-bar" style="height: 75%" data-label="10u"></div>
+                            <div class="chart-bar" style="height: 85%" data-label="12u"></div>
+                            <div class="chart-bar" style="height: 100%" data-label="14u"></div>
+                            <div class="chart-bar" style="height: 70%" data-label="16u"></div>
+                            <div class="chart-bar" style="height: 60%" data-label="18u"></div>
+                            <div class="chart-bar" style="height: 45%" data-label="20u"></div>
+                            <div class="chart-bar" style="height: 30%" data-label="22u"></div>
+                        </div>
+                    </div>
+
+                    <div class="activity-card">
+                        <div class="activity-header">
+                            <div class="activity-title">
+                                Live Nu
+                                <span class="realtime-badge">LIVE</span>
+                            </div>
+                        </div>
+                        <div class="activity-number">18.432</div>
+                        <div class="activity-label">actieve lezers op dit moment</div>
+                        <div class="activity-breakdown">
+                            <div class="breakdown-item">
+                                <div class="breakdown-value">62%</div>
+                                <div class="breakdown-label">Mobiel</div>
+                            </div>
+                            <div class="breakdown-item">
+                                <div class="breakdown-value">31%</div>
+                                <div class="breakdown-label">Desktop</div>
+                            </div>
+                            <div class="breakdown-item">
+                                <div class="breakdown-value">7%</div>
+                                <div class="breakdown-label">Tablet</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <section>
+                    <h2 class="section-title">
+                        Top Artikels Vandaag
+                        <span class="section-badge">Top 5</span>
+                    </h2>
+                    <div class="articles-list">
+                        <div class="article-item">
+                            <div class="article-rank gold">1</div>
+                            <div class="article-content">
+                                <div class="article-title">Rode Duivels winnen met 3-1 van Frankrijk in Nations League</div>
+                                <div class="article-meta">
+                                    <span class="article-stat">👁 485.230 views</span>
+                                    <span class="article-stat">⏱ 4m 32s leestijd</span>
+                                    <span class="article-stat">💬 1.243 reacties</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="article-item">
+                            <div class="article-rank">2</div>
+                            <div class="article-content">
+                                <div class="article-title">Storm Pia nadert: KMI waarschuwt voor rukwinden tot 120 km/u</div>
+                                <div class="article-meta">
+                                    <span class="article-stat">👁 312.890 views</span>
+                                    <span class="article-stat">⏱ 3m 15s leestijd</span>
+                                    <span class="article-stat">💬 567 reacties</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="article-item">
+                            <div class="article-rank">3</div>
+                            <div class="article-content">
+                                <div class="article-title">Nieuwe regeringsmaatregelen: dit verandert er vanaf maart</div>
+                                <div class="article-meta">
+                                    <span class="article-stat">👁 245.120 views</span>
+                                    <span class="article-stat">⏱ 6m 20s leestijd</span>
+                                    <span class="article-stat">💬 892 reacties</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="article-item">
+                            <div class="article-rank">4</div>
+                            <div class="article-content">
+                                <div class="article-title">Exclusief: Bekende Vlaming stapt uit de kast in emotioneel interview</div>
+                                <div class="article-meta">
+                                    <span class="article-stat">👁 198.450 views</span>
+                                    <span class="article-stat">⏱ 8m 45s leestijd</span>
+                                    <span class="article-stat">💬 2.156 reacties</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="article-item">
+                            <div class="article-rank">5</div>
+                            <div class="article-content">
+                                <div class="article-title">Bitcoin bereikt nieuw record: experts voorspellen verdere stijging</div>
+                                <div class="article-meta">
+                                    <span class="article-stat">👁 156.780 views</span>
+                                    <span class="article-stat">⏱ 5m 10s leestijd</span>
+                                    <span class="article-stat">💬 734 reacties</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="ai-section">
+                    <div class="ai-header">
+                        <div class="ai-icon">🤖</div>
+                        <div>
+                            <div class="ai-title">AI Inzichten</div>
+                            <div class="ai-subtitle">Automatische analyse van vandaag</div>
+                        </div>
+                    </div>
+                    <div class="ai-insights">
+                        <div class="insight-card">
+                            <div class="insight-title">📈 Trending Topic</div>
+                            <div class="insight-text">Sport domineert vandaag met 34% meer engagement dan normaal. Overweeg meer Rode Duivels-gerelateerde content.</div>
+                        </div>
+                        <div class="insight-card">
+                            <div class="insight-title">⚡ Piekmoment</div>
+                            <div class="insight-text">Beste publicatiemoment vandaag was 12:15 met 23.000 gelijktijdige lezers.</div>
+                        </div>
+                        <div class="insight-card">
+                            <div class="insight-title">🎯 Aanbeveling</div>
+                            <div class="insight-text">Je weerartikel scoort goed. Overweeg een liveblog over storm Pia voor maximaal bereik.</div>
+                        </div>
+                        <div class="insight-card">
+                            <div class="insight-title">👥 Publiek</div>
+                            <div class="insight-text">18-34 jarigen zijn vandaag 15% actiever. Social media traffic is +22% gestegen.</div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Yesterday Page -->
+            <div class="page" id="page-yesterday">
+                <header class="page-header">
+                    <h1 class="greeting">Gisteren op HLN</h1>
+                    <p class="greeting-subtitle">Overzicht van zondag 2 februari 2026</p>
+                </header>
+
+                <div class="stats-grid">
+                    <div class="stat-card users">
+                        <div class="stat-icon">👥</div>
+                        <div class="stat-label">Unieke Bezoekers</div>
+                        <div class="stat-value">2,1M</div>
+                        <div class="stat-change negative">
+                            <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M14.707 10.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 12.586V5a1 1 0 012 0v7.586l2.293-2.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                            -5,2% vs zaterdag
+                        </div>
+                    </div>
+                    <div class="stat-card pageviews">
+                        <div class="stat-icon">📊</div>
+                        <div class="stat-label">Pageviews</div>
+                        <div class="stat-value">21,3M</div>
+                        <div class="stat-change negative">
+                            <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M14.707 10.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 12.586V5a1 1 0 012 0v7.586l2.293-2.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                            -3,8% vs zaterdag
+                        </div>
+                    </div>
+                    <div class="stat-card articles">
+                        <div class="stat-icon">📰</div>
+                        <div class="stat-label">Gepubliceerde Artikels</div>
+                        <div class="stat-value">327</div>
+                        <div class="stat-change positive">
+                            <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg>
+                            Normaal voor zondag
+                        </div>
+                    </div>
+                </div>
+
+                <section>
+                    <h2 class="section-title">
+                        Top Artikels Gisteren
+                        <span class="section-badge">Top 5</span>
+                    </h2>
+                    <div class="articles-list">
+                        <div class="article-item">
+                            <div class="article-rank gold">1</div>
+                            <div class="article-content">
+                                <div class="article-title">Dodelijk ongeval op E40: bestuurder reed onder invloed</div>
+                                <div class="article-meta">
+                                    <span class="article-stat">👁 398.120 views</span>
+                                    <span class="article-stat">⏱ 3m 45s leestijd</span>
+                                    <span class="article-stat">💬 876 reacties</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="article-item">
+                            <div class="article-rank">2</div>
+                            <div class="article-content">
+                                <div class="article-title">Jupiler Pro League: Club Brugge wint topper tegen Anderlecht</div>
+                                <div class="article-meta">
+                                    <span class="article-stat">👁 287.650 views</span>
+                                    <span class="article-stat">⏱ 5m 20s leestijd</span>
+                                    <span class="article-stat">💬 1.432 reacties</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="article-item">
+                            <div class="article-rank">3</div>
+                            <div class="article-content">
+                                <div class="article-title">Energieprijzen dalen: wat betekent dit voor jouw factuur?</div>
+                                <div class="article-meta">
+                                    <span class="article-stat">👁 234.890 views</span>
+                                    <span class="article-stat">⏱ 7m 15s leestijd</span>
+                                    <span class="article-stat">💬 543 reacties</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="article-item">
+                            <div class="article-rank">4</div>
+                            <div class="article-content">
+                                <div class="article-title">Weersverwachting: zonnige start van de week verwacht</div>
+                                <div class="article-meta">
+                                    <span class="article-stat">👁 178.340 views</span>
+                                    <span class="article-stat">⏱ 2m 30s leestijd</span>
+                                    <span class="article-stat">💬 123 reacties</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="article-item">
+                            <div class="article-rank">5</div>
+                            <div class="article-content">
+                                <div class="article-title">Recensie: nieuwste Netflix-serie breekt kijkcijferrecord</div>
+                                <div class="article-meta">
+                                    <span class="article-stat">👁 145.670 views</span>
+                                    <span class="article-stat">⏱ 4m 50s leestijd</span>
+                                    <span class="article-stat">💬 234 reacties</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Week Page -->
+            <div class="page" id="page-week">
+                <header class="page-header">
+                    <h1 class="greeting">Deze Week</h1>
+                    <p class="greeting-subtitle">Overzicht van 27 januari - 2 februari 2026</p>
+                </header>
+
+                <div class="stats-grid">
+                    <div class="stat-card users">
+                        <div class="stat-icon">👥</div>
+                        <div class="stat-label">Unieke Bezoekers</div>
+                        <div class="stat-value">8,4M</div>
+                        <div class="stat-change positive">
+                            <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg>
+                            +7,2% vs vorige week
+                        </div>
+                    </div>
+                    <div class="stat-card pageviews">
+                        <div class="stat-icon">📊</div>
+                        <div class="stat-label">Totale Pageviews</div>
+                        <div class="stat-value">156M</div>
+                        <div class="stat-change positive">
+                            <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg>
+                            +5,8% vs vorige week
+                        </div>
+                    </div>
+                    <div class="stat-card articles">
+                        <div class="stat-icon">📰</div>
+                        <div class="stat-label">Gepubliceerde Artikels</div>
+                        <div class="stat-value">2.156</div>
+                        <div class="stat-change positive">
+                            <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg>
+                            +89 meer dan vorige week
+                        </div>
+                    </div>
+                </div>
+
+                <div class="content-grid">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title">Bezoekers per Dag</div>
+                        </div>
+                        <div class="mini-chart">
+                            <div class="chart-bar" style="height: 75%" data-label="Ma"></div>
+                            <div class="chart-bar" style="height: 82%" data-label="Di"></div>
+                            <div class="chart-bar" style="height: 78%" data-label="Wo"></div>
+                            <div class="chart-bar" style="height: 90%" data-label="Do"></div>
+                            <div class="chart-bar" style="height: 100%" data-label="Vr"></div>
+                            <div class="chart-bar" style="height: 68%" data-label="Za"></div>
+                            <div class="chart-bar" style="height: 62%" data-label="Zo"></div>
+                        </div>
+                    </div>
+
+                    <div class="activity-card">
+                        <div class="activity-header">
+                            <div class="activity-title">Week Highlights</div>
+                        </div>
+                        <div class="activity-breakdown" style="grid-template-columns: 1fr;">
+                            <div class="breakdown-item">
+                                <div class="breakdown-value">Vrijdag</div>
+                                <div class="breakdown-label">Beste dag (2.8M bezoekers)</div>
+                            </div>
+                            <div class="breakdown-item">
+                                <div class="breakdown-value">12:00-14:00</div>
+                                <div class="breakdown-label">Piek uren</div>
+                            </div>
+                            <div class="breakdown-item">
+                                <div class="breakdown-value">Sport</div>
+                                <div class="breakdown-label">Beste categorie</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <section>
+                    <h2 class="section-title">
+                        Top Artikels Deze Week
+                        <span class="section-badge">Top 5</span>
+                    </h2>
+                    <div class="articles-list">
+                        <div class="article-item">
+                            <div class="article-rank gold">1</div>
+                            <div class="article-content">
+                                <div class="article-title">Rode Duivels winnen met 3-1 van Frankrijk in Nations League</div>
+                                <div class="article-meta">
+                                    <span class="article-stat">👁 1.2M views</span>
+                                    <span class="article-stat">⏱ 4m 32s leestijd</span>
+                                    <span class="article-stat">💬 4.567 reacties</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="article-item">
+                            <div class="article-rank">2</div>
+                            <div class="article-content">
+                                <div class="article-title">Nieuwe regeringsmaatregelen: volledig overzicht van alle veranderingen</div>
+                                <div class="article-meta">
+                                    <span class="article-stat">👁 876.450 views</span>
+                                    <span class="article-stat">⏱ 12m 30s leestijd</span>
+                                    <span class="article-stat">💬 3.234 reacties</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="article-item">
+                            <div class="article-rank">3</div>
+                            <div class="article-content">
+                                <div class="article-title">Exclusief interview: Koning Filip over de toekomst van België</div>
+                                <div class="article-meta">
+                                    <span class="article-stat">👁 654.230 views</span>
+                                    <span class="article-stat">⏱ 15m 45s leestijd</span>
+                                    <span class="article-stat">💬 2.876 reacties</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="article-item">
+                            <div class="article-rank">4</div>
+                            <div class="article-content">
+                                <div class="article-title">Grote brand in Antwerpse haven: geen gewonden</div>
+                                <div class="article-meta">
+                                    <span class="article-stat">👁 543.120 views</span>
+                                    <span class="article-stat">⏱ 3m 20s leestijd</span>
+                                    <span class="article-stat">💬 1.654 reacties</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="article-item">
+                            <div class="article-rank">5</div>
+                            <div class="article-content">
+                                <div class="article-title">Test: de 10 beste elektrische wagens van 2026</div>
+                                <div class="article-meta">
+                                    <span class="article-stat">👁 432.780 views</span>
+                                    <span class="article-stat">⏱ 18m 15s leestijd</span>
+                                    <span class="article-stat">💬 987 reacties</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Content Performance Page -->
+            <div class="page" id="page-content">
+                <header class="page-header">
+                    <h1 class="greeting">Content Prestaties</h1>
+                    <p class="greeting-subtitle">Analyse van je content performance</p>
+                </header>
+
+                <div class="stats-grid">
+                    <div class="stat-card users">
+                        <div class="stat-icon">⏱</div>
+                        <div class="stat-label">Gem. Leestijd</div>
+                        <div class="stat-value">4m 23s</div>
+                        <div class="stat-change positive">+12% vs vorige maand</div>
+                    </div>
+                    <div class="stat-card pageviews">
+                        <div class="stat-icon">🔄</div>
+                        <div class="stat-label">Bounce Rate</div>
+                        <div class="stat-value">34,2%</div>
+                        <div class="stat-change positive">-3,1% vs vorige maand</div>
+                    </div>
+                    <div class="stat-card articles">
+                        <div class="stat-icon">📤</div>
+                        <div class="stat-label">Social Shares</div>
+                        <div class="stat-value">45.2K</div>
+                        <div class="stat-change positive">+18% vs vorige maand</div>
+                    </div>
+                </div>
+
+                <section class="ai-section" style="margin-top: 0;">
+                    <h2 class="section-title" style="color: white;">Categorie Prestaties</h2>
+                    <div class="ai-insights">
+                        <div class="insight-card">
+                            <div class="insight-title">🏆 Sport</div>
+                            <div class="insight-text">32% van totale views • +15% groei • 5.2m gem. leestijd</div>
+                        </div>
+                        <div class="insight-card">
+                            <div class="insight-title">📰 Binnenland</div>
+                            <div class="insight-text">28% van totale views • +8% groei • 4.8m gem. leestijd</div>
+                        </div>
+                        <div class="insight-card">
+                            <div class="insight-title">🌍 Buitenland</div>
+                            <div class="insight-text">18% van totale views • +3% groei • 6.1m gem. leestijd</div>
+                        </div>
+                        <div class="insight-card">
+                            <div class="insight-title">🎭 Entertainment</div>
+                            <div class="insight-text">22% van totale views • +12% groei • 3.4m gem. leestijd</div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Audience Insights Page -->
+            <div class="page" id="page-audience">
+                <header class="page-header">
+                    <h1 class="greeting">Publiek Inzichten</h1>
+                    <p class="greeting-subtitle">Ken je lezers beter</p>
+                </header>
+
+                <div class="stats-grid">
+                    <div class="stat-card users">
+                        <div class="stat-icon">🔁</div>
+                        <div class="stat-label">Terugkerende Bezoekers</div>
+                        <div class="stat-value">67%</div>
+                        <div class="stat-change positive">+4% vs vorige maand</div>
+                    </div>
+                    <div class="stat-card pageviews">
+                        <div class="stat-icon">📱</div>
+                        <div class="stat-label">Mobiel Verkeer</div>
+                        <div class="stat-value">62%</div>
+                        <div class="stat-change positive">+2% vs vorige maand</div>
+                    </div>
+                    <div class="stat-card articles">
+                        <div class="stat-icon">⭐</div>
+                        <div class="stat-label">Abonnees</div>
+                        <div class="stat-value">234K</div>
+                        <div class="stat-change positive">+1.2K deze week</div>
+                    </div>
+                </div>
+
+                <section class="ai-section" style="margin-top: 0;">
+                    <h2 class="section-title" style="color: white;">Demografische Verdeling</h2>
+                    <div class="ai-insights">
+                        <div class="insight-card">
+                            <div class="insight-title">👤 18-34 jaar</div>
+                            <div class="insight-text">28% van lezers • Voornamelijk sport & entertainment • Piek: avond</div>
+                        </div>
+                        <div class="insight-card">
+                            <div class="insight-title">👤 35-54 jaar</div>
+                            <div class="insight-text">42% van lezers • Nieuws & politiek • Piek: ochtend & middag</div>
+                        </div>
+                        <div class="insight-card">
+                            <div class="insight-title">👤 55+ jaar</div>
+                            <div class="insight-text">30% van lezers • Binnenland & gezondheid • Piek: ochtend</div>
+                        </div>
+                        <div class="insight-card">
+                            <div class="insight-title">📍 Regio's</div>
+                            <div class="insight-text">Antwerpen 24% • Oost-Vl 18% • Brussel 15% • West-Vl 14%</div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Alerts Page -->
+            <div class="page" id="page-alerts">
+                <header class="page-header">
+                    <h1 class="greeting">Alerts & Notificaties</h1>
+                    <p class="greeting-subtitle">Blijf op de hoogte van belangrijke gebeurtenissen</p>
+                </header>
+
+                <div class="articles-list">
+                    <div class="article-item" style="border-left: 4px solid var(--accent-green);">
+                        <div class="article-rank" style="background: var(--accent-green); color: white;">✓</div>
+                        <div class="article-content">
+                            <div class="article-title">Nieuw record: 25.000 gelijktijdige lezers bereikt</div>
+                            <div class="article-meta">
+                                <span class="article-stat">🕐 14:23 vandaag</span>
+                                <span class="article-stat">📊 Milestone</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="article-item" style="border-left: 4px solid var(--accent-yellow);">
+                        <div class="article-rank" style="background: var(--accent-yellow); color: black;">!</div>
+                        <div class="article-content">
+                            <div class="article-title">Trending topic: #StormPia - overweeg breaking news coverage</div>
+                            <div class="article-meta">
+                                <span class="article-stat">🕐 13:45 vandaag</span>
+                                <span class="article-stat">📈 Trending</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="article-item" style="border-left: 4px solid var(--accent-blue);">
+                        <div class="article-rank" style="background: var(--accent-blue); color: white;">i</div>
+                        <div class="article-content">
+                            <div class="article-title">Artikel "Rode Duivels winnen" heeft 500K views bereikt</div>
+                            <div class="article-meta">
+                                <span class="article-stat">🕐 12:30 vandaag</span>
+                                <span class="article-stat">🎯 Performance</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="article-item" style="border-left: 4px solid var(--accent-primary);">
+                        <div class="article-rank" style="background: var(--accent-primary); color: white;">⚡</div>
+                        <div class="article-content">
+                            <div class="article-title">Concurrent De Morgen publiceert breaking news over regeringscrisis</div>
+                            <div class="article-meta">
+                                <span class="article-stat">🕐 11:15 vandaag</span>
+                                <span class="article-stat">🔔 Competitor</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="article-item" style="border-left: 4px solid var(--accent-green);">
+                        <div class="article-rank" style="background: var(--accent-green); color: white;">✓</div>
+                        <div class="article-content">
+                            <div class="article-title">Weekdoel bereikt: 150M pageviews deze week</div>
+                            <div class="article-meta">
+                                <span class="article-stat">🕐 Gisteren 23:59</span>
+                                <span class="article-stat">🏆 Goal</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Navigation
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                // Update active nav
+                document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+
+                // Show corresponding page
+                const pageId = 'page-' + item.dataset.page;
+                document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+                document.getElementById(pageId).classList.add('active');
+            });
+        });
+
+        // Update time
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('nl-BE', { hour: '2-digit', minute: '2-digit' });
+            const dateEl = document.getElementById('current-time');
+            if (dateEl) dateEl.textContent = timeString;
+        }
+        updateTime();
+        setInterval(updateTime, 60000);
+
+        // Simulate live users update
+        function updateLiveUsers() {
+            const liveNumber = document.querySelector('.activity-number');
+            if (liveNumber) {
+                const base = 18000;
+                const variation = Math.floor(Math.random() * 1000) - 500;
+                liveNumber.textContent = (base + variation).toLocaleString('nl-BE');
+            }
+        }
+        setInterval(updateLiveUsers, 5000);
+
+        // Add hover effects to chart bars
+        document.querySelectorAll('.chart-bar').forEach(bar => {
+            bar.addEventListener('mouseenter', () => {
+                bar.style.opacity = '0.8';
+            });
+            bar.addEventListener('mouseleave', () => {
+                bar.style.opacity = '1';
+            });
+        });
+    </script>
+</body>
+</html>
