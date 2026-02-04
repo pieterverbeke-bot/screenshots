@@ -1101,6 +1101,103 @@
             background: linear-gradient(90deg, var(--accent-green), #69db7c);
             border-radius: 4px;
         }
+
+        /* Article Score */
+        .article-score-container {
+            background: linear-gradient(135deg, var(--bg-card), #1a1a2e);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+        }
+
+        .article-score-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .article-score {
+            display: flex;
+            align-items: baseline;
+            justify-content: center;
+            gap: 4px;
+            margin-bottom: 12px;
+        }
+
+        .article-score-value {
+            font-size: 56px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1;
+        }
+
+        .article-score-max {
+            font-size: 24px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .article-score-bar {
+            height: 8px;
+            background: var(--bg-primary);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .article-score-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .article-score-rating {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--accent-secondary);
+        }
+
+        /* Performance Summary */
+        .performance-summary {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+            border-left: 3px solid var(--accent-primary);
+        }
+
+        .performance-summary-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .performance-summary-text {
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--text-primary);
+        }
+
+        .performance-highlight {
+            color: var(--accent-green);
+            font-weight: 600;
+        }
+
+        .performance-lowlight {
+            color: var(--accent-primary);
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -1252,32 +1349,32 @@
                 <!-- Subsections -->
                 <div class="subsections-card">
                     <div class="subsections-title">
-                        📂 Sectie Prestaties Vandaag
+                        📂 Sectie Artikelweergaven Vandaag
                     </div>
                     <div class="subsections-grid">
                         <div class="subsection-item nieuws">
                             <div class="subsection-name">Nieuws</div>
-                            <div class="subsection-value">9,8M</div>
+                            <div class="subsection-value">4,2M</div>
                             <div class="subsection-percent">40% • +5% vs budget</div>
                         </div>
                         <div class="subsection-item regio">
                             <div class="subsection-name">Regio</div>
-                            <div class="subsection-value">6,2M</div>
+                            <div class="subsection-value">2,6M</div>
                             <div class="subsection-percent">25% • +3% vs budget</div>
                         </div>
                         <div class="subsection-item sport">
                             <div class="subsection-name">Sport</div>
-                            <div class="subsection-value">3,7M</div>
+                            <div class="subsection-value">1,6M</div>
                             <div class="subsection-percent">15% • -2% vs budget</div>
                         </div>
                         <div class="subsection-item showbizz">
                             <div class="subsection-name">Showbizz</div>
-                            <div class="subsection-value">3,7M</div>
+                            <div class="subsection-value">1,6M</div>
                             <div class="subsection-percent">15% • +8% vs budget</div>
                         </div>
                         <div class="subsection-item other">
                             <div class="subsection-name">Varia</div>
-                            <div class="subsection-value">1,2M</div>
+                            <div class="subsection-value">0,5M</div>
                             <div class="subsection-percent">5% • +1% vs budget</div>
                         </div>
                     </div>
@@ -1479,31 +1576,31 @@
 
                 <!-- Subsections -->
                 <div class="subsections-card">
-                    <div class="subsections-title">📂 Sectie Prestaties Gisteren</div>
+                    <div class="subsections-title">📂 Sectie Artikelweergaven Gisteren</div>
                     <div class="subsections-grid">
                         <div class="subsection-item nieuws">
                             <div class="subsection-name">Nieuws</div>
-                            <div class="subsection-value">8,5M</div>
+                            <div class="subsection-value">3,8M</div>
                             <div class="subsection-percent">40% • -2% vs budget</div>
                         </div>
                         <div class="subsection-item regio">
                             <div class="subsection-name">Regio</div>
-                            <div class="subsection-value">5,3M</div>
+                            <div class="subsection-value">2,4M</div>
                             <div class="subsection-percent">25% • +1% vs budget</div>
                         </div>
                         <div class="subsection-item sport">
                             <div class="subsection-name">Sport</div>
-                            <div class="subsection-value">3,2M</div>
+                            <div class="subsection-value">1,4M</div>
                             <div class="subsection-percent">15% • +8% vs budget</div>
                         </div>
                         <div class="subsection-item showbizz">
                             <div class="subsection-name">Showbizz</div>
-                            <div class="subsection-value">3,2M</div>
+                            <div class="subsection-value">1,4M</div>
                             <div class="subsection-percent">15% • +12% vs budget</div>
                         </div>
                         <div class="subsection-item other">
                             <div class="subsection-name">Varia</div>
-                            <div class="subsection-value">1,1M</div>
+                            <div class="subsection-value">0,5M</div>
                             <div class="subsection-percent">5% • -1% vs budget</div>
                         </div>
                     </div>
@@ -1672,31 +1769,31 @@
 
                 <!-- Subsections -->
                 <div class="subsections-card">
-                    <div class="subsections-title">📂 Sectie Prestaties Deze Week (daggemiddelden)</div>
+                    <div class="subsections-title">📂 Sectie Artikelweergaven Deze Week (daggemiddelden)</div>
                     <div class="subsections-grid">
                         <div class="subsection-item nieuws">
                             <div class="subsection-name">Nieuws</div>
-                            <div class="subsection-value">10,0M</div>
+                            <div class="subsection-value">4,4M</div>
                             <div class="subsection-percent">40% • +3% vs budget</div>
                         </div>
                         <div class="subsection-item regio">
                             <div class="subsection-name">Regio</div>
-                            <div class="subsection-value">6,3M</div>
+                            <div class="subsection-value">2,8M</div>
                             <div class="subsection-percent">25% • +2% vs budget</div>
                         </div>
                         <div class="subsection-item sport">
                             <div class="subsection-name">Sport</div>
-                            <div class="subsection-value">3,8M</div>
+                            <div class="subsection-value">1,7M</div>
                             <div class="subsection-percent">15% • +5% vs budget</div>
                         </div>
                         <div class="subsection-item showbizz">
                             <div class="subsection-name">Showbizz</div>
-                            <div class="subsection-value">3,8M</div>
+                            <div class="subsection-value">1,7M</div>
                             <div class="subsection-percent">15% • +4% vs budget</div>
                         </div>
                         <div class="subsection-item other">
                             <div class="subsection-name">Varia</div>
-                            <div class="subsection-value">1,3M</div>
+                            <div class="subsection-value">0,5M</div>
                             <div class="subsection-percent">5% • +1% vs budget</div>
                         </div>
                     </div>
@@ -1823,7 +1920,7 @@
                     <div class="article-item" style="border-left: 4px solid var(--accent-primary);">
                         <div class="article-content">
                             <div class="article-category" style="color: var(--accent-primary);">Nieuws</div>
-                            <div class="article-title" style="font-size: 15px;">9,8M pageviews • 40% van totaal</div>
+                            <div class="article-title" style="font-size: 15px;">4,2M artikelweergaven • 40% van totaal</div>
                             <div class="article-meta">
                                 <span style="color: var(--accent-green);">+5% vs budget</span>
                                 <span>+3% vs 8w gem.</span>
@@ -1834,7 +1931,7 @@
                     <div class="article-item" style="border-left: 4px solid var(--accent-blue);">
                         <div class="article-content">
                             <div class="article-category" style="color: var(--accent-blue);">Regio Totaal</div>
-                            <div class="article-title" style="font-size: 15px;">6,2M pageviews • 25% van totaal</div>
+                            <div class="article-title" style="font-size: 15px;">2,6M artikelweergaven • 25% van totaal</div>
                             <div class="article-meta">
                                 <span style="color: var(--accent-green);">+3% vs budget</span>
                                 <span>+2% vs 8w gem.</span>
@@ -1845,7 +1942,7 @@
                     <div class="article-item" style="border-left: 4px solid var(--accent-green);">
                         <div class="article-content">
                             <div class="article-category" style="color: var(--accent-green);">Sport</div>
-                            <div class="article-title" style="font-size: 15px;">3,7M pageviews • 15% van totaal</div>
+                            <div class="article-title" style="font-size: 15px;">1,6M artikelweergaven • 15% van totaal</div>
                             <div class="article-meta">
                                 <span style="color: var(--accent-primary);">-2% vs budget</span>
                                 <span>-1% vs 8w gem.</span>
@@ -1856,7 +1953,7 @@
                     <div class="article-item" style="border-left: 4px solid var(--accent-purple);">
                         <div class="article-content">
                             <div class="article-category" style="color: var(--accent-purple);">Showbizz</div>
-                            <div class="article-title" style="font-size: 15px;">3,7M pageviews • 15% van totaal</div>
+                            <div class="article-title" style="font-size: 15px;">1,6M artikelweergaven • 15% van totaal</div>
                             <div class="article-meta">
                                 <span style="color: var(--accent-green);">+8% vs budget</span>
                                 <span>+5% vs 8w gem.</span>
@@ -1867,7 +1964,7 @@
                     <div class="article-item" style="border-left: 4px solid var(--text-muted);">
                         <div class="article-content">
                             <div class="article-category">Varia (Economie, Wetenschap, etc.)</div>
-                            <div class="article-title" style="font-size: 15px;">1,2M pageviews • 5% van totaal</div>
+                            <div class="article-title" style="font-size: 15px;">0,5M artikelweergaven • 5% van totaal</div>
                             <div class="article-meta">
                                 <span style="color: var(--accent-green);">+1% vs budget</span>
                                 <span>= 8w gem.</span>
@@ -1968,10 +2065,33 @@
                 <div class="modal-title" id="modal-title">Artikel titel</div>
             </div>
             <div class="modal-body">
+                <!-- Article Score -->
+                <div class="article-score-container">
+                    <div class="article-score-label">Artikelwaarde</div>
+                    <div class="article-score">
+                        <span class="article-score-value" id="modal-score">14</span>
+                        <span class="article-score-max">/17</span>
+                    </div>
+                    <div class="article-score-bar">
+                        <div class="article-score-fill" id="modal-score-bar" style="width: 82%"></div>
+                    </div>
+                    <div class="article-score-rating" id="modal-rating">Uitstekend</div>
+                </div>
+
+                <!-- Performance Summary -->
+                <div class="performance-summary">
+                    <div class="performance-summary-title">Prestatie-samenvatting</div>
+                    <div class="performance-summary-text" id="modal-summary">
+                        Dit artikel presteert <span class="performance-highlight">bovengemiddeld</span>.
+                        Het uitleespercentage van 72% ligt boven het gemiddelde van 58%.
+                        De engagement is hoog met 3.287 reacties.
+                    </div>
+                </div>
+
                 <div class="modal-stats-grid">
                     <div class="modal-stat">
                         <div class="modal-stat-value" id="modal-views">523.450</div>
-                        <div class="modal-stat-label">Pageviews</div>
+                        <div class="modal-stat-label">Artikelweergaven</div>
                     </div>
                     <div class="modal-stat">
                         <div class="modal-stat-value" id="modal-readtime">3m 45s</div>
@@ -2052,7 +2172,7 @@
     </div>
 
     <script>
-        // Article Data
+        // Article Data with scores and summaries
         const articleData = {
             'anderlecht': {
                 category: 'Nieuws',
@@ -2064,7 +2184,10 @@
                 readpct: 72,
                 male: 48,
                 female: 52,
-                ages: [22, 26, 21, 18, 13]
+                ages: [22, 26, 21, 18, 13],
+                score: 15,
+                rating: 'Uitstekend',
+                summary: 'Dit artikel presteert <span class="performance-highlight">ver boven verwachting</span>. Met 523K weergaven is het de best presterende content vandaag. Het uitleespercentage van 72% en de 3.287 reacties tonen een <span class="performance-highlight">uitzonderlijk hoge engagement</span>. De social shares (12.4K) zorgen voor extra bereik.'
             },
             'epstein': {
                 category: 'Nieuws',
@@ -2076,7 +2199,10 @@
                 readpct: 64,
                 male: 52,
                 female: 48,
-                ages: [15, 24, 28, 20, 13]
+                ages: [15, 24, 28, 20, 13],
+                score: 14,
+                rating: 'Zeer goed',
+                summary: 'Sterke prestatie met <span class="performance-highlight">387K weergaven</span>. De lange leestijd (5m12s) wijst op diepgaande interesse. Het uitleespercentage van 64% is gemiddeld, maar de <span class="performance-highlight">18.7K social shares</span> compenseren dit ruimschoots. Internationaal thema met lokale link werkt goed.'
             },
             'nestle': {
                 category: 'Nieuws',
@@ -2088,7 +2214,10 @@
                 readpct: 78,
                 male: 35,
                 female: 65,
-                ages: [12, 38, 32, 12, 6]
+                ages: [12, 38, 32, 12, 6],
+                score: 13,
+                rating: 'Goed',
+                summary: 'Solide prestatie met <span class="performance-highlight">hoog uitleespercentage (78%)</span>. Duidelijke doelgroep: voornamelijk vrouwen 25-44 jaar (ouders). De 298K weergaven zijn goed voor dit type nieuws. <span class="performance-lowlight">Social shares (6.2K) zijn ondergemiddeld</span> - overweeg meer deelbare quotes.'
             },
             'vogelgriep': {
                 category: 'Regio West-Vlaanderen',
@@ -2100,7 +2229,10 @@
                 readpct: 81,
                 male: 58,
                 female: 42,
-                ages: [8, 18, 26, 28, 20]
+                ages: [8, 18, 26, 28, 20],
+                score: 11,
+                rating: 'Voldoende',
+                summary: 'Regionaal nieuws met <span class="performance-highlight">uitstekend uitleespercentage (81%)</span>. De 187K weergaven zijn goed voor West-Vlaanderen content. <span class="performance-lowlight">Engagement blijft beperkt</span> met 567 reacties en 2.1K shares. Oudere doelgroep (45+) toont meeste interesse.'
             },
             'begroting': {
                 category: 'Nieuws',
@@ -2112,7 +2244,10 @@
                 readpct: 58,
                 male: 62,
                 female: 38,
-                ages: [10, 22, 28, 24, 16]
+                ages: [10, 22, 28, 24, 16],
+                score: 10,
+                rating: 'Voldoende',
+                summary: 'Politiek nieuws met <span class="performance-highlight">lange leestijd (6m30s)</span> - lezers nemen de tijd. Het <span class="performance-lowlight">uitleespercentage van 58% is ondergemiddeld</span>. De 1.876 reacties tonen wel engagement. Doelgroep is voornamelijk mannen 35-54 jaar.'
             },
             'tiener-zee': {
                 category: 'Nieuws',
@@ -2124,7 +2259,10 @@
                 readpct: 85,
                 male: 45,
                 female: 55,
-                ages: [18, 28, 26, 16, 12]
+                ages: [18, 28, 26, 16, 12],
+                score: 16,
+                rating: 'Uitmuntend',
+                summary: 'Topscorer met <span class="performance-highlight">uitmuntende metrics</span>. Het uitleespercentage van 85% is het hoogste vandaag. De <span class="performance-highlight">24.5K social shares</span> zijn exceptioneel - feel-good verhalen worden massaal gedeeld. Brede doelgroep met gelijke M/V verdeling.'
             },
             'club-brugge': {
                 category: 'Sport',
@@ -2136,7 +2274,10 @@
                 readpct: 71,
                 male: 72,
                 female: 28,
-                ages: [24, 32, 22, 14, 8]
+                ages: [24, 32, 22, 14, 8],
+                score: 12,
+                rating: 'Goed',
+                summary: 'Typische sportprestatie met <span class="performance-highlight">287K weergaven</span>. Sterke mannelijke doelgroep (72%) in de 25-44 leeftijdscategorie. Uitleespercentage van 71% is goed voor sport. <span class="performance-lowlight">Relatief weinig social shares</span> vergeleken met andere toppers vandaag.'
             },
             'netflix': {
                 category: 'Showbizz',
@@ -2148,14 +2289,26 @@
                 readpct: 68,
                 male: 42,
                 female: 58,
-                ages: [28, 34, 20, 12, 6]
+                ages: [28, 34, 20, 12, 6],
+                score: 11,
+                rating: 'Voldoende',
+                summary: 'Showbizz-content met <span class="performance-highlight">goede social performance (8.9K shares)</span>. De 234K weergaven zijn solide voor entertainment nieuws. Jonge doelgroep (18-34 dominant). <span class="performance-lowlight">Engagement via reacties (567) is laag</span> - overweeg interactieve elementen.'
             }
         };
+
+        function getRatingClass(score) {
+            if (score >= 15) return 'Uitmuntend';
+            if (score >= 13) return 'Zeer goed';
+            if (score >= 11) return 'Goed';
+            if (score >= 9) return 'Voldoende';
+            return 'Onder verwachting';
+        }
 
         function openModal(articleId) {
             const data = articleData[articleId];
             if (!data) return;
 
+            // Basic info
             document.getElementById('modal-category').textContent = data.category;
             document.getElementById('modal-title').textContent = data.title;
             document.getElementById('modal-views').textContent = data.views;
@@ -2165,11 +2318,21 @@
             document.getElementById('modal-readpct').textContent = data.readpct + '%';
             document.getElementById('modal-readbar').style.width = data.readpct + '%';
 
+            // Score
+            document.getElementById('modal-score').textContent = data.score;
+            document.getElementById('modal-score-bar').style.width = (data.score / 17 * 100) + '%';
+            document.getElementById('modal-rating').textContent = data.rating;
+
+            // Summary
+            document.getElementById('modal-summary').innerHTML = data.summary;
+
+            // Gender
             document.getElementById('modal-male').style.width = data.male + '%';
             document.getElementById('modal-male').textContent = data.male + '%';
             document.getElementById('modal-female').style.width = data.female + '%';
             document.getElementById('modal-female').textContent = data.female + '%';
 
+            // Ages
             document.getElementById('modal-age1').style.width = data.ages[0] + '%';
             document.getElementById('modal-age1').textContent = data.ages[0] + '%';
             document.getElementById('modal-age2').style.width = data.ages[1] + '%';
