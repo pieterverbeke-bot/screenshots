@@ -926,6 +926,11 @@
             const text = await response.text();
             const data = JSON.parse(text);
 
+            // Debug: log wat de API teruggeeft
+            console.log('API Response:', data);
+            console.log('Streams:', data.streams);
+            console.log('Tasks:', data.tasks);
+
             if (data.error) {
                 if (data.error === 'Geen toegang') {
                     localStorage.removeItem(CONFIG.localKeys.apiKey);
@@ -939,6 +944,9 @@
             tasks = data.tasks || [];
             streams = data.streams || [];
             milestones = data.milestones || [];
+
+            console.log('Geladen streams:', streams.length);
+            console.log('Geladen tasks:', tasks.length);
 
             // Als geen streams, return 'empty'
             if (streams.length === 0) {
