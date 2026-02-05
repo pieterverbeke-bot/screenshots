@@ -362,6 +362,24 @@
             height: 32px;
         }
 
+        /* Expanded card when no overlap - more space for title */
+        .task-card.expanded {
+            height: 52px;
+        }
+        .task-card.expanded .task-title {
+            white-space: normal;
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+        .task-card.expanded .task-owner-inline {
+            display: block;
+            font-size: 10px;
+            color: #888;
+            margin-top: 4px;
+        }
+
         .task-card.filtered-out {
             opacity: 0.2;
         }
@@ -1184,12 +1202,16 @@
             // Scheduled Tasks - with stacking for overlapping cards
             const myTasks = tasks.filter(t => t.stream === s.id);
             const rows = assignTaskRows(myTasks);
-            const trackHeight = Math.max(110, rows.length * 38 + 20);
+            const hasOverlap = rows.length > 1;
+
+            // Calculate track height based on overlap
+            const cardHeight = hasOverlap ? 38 : 58; // Expanded cards are taller
+            const trackHeight = Math.max(110, rows.length * cardHeight + 20);
             track.style.height = `${trackHeight}px`;
 
             myTasks.forEach(t => {
                 const rowIdx = rows.findIndex(row => row.includes(t.id));
-                const el = createTaskElement(t, s.color, s.border, rowIdx);
+                const el = createTaskElement(t, s.color, s.border, rowIdx, !hasOverlap);
                 track.appendChild(el);
             });
 
@@ -1299,7 +1321,7 @@
         });
     }
 
-    function createTaskElement(task, bgColor, borderColor, rowIdx = 0) {
+    function createTaskElement(task, bgColor, borderColor, rowIdx = 0, expanded = false) {
         const el = document.createElement('div');
         el.className = 'task-card';
         el.id = `task-${task.id}`;
@@ -1311,11 +1333,17 @@
             el.classList.add('filtered-out');
         }
 
+        // Add expanded class when no overlap
+        if (expanded && task.stream) {
+            el.classList.add('expanded');
+        }
+
         if (task.stream) {
-            // Grid Position with row offset
+            // Grid Position with row offset (different spacing for expanded vs compact)
+            const rowHeight = expanded ? 58 : 38;
             el.style.left = `${task.start * CONFIG.pxPerWeek}px`;
             el.style.width = `${task.duration * CONFIG.pxPerWeek - 4}px`;
-            el.style.top = `${5 + rowIdx * 38}px`;
+            el.style.top = `${5 + rowIdx * rowHeight}px`;
 
             // Resize Handle
             const handle = document.createElement('div');
@@ -1342,6 +1370,14 @@
         header.appendChild(statusBadge);
 
         el.appendChild(header);
+
+        // Show owner inline for expanded cards
+        if (expanded && task.owner && task.stream) {
+            const ownerInline = document.createElement('span');
+            ownerInline.className = 'task-owner-inline';
+            ownerInline.innerText = `👤 ${task.owner}`;
+            el.appendChild(ownerInline);
+        }
 
         const desc = document.createElement('span');
         desc.className = 'task-desc';
