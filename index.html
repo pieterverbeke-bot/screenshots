@@ -431,10 +431,11 @@
     <div class="header-content">
         <div class="header-text">
             <h1 contenteditable="true" id="roadmapTitle" onblur="saveTitle()">Roadmap Organisatie 2026</h1>
-            <p>Klik op de titel om te wijzigen. Klik op een taak om te bewerken.</p>
+            <p>Synchroniseert met Google Sheets. Klik 🔄 om wijzigingen van collega's te laden.</p>
         </div>
         <div class="controls">
-            <button class="btn-reset" onclick="resetToDefault()">Reset</button>
+            <button class="btn-reset" onclick="changePassword()">🔑</button>
+            <button class="btn-export" onclick="reloadFromServer()">🔄 Herladen</button>
             <button class="btn-export" onclick="exportToCSV()">📂 Export</button>
             <button class="btn-success" onclick="manualSave()">💾 Opslaan</button>
             <button class="btn-milestone" onclick="addMilestone()">⚑ Mijlpaal</button>
@@ -524,20 +525,17 @@
 
 <script>
     // --- CONFIG ---
-    // Nieuwe versie v10 ivm Status veld
     const CONFIG = {
         startDate: new Date('2026-01-26'),
         weeks: 26,
         pxPerWeek: 120,
-        keys: {
-            tasks: 'org2026_tasks_v10',
-            streams: 'org2026_streams_v10',
-            milestones: 'org2026_milestones_v10',
-            title: 'org2026_title_v10'
+        apiUrl: 'https://script.google.com/a/macros/persgroep.net/s/AKfycbzNPMB5Iaika4ixIqyknH0UjiRENSLgKIv39HHbwLNY-CTzuqtgAf8lKPOCcUo92mOb/exec',
+        localKeys: {
+            apiKey: 'roadmap_api_key'
         }
     };
 
-    // --- DEFAULTS ---
+    // --- DEFAULTS (gebruikt als sheet leeg is) ---
     const defaultStreams = [
         { id: 'gov', name: 'Governance & Stakeholders', color: '#f2ebf5', border: '#783c96' },
         { id: 'hr', name: 'HR & Team', color: '#faeaf1', border: '#d23278' },
@@ -545,16 +543,7 @@
         { id: 'inn', name: 'Innovatie & Tooling', color: '#fff8e8', border: '#fabb22' }
     ];
 
-    const defaultTasks = [
-        { id: 1, stream: 'gov', title: "Finalisatie Business Case", desc: "Goedkeuring CEO", start: 0, duration: 4, owner: "Roxanne", status: 'done' },
-        { id: 2, stream: 'gov', title: "Definiëren OKR's", desc: "Kwartaaldoelen", start: 2, duration: 4, owner: "Doeschka", status: 'busy' },
-        { id: 8, stream: 'proc', title: "Ad Hoc Workflow", desc: "Ticketing systeem", start: 8, duration: 6, owner: "Cédric", status: 'todo' },
-        { id: 11, stream: 'inn', title: "Pilot 'Rigby' (AI)", desc: "Virtuele assistent", start: 10, duration: 10, owner: "Pieter", status: 'todo' },
-        // Backlog items
-        { id: 99, stream: null, title: "Evaluatie Q1", desc: "Terugblik met team", start: 0, duration: 2, owner: "Allen", status: 'todo' }
-    ];
-
-    // Voorbeeld mijlpalen
+    const defaultTasks = [];
     const defaultMilestones = [];
 
     // --- STATE ---
@@ -562,55 +551,118 @@
     let streams = [];
     let milestones = [];
     let pageTitle = "Roadmap Organisatie 2026";
+    let apiKey = '';
+    let isSaving = false;
 
     // --- INIT ---
-    function init() {
-        if(!loadData()) {
-            tasks = JSON.parse(JSON.stringify(defaultTasks));
-            streams = JSON.parse(JSON.stringify(defaultStreams));
-            milestones = JSON.parse(JSON.stringify(defaultMilestones));
-            saveData(true);
+    async function init() {
+        // Vraag om wachtwoord als niet opgeslagen
+        apiKey = localStorage.getItem(CONFIG.localKeys.apiKey) || '';
+
+        if (!apiKey) {
+            apiKey = prompt('Voer het wachtwoord in om toegang te krijgen:');
+            if (!apiKey) {
+                document.body.innerHTML = '<div style="padding:50px;text-align:center;"><h2>Geen wachtwoord ingevoerd</h2><p>Ververs de pagina om opnieuw te proberen.</p></div>';
+                return;
+            }
+            localStorage.setItem(CONFIG.localKeys.apiKey, apiKey);
         }
 
-        // Laad titel
+        showLoading(true);
+
+        const loaded = await loadData();
+        if (!loaded) {
+            // Eerste keer of lege sheet: laad defaults
+            streams = JSON.parse(JSON.stringify(defaultStreams));
+            tasks = JSON.parse(JSON.stringify(defaultTasks));
+            milestones = JSON.parse(JSON.stringify(defaultMilestones));
+            await saveData(true);
+        }
+
         const el = document.getElementById('roadmapTitle');
         el.innerText = pageTitle;
 
+        showLoading(false);
         renderAll();
     }
 
-    function isStorageAvailable() {
-        try {
-            const t = '__test__'; localStorage.setItem(t, t); localStorage.removeItem(t); return true;
-        } catch(e) { return false; }
-    }
-
-    function loadData() {
-        if(!isStorageAvailable()) return false;
-        const t = localStorage.getItem(CONFIG.keys.tasks);
-        const s = localStorage.getItem(CONFIG.keys.streams);
-        const m = localStorage.getItem(CONFIG.keys.milestones);
-        const tit = localStorage.getItem(CONFIG.keys.title);
-
-        if(t && s) {
-            tasks = JSON.parse(t);
-            streams = JSON.parse(s);
-            milestones = m ? JSON.parse(m) : [];
-            if(tit) pageTitle = tit;
-            return true;
+    function showLoading(show) {
+        let loader = document.getElementById('loadingOverlay');
+        if (show) {
+            if (!loader) {
+                loader = document.createElement('div');
+                loader.id = 'loadingOverlay';
+                loader.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(255,255,255,0.9);display:flex;justify-content:center;align-items:center;z-index:9999;';
+                loader.innerHTML = '<div style="text-align:center;"><div style="width:40px;height:40px;border:4px solid #f3f3f3;border-top:4px solid #783c96;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto;"></div><p style="margin-top:15px;color:#666;">Laden...</p></div><style>@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}</style>';
+                document.body.appendChild(loader);
+            }
+            loader.style.display = 'flex';
+        } else if (loader) {
+            loader.style.display = 'none';
         }
-        return false;
     }
 
-    function saveData(silent = false) {
-        if(isStorageAvailable()) {
-            localStorage.setItem(CONFIG.keys.tasks, JSON.stringify(tasks));
-            localStorage.setItem(CONFIG.keys.streams, JSON.stringify(streams));
-            localStorage.setItem(CONFIG.keys.milestones, JSON.stringify(milestones));
-            localStorage.setItem(CONFIG.keys.title, pageTitle);
-            if(!silent) showToast("Wijzigingen opgeslagen");
-        } else if (!silent) {
-            alert("Opslaan niet mogelijk (Sandbox modus).");
+    async function loadData() {
+        try {
+            const url = `${CONFIG.apiUrl}?action=load&key=${encodeURIComponent(apiKey)}`;
+            const response = await fetch(url);
+            const data = await response.json();
+
+            if (data.error) {
+                if (data.error === 'Geen toegang') {
+                    localStorage.removeItem(CONFIG.localKeys.apiKey);
+                    alert('Ongeldig wachtwoord. Probeer opnieuw.');
+                    location.reload();
+                    return false;
+                }
+                throw new Error(data.error);
+            }
+
+            tasks = data.tasks || [];
+            streams = data.streams || [];
+            milestones = data.milestones || [];
+
+            // Als geen streams, gebruik defaults
+            if (streams.length === 0) {
+                return false;
+            }
+
+            return true;
+        } catch (err) {
+            console.error('Laden mislukt:', err);
+            showToast('Fout bij laden: ' + err.message);
+            return false;
+        }
+    }
+
+    async function saveData(silent = false) {
+        if (isSaving) return;
+        isSaving = true;
+
+        try {
+            const response = await fetch(CONFIG.apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({
+                    key: apiKey,
+                    tasks: tasks,
+                    streams: streams,
+                    milestones: milestones
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.error) {
+                throw new Error(result.error);
+            }
+
+            if (!silent) showToast("Opgeslagen naar Google Sheets");
+        } catch (err) {
+            console.error('Opslaan mislukt:', err);
+            if (!silent) showToast('Fout bij opslaan: ' + err.message);
+        } finally {
+            isSaving = false;
         }
     }
 
@@ -621,14 +673,14 @@
     }
 
     // --- TITEL LOGIC ---
-    function saveTitle() {
+    async function saveTitle() {
         const el = document.getElementById('roadmapTitle');
         pageTitle = el.innerText;
-        saveData(true);
+        await saveData(true);
     }
 
     // --- MILESTONE LOGIC ---
-    function addMilestone() {
+    async function addMilestone() {
         const name = prompt("Naam van de mijlpaal (vb. Go Live):");
         if(name) {
             const week = prompt("Weeknummer (1-26):", "1");
@@ -639,7 +691,7 @@
                     name: name,
                     week: weekNum - 1 // 0-based
                 });
-                saveData();
+                await saveData();
                 renderMilestones();
             } else {
                 alert("Ongeldig weeknummer.");
@@ -647,16 +699,16 @@
         }
     }
 
-    function removeMilestone(id) {
+    async function removeMilestone(id) {
         if(confirm("Mijlpaal verwijderen?")) {
             milestones = milestones.filter(m => m.id !== id);
-            saveData();
+            await saveData();
             renderMilestones();
         }
     }
 
     // --- LOGIC: STREAMS ---
-    function addNewStream() {
+    async function addNewStream() {
         const name = prompt("Naam van de nieuwe stream:");
         if(name) {
             const id = 'stream_' + Date.now();
@@ -666,14 +718,14 @@
                 color: '#f4f6f8',
                 border: '#95a5a6'
             });
-            saveData();
+            await saveData();
             renderAll();
         }
     }
 
-    function updateStreamName(id, newName) {
+    async function updateStreamName(id, newName) {
         const s = streams.find(x => x.id === id);
-        if(s) { s.name = newName; saveData(true); }
+        if(s) { s.name = newName; await saveData(true); }
     }
 
     // --- LOGIC: RENDERING ---
@@ -933,7 +985,7 @@
         cleanupDrag();
     }
 
-    function finishDrop(e) {
+    async function finishDrop(e) {
         // Detect Drop Target
         let droppedOnGrid = false;
         const tracks = document.querySelectorAll('.stream-row-background');
@@ -965,7 +1017,7 @@
             }
         }
 
-        saveData(true);
+        await saveData(true);
         renderAll();
     }
 
@@ -997,7 +1049,7 @@
         if(!resizeData.active) return;
     }
 
-    function endResize(e) {
+    async function endResize(e) {
         if(!resizeData.active) return;
         resizeData.active = false;
 
@@ -1013,7 +1065,7 @@
         document.removeEventListener('mousemove', onResize);
         document.removeEventListener('mouseup', endResize);
 
-        saveData(true);
+        await saveData(true);
         renderAll();
     }
 
@@ -1058,7 +1110,7 @@
 
     function closeModal() { document.getElementById('taskModal').style.display = 'none'; }
 
-    function saveTask() {
+    async function saveTask() {
         const idVal = document.getElementById('taskId').value;
         const title = document.getElementById('taskTitle').value;
         const desc = document.getElementById('taskDesc').value;
@@ -1084,28 +1136,28 @@
             tasks.push(newTask);
         }
 
-        saveData();
+        await saveData();
         renderAll();
         closeModal();
     }
 
-    function deleteCurrentTask() {
+    async function deleteCurrentTask() {
         const id = document.getElementById('taskId').value;
         if(confirm("Taak verwijderen?")) {
             tasks = tasks.filter(t => t.id != id);
-            saveData();
+            await saveData();
             renderAll();
             closeModal();
         }
     }
 
-    function resetToDefault() {
-        if(confirm("Alles resetten naar standaard?")) {
+    async function resetToDefault() {
+        if(confirm("Alles resetten naar standaard? Dit verwijdert ALLE data in Google Sheets!")) {
             tasks = JSON.parse(JSON.stringify(defaultTasks));
             streams = JSON.parse(JSON.stringify(defaultStreams));
             milestones = [];
             pageTitle = "Roadmap Organisatie 2026";
-            saveData();
+            await saveData();
             location.reload();
         }
     }
@@ -1126,6 +1178,25 @@
 
     function manualSave() {
         saveData();
+    }
+
+    async function reloadFromServer() {
+        if (confirm('Data opnieuw laden van Google Sheets? Niet-opgeslagen wijzigingen gaan verloren.')) {
+            showLoading(true);
+            await loadData();
+            renderAll();
+            showLoading(false);
+            showToast('Data herladen van Google Sheets');
+        }
+    }
+
+    function changePassword() {
+        const newKey = prompt('Voer het nieuwe wachtwoord in:');
+        if (newKey) {
+            localStorage.setItem(CONFIG.localKeys.apiKey, newKey);
+            apiKey = newKey;
+            showToast('Wachtwoord gewijzigd - herlaad om te testen');
+        }
     }
 
     // Go
