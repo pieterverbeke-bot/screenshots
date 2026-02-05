@@ -1579,7 +1579,37 @@
             const text = e.target.result;
             const lines = text.split('\n');
 
-            // Skip header
+            // First pass: collect all unique stream names and create missing streams
+            const streamNames = new Set();
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                const values = parseCSVLine(line);
+                if (values.length < 8) continue;
+                const streamName = values[1];
+                if (streamName && streamName !== 'Backlog') {
+                    streamNames.add(streamName);
+                }
+            }
+
+            // Create missing streams with DPG colors
+            let streamsCreated = 0;
+            streamNames.forEach(name => {
+                if (!streams.find(s => s.name === name)) {
+                    const colorIdx = streams.length % CONFIG.dpgColors.length;
+                    const colors = CONFIG.dpgColors[colorIdx];
+                    streams.push({
+                        id: 'stream_' + Date.now() + '_' + streamsCreated,
+                        name: name,
+                        color: colors.color,
+                        border: colors.border
+                    });
+                    streamsCreated++;
+                }
+            });
+
+            // Second pass: import tasks
+            let tasksImported = 0;
             for (let i = 1; i < lines.length; i++) {
                 const line = lines[i].trim();
                 if (!line) continue;
@@ -1590,7 +1620,7 @@
 
                 const [id, streamName, title, desc, status, owner, startWeek, duration] = values;
 
-                // Find stream by name
+                // Find stream by name (now guaranteed to exist if not Backlog)
                 let stream = streams.find(s => s.name === streamName);
                 let streamId = stream ? stream.id : null;
 
@@ -1618,13 +1648,19 @@
                 } else {
                     tasks.push(task);
                 }
+                tasksImported++;
             }
 
             markUnsaved();
             renderAll();
             renderOwnerFilter();
             closeImportModal();
-            showToast(`${lines.length - 1} taken geïmporteerd`);
+
+            let msg = `${tasksImported} taken geïmporteerd`;
+            if (streamsCreated > 0) {
+                msg += `, ${streamsCreated} nieuwe stream(s) aangemaakt`;
+            }
+            showToast(msg);
         };
         reader.readAsText(file);
     }
