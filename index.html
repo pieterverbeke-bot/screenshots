@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roadmap Organisatie 2026</title>
+    <style>
+        :root {
+            --bg-color: #f6f7f9;
+            --text-color: #1a1a1a;
+
+            /* DPG Media Palette */
+            --dpg-purple: #783c96;
+            --dpg-pink: #d23278;
+            --dpg-red: #e6463c;
+            --dpg-yellow: #fabb22;
+
+            /* Status Colors */
+            --status-todo: #95a5a6;
+            --status-busy: #3498db;
+            --status-done: #27ae60;
+            --status-blocked: #e74c3c;
+
+            /* UI Colors */
+            --border-color: #e0e0e0;
+            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --hover-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            user-select: none;
+            padding-bottom: 120px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        input, textarea, select { user-select: text; }
+
+        /* HEADER & CONTROLS */
+        header {
+            background-color: white;
+            padding: 0;
+            border-radius: 12px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+
+        .dpg-bar {
+            height: 6px;
+            background: linear-gradient(90deg, var(--dpg-purple) 0%, var(--dpg-pink) 33%, var(--dpg-red) 66%, var(--dpg-yellow) 100%);
+            width: 100%;
+        }
+
+        .header-content {
+            padding: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .header-text h1 {
+            margin: 0;
+            font-size: 26px;
+            font-weight: 800;
+            color: var(--text-color);
+            letter-spacing: -0.5px;
+            border-bottom: 2px solid transparent;
+            display: inline-block;
+            cursor: text;
+        }
+
+        .header-text h1:hover, .header-text h1:focus {
+            border-bottom-color: #ddd;
+            outline: none;
+        }
+
+        .header-text p {
+            margin: 8px 0 0;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap;}
+
+        button {
+            border: none;
+            padding: 10px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        button:hover { transform: translateY(-1px); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        button:active { transform: translateY(0); }
+
+        .btn-primary { background-color: var(--dpg-purple); color: white; }
+        .btn-primary:hover { background-color: #622a7d; }
+
+        .btn-success { background-color: white; color: var(--status-done); border: 1px solid var(--status-done); }
+        .btn-success:hover { background-color: var(--status-done); color: white; }
+
+        .btn-export { background-color: white; color: #666; border: 1px solid #ddd; }
+        .btn-export:hover { background-color: #f9f9f9; color: #333; }
+
+        .btn-reset { background-color: transparent; color: #999; box-shadow: none; padding: 8px 12px;}
+        .btn-reset:hover { background-color: #f0f0f0; color: #e74c3c; box-shadow: none; transform: none;}
+
+        .btn-add-stream { background-color: white; color: var(--dpg-pink); border: 1px solid var(--dpg-pink); }
+        .btn-add-stream:hover { background-color: var(--dpg-pink); color: white; }
+
+        .btn-milestone { background-color: white; color: var(--dpg-red); border: 1px solid var(--dpg-red); }
+        .btn-milestone:hover { background-color: var(--dpg-red); color: white; }
+
+        /* ROADMAP GRID */
+        .roadmap-wrapper {
+            overflow-x: auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: var(--card-shadow);
+            border: 1px solid var(--border-color);
+            position: relative;
+            margin-bottom: 30px;
+        }
+
+        .roadmap-grid {
+            display: grid;
+            grid-template-columns: 240px repeat(26, 120px);
+            min-width: max-content;
+            grid-auto-flow: row;
+            position: relative;
+        }
+
+        /* Headers */
+        .corner-header {
+            position: sticky;
+            left: 0;
+            z-index: 40;
+            background: #fff;
+            padding: 16px;
+            border-bottom: 2px solid var(--border-color);
+            border-right: 2px solid var(--border-color);
+            font-weight: 700;
+            color: var(--text-color);
+            grid-column: 1; grid-row: 1;
+        }
+
+        .week-header {
+            padding: 12px 5px;
+            text-align: center;
+            border-bottom: 2px solid var(--border-color);
+            border-right: 1px dashed #eee;
+            background: #fff;
+            font-size: 13px;
+            font-weight: 600;
+            color: #888;
+            grid-row: 1;
+            z-index: 20;
+        }
+        .week-header input {
+            width: 100%; border: none; background: transparent;
+            text-align: center; font-weight: 600; color: #555;
+            font-family: inherit; font-size: 13px;
+        }
+
+        /* Stream Labels */
+        .stream-label {
+            position: sticky;
+            left: 0;
+            z-index: 30;
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border-color);
+            border-right: 2px solid var(--border-color);
+            background-color: #fff;
+            min-height: 90px;
+            display: flex;
+            align-items: center;
+            grid-column: 1;
+        }
+        .stream-label input {
+            width: 100%; border: 1px solid transparent; padding: 8px 10px;
+            font-weight: 700; font-size: 14px; border-radius: 6px;
+            color: var(--text-color);
+        }
+        .stream-label input:hover { background-color: #f4f4f4; }
+        .stream-label input:focus { border-color: var(--dpg-purple); outline: none; background: #fff;}
+
+        /* Stream Tracks */
+        .stream-row-background {
+            grid-column: 2 / -1;
+            position: relative;
+            border-bottom: 1px solid var(--border-color);
+            height: 110px;
+            background-image: linear-gradient(to right, transparent 119px, #fafafa 1px);
+            background-size: 120px 100%;
+            z-index: 10;
+        }
+
+        /* MILESTONES */
+        .milestone-container {
+            position: absolute;
+            top: 0; bottom: 0;
+            width: 0;
+            z-index: 50;
+            pointer-events: none;
+        }
+
+        .milestone-line {
+            position: absolute;
+            top: 45px;
+            bottom: 0;
+            width: 2px;
+            background-color: var(--dpg-red);
+            pointer-events: auto;
+            cursor: pointer;
+        }
+
+        .milestone-line::before {
+            content: '';
+            position: absolute;
+            top: 0; bottom: 0; left: -4px; right: -4px;
+            background: transparent;
+        }
+
+        .milestone-label {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--dpg-red);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            pointer-events: auto;
+            cursor: pointer;
+        }
+
+        .milestone-line:hover .milestone-label {
+            transform: translateX(-50%) scale(1.1);
+        }
+
+        /* BACKLOG SECTION */
+        .backlog-wrapper {
+            background: white;
+            border-radius: 12px;
+            padding: 0;
+            box-shadow: var(--card-shadow);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        .backlog-header {
+            background-color: #f9f9f9;
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .backlog-header h3 { margin: 0; color: var(--text-color); font-size: 16px; font-weight: 700; }
+        .backlog-header p { margin: 5px 0 0; font-size: 13px; color: #7f8c8d; }
+
+        .backlog-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            min-height: 120px;
+            padding: 20px;
+            background-color: #fff;
+        }
+
+        /* TASK CARDS */
+        .task-card {
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 13px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            overflow: hidden;
+            border-left: 4px solid;
+            z-index: 15;
+            box-sizing: border-box;
+            background: white;
+            white-space: normal;
+            line-height: 1.3;
+            transition: all 0.2s ease;
+            position: absolute;
+            height: 70px;
+            top: 20px;
+        }
+
+        .backlog-container .task-card {
+            position: relative;
+            width: 200px;
+            height: 90px;
+            border-left-color: #95a5a6;
+            background-color: #f8f9fa;
+            top: auto; left: auto;
+            border: 1px solid #eee;
+            border-left: 4px solid #95a5a6;
+        }
+
+        .task-card:hover {
+            box-shadow: var(--hover-shadow);
+            z-index: 25;
+            transform: translateY(-2px);
+        }
+        .task-card.dragging { opacity: 0.8; cursor: grabbing; z-index: 1000; pointer-events: none; transform: scale(1.02); box-shadow: 0 15px 30px rgba(0,0,0,0.2);}
+
+        .task-header { display: flex; justify-content: space-between; align-items: flex-start; width: 100%; margin-bottom: 2px; }
+        .task-title { font-weight: 700; color: var(--text-color); font-size: 12px; padding-right: 15px; }
+        .task-desc { font-size: 11px; color: #666; display: block; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; margin-bottom: auto;}
+
+        .task-footer {
+            margin-top: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .task-owner {
+            font-size: 10px; color: #888; font-style: italic; display: flex; align-items: center; gap: 3px;
+        }
+        .task-owner::before { content: '👤'; font-style: normal; font-size: 9px; }
+
+        /* STATUS BADGE */
+        .status-badge {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            margin-left: 4px;
+        }
+        .status-todo { background-color: var(--status-todo); }
+        .status-busy { background-color: var(--status-busy); }
+        .status-done { background-color: var(--status-done); }
+        .status-blocked { background-color: var(--status-blocked); }
+
+        /* RESIZE HANDLES */
+        .resize-handle {
+            position: absolute;
+            right: 0; top: 0; bottom: 0;
+            width: 12px;
+            cursor: e-resize;
+            background: transparent;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .resize-handle::after {
+            content: '';
+            height: 20px;
+            width: 3px;
+            background-color: rgba(0,0,0,0.1);
+            border-radius: 2px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .resize-handle:hover::after { opacity: 1; }
+        .backlog-container .resize-handle { display: none; }
+
+        /* MODAL */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.4); backdrop-filter: blur(2px);
+            justify-content: center; align-items: center; z-index: 2000;
+        }
+        .modal-content {
+            background: white; padding: 30px; border-radius: 12px; width: 450px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            border-top: 6px solid var(--dpg-purple);
+        }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;}
+        .modal-header h3 { margin: 0; font-size: 20px; font-weight: 800; }
+
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px; color: #444; }
+        input[type="text"], input[type="number"], select, textarea {
+            width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box;
+            font-family: inherit; font-size: 14px; transition: border 0.2s;
+        }
+        input:focus, select:focus, textarea:focus { border-color: var(--dpg-purple); outline: none; }
+        textarea { resize: vertical; min-height: 80px; }
+
+        .modal-buttons { display: flex; justify-content: space-between; margin-top: 30px; pt: 20px; border-top: 1px solid #eee; padding-top: 20px;}
+        .btn-group-right { display: flex; gap: 10px; }
+        .btn-cancel { background-color: #f1f2f6; color: #333; }
+        .btn-cancel:hover { background-color: #e1e2e6; }
+        .btn-delete { background-color: white; color: var(--dpg-red); border: 1px solid var(--dpg-red); margin-right: auto; padding: 10px 14px;}
+        .btn-delete:hover { background-color: #fff5f5; }
+
+        /* TOAST */
+        #toast {
+            visibility: hidden; min-width: 280px; background-color: var(--text-color); color: #fff;
+            text-align: center; border-radius: 50px; padding: 14px 24px; position: fixed;
+            z-index: 3000; left: 50%; bottom: 40px; transform: translateX(-50%);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2); font-weight: 600;
+        }
+        #toast.show { visibility: visible; animation: fadein 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), fadeout 0.4s 2.6s; }
+
+        @keyframes fadein { from {bottom: 0; opacity: 0; transform: translateX(-50%) scale(0.9);} to {bottom: 40px; opacity: 1; transform: translateX(-50%) scale(1);} }
+        @keyframes fadeout { from {bottom: 40px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+
+        #js-error { display: none; }
+
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="dpg-bar"></div>
+    <div class="header-content">
+        <div class="header-text">
+            <h1 contenteditable="true" id="roadmapTitle" onblur="saveTitle()">Roadmap Organisatie 2026</h1>
+            <p>Klik op de titel om te wijzigen. Klik op een taak om te bewerken.</p>
+        </div>
+        <div class="controls">
+            <button class="btn-reset" onclick="resetToDefault()">Reset</button>
+            <button class="btn-export" onclick="exportToCSV()">📂 Export</button>
+            <button class="btn-success" onclick="manualSave()">💾 Opslaan</button>
+            <button class="btn-milestone" onclick="addMilestone()">⚑ Mijlpaal</button>
+            <button class="btn-add-stream" onclick="addNewStream()">+ Stream</button>
+            <button class="btn-primary" onclick="openModal()">+ Nieuwe Taak</button>
+        </div>
+    </div>
+</header>
+
+<div class="roadmap-wrapper">
+    <div class="roadmap-grid" id="roadmapGrid">
+        <!-- Grid via JS -->
+    </div>
+    <!-- Container for Absolute Milestones -->
+    <div id="milestoneLayer" class="milestone-container"></div>
+</div>
+
+<div class="backlog-wrapper">
+    <div class="backlog-header">
+        <h3>Nog in te plannen (Backlog)</h3>
+        <p>Sleep taken vanuit hier naar het rooster om ze in te plannen.</p>
+    </div>
+    <div id="backlog-container" class="backlog-container">
+        <!-- Backlog taken via JS -->
+    </div>
+</div>
+
+<!-- Modal -->
+<div id="taskModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modalTitle">Taak Bewerken</h3>
+        </div>
+        <input type="hidden" id="taskId">
+
+        <div class="form-group">
+            <label>Taak Naam</label>
+            <input type="text" id="taskTitle" placeholder="Naam">
+        </div>
+        <div class="form-group">
+            <label>Status</label>
+            <select id="taskStatus">
+                <option value="todo">⚪ Te doen</option>
+                <option value="busy">🔵 Mee bezig</option>
+                <option value="done">🟢 Klaar</option>
+                <option value="blocked">🔴 Geblokkeerd</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Omschrijving</label>
+            <textarea id="taskDesc" placeholder="Korte toelichting"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label>Eigenaar / Lead</label>
+            <input type="text" id="taskOwner" placeholder="Bijv. Roxanne, Pieter, Doeschka...">
+        </div>
+
+        <div class="form-group">
+            <label>Stream</label>
+            <select id="taskStream">
+                <!-- Dynamisch -->
+            </select>
+        </div>
+        <div style="display: flex; gap: 15px;">
+            <div class="form-group" style="flex: 1;">
+                <label>Start Week (1-26)</label>
+                <input type="number" id="taskStart" min="1" max="26">
+            </div>
+            <div class="form-group" style="flex: 1;">
+                <label>Duur (weken)</label>
+                <input type="number" id="taskDuration" min="1" max="26">
+            </div>
+        </div>
+
+        <div class="modal-buttons">
+            <button id="btnDelete" class="btn-delete" onclick="deleteCurrentTask()">Verwijderen</button>
+            <div class="btn-group-right">
+                <button class="btn-cancel" onclick="closeModal()">Annuleren</button>
+                <button class="btn-primary" onclick="saveTask()">Opslaan</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="toast">Wijzigingen opgeslagen</div>
+
+<script>
+    // --- CONFIG ---
+    // Nieuwe versie v10 ivm Status veld
+    const CONFIG = {
+        startDate: new Date('2026-01-26'),
+        weeks: 26,
+        pxPerWeek: 120,
+        keys: {
+            tasks: 'org2026_tasks_v10',
+            streams: 'org2026_streams_v10',
+            milestones: 'org2026_milestones_v10',
+            title: 'org2026_title_v10'
+        }
+    };
+
+    // --- DEFAULTS ---
+    const defaultStreams = [
+        { id: 'gov', name: 'Governance & Stakeholders', color: '#f2ebf5', border: '#783c96' },
+        { id: 'hr', name: 'HR & Team', color: '#faeaf1', border: '#d23278' },
+        { id: 'proc', name: 'Processen & Werkwijze', color: '#fceceb', border: '#e6463c' },
+        { id: 'inn', name: 'Innovatie & Tooling', color: '#fff8e8', border: '#fabb22' }
+    ];
+
+    const defaultTasks = [
+        { id: 1, stream: 'gov', title: "Finalisatie Business Case", desc: "Goedkeuring CEO", start: 0, duration: 4, owner: "Roxanne", status: 'done' },
+        { id: 2, stream: 'gov', title: "Definiëren OKR's", desc: "Kwartaaldoelen", start: 2, duration: 4, owner: "Doeschka", status: 'busy' },
+        { id: 8, stream: 'proc', title: "Ad Hoc Workflow", desc: "Ticketing systeem", start: 8, duration: 6, owner: "Cédric", status: 'todo' },
+        { id: 11, stream: 'inn', title: "Pilot 'Rigby' (AI)", desc: "Virtuele assistent", start: 10, duration: 10, owner: "Pieter", status: 'todo' },
+        // Backlog items
+        { id: 99, stream: null, title: "Evaluatie Q1", desc: "Terugblik met team", start: 0, duration: 2, owner: "Allen", status: 'todo' }
+    ];
+
+    // Voorbeeld mijlpalen
+    const defaultMilestones = [];
+
+    // --- STATE ---
+    let tasks = [];
+    let streams = [];
+    let milestones = [];
+    let pageTitle = "Roadmap Organisatie 2026";
+
+    // --- INIT ---
+    function init() {
+        if(!loadData()) {
+            tasks = JSON.parse(JSON.stringify(defaultTasks));
+            streams = JSON.parse(JSON.stringify(defaultStreams));
+            milestones = JSON.parse(JSON.stringify(defaultMilestones));
+            saveData(true);
+        }
+
+        // Laad titel
+        const el = document.getElementById('roadmapTitle');
+        el.innerText = pageTitle;
+
+        renderAll();
+    }
+
+    function isStorageAvailable() {
+        try {
+            const t = '__test__'; localStorage.setItem(t, t); localStorage.removeItem(t); return true;
+        } catch(e) { return false; }
+    }
+
+    function loadData() {
+        if(!isStorageAvailable()) return false;
+        const t = localStorage.getItem(CONFIG.keys.tasks);
+        const s = localStorage.getItem(CONFIG.keys.streams);
+        const m = localStorage.getItem(CONFIG.keys.milestones);
+        const tit = localStorage.getItem(CONFIG.keys.title);
+
+        if(t && s) {
+            tasks = JSON.parse(t);
+            streams = JSON.parse(s);
+            milestones = m ? JSON.parse(m) : [];
+            if(tit) pageTitle = tit;
+            return true;
+        }
+        return false;
+    }
+
+    function saveData(silent = false) {
+        if(isStorageAvailable()) {
+            localStorage.setItem(CONFIG.keys.tasks, JSON.stringify(tasks));
+            localStorage.setItem(CONFIG.keys.streams, JSON.stringify(streams));
+            localStorage.setItem(CONFIG.keys.milestones, JSON.stringify(milestones));
+            localStorage.setItem(CONFIG.keys.title, pageTitle);
+            if(!silent) showToast("Wijzigingen opgeslagen");
+        } else if (!silent) {
+            alert("Opslaan niet mogelijk (Sandbox modus).");
+        }
+    }
+
+    function showToast(msg) {
+        const t = document.getElementById("toast");
+        t.innerText = msg; t.className = "show";
+        setTimeout(() => t.className = t.className.replace("show", ""), 3000);
+    }
+
+    // --- TITEL LOGIC ---
+    function saveTitle() {
+        const el = document.getElementById('roadmapTitle');
+        pageTitle = el.innerText;
+        saveData(true);
+    }
+
+    // --- MILESTONE LOGIC ---
+    function addMilestone() {
+        const name = prompt("Naam van de mijlpaal (vb. Go Live):");
+        if(name) {
+            const week = prompt("Weeknummer (1-26):", "1");
+            const weekNum = parseInt(week);
+            if(!isNaN(weekNum) && weekNum >= 1 && weekNum <= CONFIG.weeks) {
+                milestones.push({
+                    id: Date.now(),
+                    name: name,
+                    week: weekNum - 1 // 0-based
+                });
+                saveData();
+                renderMilestones();
+            } else {
+                alert("Ongeldig weeknummer.");
+            }
+        }
+    }
+
+    function removeMilestone(id) {
+        if(confirm("Mijlpaal verwijderen?")) {
+            milestones = milestones.filter(m => m.id !== id);
+            saveData();
+            renderMilestones();
+        }
+    }
+
+    // --- LOGIC: STREAMS ---
+    function addNewStream() {
+        const name = prompt("Naam van de nieuwe stream:");
+        if(name) {
+            const id = 'stream_' + Date.now();
+            streams.push({
+                id: id,
+                name: name,
+                color: '#f4f6f8',
+                border: '#95a5a6'
+            });
+            saveData();
+            renderAll();
+        }
+    }
+
+    function updateStreamName(id, newName) {
+        const s = streams.find(x => x.id === id);
+        if(s) { s.name = newName; saveData(true); }
+    }
+
+    // --- LOGIC: RENDERING ---
+    function renderAll() {
+        renderGrid();
+        renderBacklog();
+        renderMilestones();
+    }
+
+    function getWeekLabel(idx) {
+        const d = new Date(CONFIG.startDate);
+        d.setDate(d.getDate() + (idx * 7));
+        return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+    }
+
+    function renderGrid() {
+        const grid = document.getElementById('roadmapGrid');
+        grid.innerHTML = '';
+
+        // 1. Corner
+        const corner = document.createElement('div');
+        corner.className = 'corner-header';
+        corner.textContent = 'Stream';
+        grid.appendChild(corner);
+
+        // 2. Headers
+        for(let i=0; i<CONFIG.weeks; i++) {
+            const h = document.createElement('div');
+            h.className = 'week-header';
+            h.style.gridColumn = i + 2;
+            const inp = document.createElement('input');
+            inp.value = getWeekLabel(i);
+            h.appendChild(inp);
+            grid.appendChild(h);
+        }
+
+        // 3. Streams
+        streams.forEach((s, idx) => {
+            const row = idx + 2;
+
+            // Label
+            const lbl = document.createElement('div');
+            lbl.className = 'stream-label';
+            lbl.style.gridRow = row;
+            lbl.style.borderLeft = `5px solid ${s.border}`;
+            const inp = document.createElement('input');
+            inp.value = s.name;
+            inp.onchange = (e) => updateStreamName(s.id, e.target.value);
+            lbl.appendChild(inp);
+            grid.appendChild(lbl);
+
+            // Track
+            const track = document.createElement('div');
+            track.className = 'stream-row-background';
+            track.id = `track-${s.id}`;
+            track.dataset.streamId = s.id;
+            track.style.gridRow = row;
+
+            // Scheduled Tasks
+            const myTasks = tasks.filter(t => t.stream === s.id);
+            myTasks.forEach(t => {
+                const el = createTaskElement(t, s.color, s.border);
+                track.appendChild(el);
+            });
+
+            grid.appendChild(track);
+        });
+    }
+
+    function renderMilestones() {
+        const container = document.getElementById('milestoneLayer');
+        container.innerHTML = '';
+
+        milestones.forEach(m => {
+            const line = document.createElement('div');
+            line.className = 'milestone-line';
+            // Startpositie grid = 240px label breedte
+            // Dan weekIndex * 120px
+            const leftPos = 240 + (m.week * CONFIG.pxPerWeek);
+            line.style.left = `${leftPos}px`;
+            line.onclick = () => removeMilestone(m.id);
+            line.title = "Klik om te verwijderen";
+
+            const label = document.createElement('div');
+            label.className = 'milestone-label';
+            label.innerText = m.name;
+            line.appendChild(label);
+
+            container.appendChild(line);
+        });
+    }
+
+    function renderBacklog() {
+        const container = document.getElementById('backlog-container');
+        container.innerHTML = '';
+        const backlogTasks = tasks.filter(t => !t.stream);
+
+        backlogTasks.forEach(t => {
+            const el = createTaskElement(t, '#fff', '#95a5a6');
+            container.appendChild(el);
+        });
+    }
+
+    function createTaskElement(task, bgColor, borderColor) {
+        const el = document.createElement('div');
+        el.className = 'task-card';
+        el.id = `task-${task.id}`;
+        el.style.borderLeftColor = borderColor;
+        el.style.backgroundColor = bgColor;
+
+        if (task.stream) {
+            // Grid Position
+            el.style.left = `${task.start * CONFIG.pxPerWeek}px`;
+            el.style.width = `${task.duration * CONFIG.pxPerWeek}px`;
+
+            // Resize Handle (alleen in grid)
+            const handle = document.createElement('div');
+            handle.className = 'resize-handle';
+            handle.addEventListener('mousedown', (e) => initResize(e, task, el));
+            el.appendChild(handle);
+        } else {
+            // Backlog Position
+            el.classList.add('unscheduled');
+        }
+
+        // Header (Title + Status Badge)
+        const header = document.createElement('div');
+        header.className = 'task-header';
+
+        const title = document.createElement('span');
+        title.className = 'task-title';
+        title.innerText = task.title;
+        header.appendChild(title);
+
+        // Status Badge
+        const statusBadge = document.createElement('div');
+        statusBadge.className = `status-badge status-${task.status || 'todo'}`;
+        statusBadge.title = getStatusLabel(task.status || 'todo');
+        header.appendChild(statusBadge);
+
+        el.appendChild(header);
+
+        const desc = document.createElement('span');
+        desc.className = 'task-desc';
+        desc.innerText = task.desc;
+        el.appendChild(desc);
+
+        // Footer (Owner)
+        const footer = document.createElement('div');
+        footer.className = 'task-footer';
+
+        if (task.owner) {
+            const owner = document.createElement('span');
+            owner.className = 'task-owner';
+            owner.innerText = task.owner;
+            footer.appendChild(owner);
+        }
+
+        el.appendChild(footer);
+
+        // Bind Drag & Click Logic
+        el.addEventListener('mousedown', (e) => initDrag(e, task, el));
+
+        return el;
+    }
+
+    function getStatusLabel(code) {
+        const map = {
+            'todo': 'Te doen',
+            'busy': 'Mee bezig',
+            'done': 'Klaar',
+            'blocked': 'Geblokkeerd'
+        };
+        return map[code] || 'Onbekend';
+    }
+
+    // --- LOGIC: DRAG & DROP & CLICK DETECTION ---
+    let dragData = {
+        active: false,
+        isDragging: false,
+        task: null,
+        el: null,
+        ghost: null,
+        offX: 0,
+        offY: 0,
+        startX: 0,
+        startY: 0
+    };
+
+    function initDrag(e, task, el) {
+        if(e.button !== 0 || e.target.classList.contains('resize-handle')) return;
+        e.preventDefault();
+
+        const rect = el.getBoundingClientRect();
+        dragData = {
+            active: true,
+            isDragging: false,
+            startX: e.clientX,
+            startY: e.clientY,
+            task: task,
+            el: el,
+            offX: e.clientX - rect.left,
+            offY: e.clientY - rect.top,
+            ghost: null
+        };
+
+        document.addEventListener('mousemove', onDrag);
+        document.addEventListener('mouseup', endDrag);
+    }
+
+    function onDrag(e) {
+        if(!dragData.active) return;
+
+        // Check threshold voor slepen (5px)
+        if (!dragData.isDragging) {
+            const dist = Math.sqrt(Math.pow(e.clientX - dragData.startX, 2) + Math.pow(e.clientY - dragData.startY, 2));
+            if (dist > 5) {
+                startActualDrag();
+            }
+        }
+
+        if (dragData.isDragging && dragData.ghost) {
+            dragData.ghost.style.left = (e.clientX - dragData.offX) + 'px';
+            dragData.ghost.style.top = (e.clientY - dragData.offY) + 'px';
+        }
+    }
+
+    function startActualDrag() {
+        dragData.isDragging = true;
+        const el = dragData.el;
+        const rect = el.getBoundingClientRect();
+
+        dragData.ghost = el.cloneNode(true);
+        dragData.ghost.classList.add('dragging');
+        dragData.ghost.style.position = 'fixed';
+        dragData.ghost.style.width = rect.width + 'px';
+        dragData.ghost.style.height = rect.height + 'px';
+        dragData.ghost.style.left = rect.left + 'px';
+        dragData.ghost.style.top = rect.top + 'px';
+        dragData.ghost.style.zIndex = 5000;
+        dragData.ghost.style.boxShadow = "0 15px 30px rgba(0,0,0,0.2)";
+        dragData.ghost.style.transform = "scale(1.02)";
+
+        document.body.appendChild(dragData.ghost);
+        el.style.opacity = 0.3;
+    }
+
+    function endDrag(e) {
+        if(!dragData.active) return;
+
+        if (dragData.isDragging) {
+            finishDrop(e);
+        } else {
+            openModal(dragData.task);
+        }
+
+        cleanupDrag();
+    }
+
+    function finishDrop(e) {
+        // Detect Drop Target
+        let droppedOnGrid = false;
+        const tracks = document.querySelectorAll('.stream-row-background');
+
+        // 1. Check Grid Drop
+        for (let track of tracks) {
+            const rect = track.getBoundingClientRect();
+            if(e.clientY >= rect.top && e.clientY <= rect.bottom) {
+                droppedOnGrid = true;
+                const streamId = track.dataset.streamId;
+
+                const trackX = rect.left;
+                const mouseRelX = (e.clientX - dragData.offX) - trackX;
+                let week = Math.round(mouseRelX / CONFIG.pxPerWeek);
+                if(week < 0) week = 0;
+                if(week > CONFIG.weeks - 1) week = CONFIG.weeks - 1;
+
+                dragData.task.stream = streamId;
+                dragData.task.start = week;
+                break;
+            }
+        }
+
+        // 2. Check Backlog Drop
+        if (!droppedOnGrid) {
+            const backlogRect = document.querySelector('.backlog-wrapper').getBoundingClientRect();
+            if (e.clientY >= backlogRect.top - 50) {
+                dragData.task.stream = null;
+            }
+        }
+
+        saveData(true);
+        renderAll();
+    }
+
+    function cleanupDrag() {
+        dragData.active = false;
+        if(dragData.ghost) dragData.ghost.remove();
+        if(dragData.el) dragData.el.style.opacity = 1;
+        document.removeEventListener('mousemove', onDrag);
+        document.removeEventListener('mouseup', endDrag);
+    }
+
+    // --- LOGIC: RESIZE ---
+    let resizeData = { active: false, task: null, startX: 0, startWidth: 0 };
+
+    function initResize(e, task, el) {
+        e.stopPropagation(); // Stop drag start
+        e.preventDefault();
+        resizeData = {
+            active: true,
+            task: task,
+            startX: e.clientX,
+            startWidth: parseFloat(el.style.width)
+        };
+        document.addEventListener('mousemove', onResize);
+        document.addEventListener('mouseup', endResize);
+    }
+
+    function onResize(e) {
+        if(!resizeData.active) return;
+    }
+
+    function endResize(e) {
+        if(!resizeData.active) return;
+        resizeData.active = false;
+
+        const diff = e.clientX - resizeData.startX;
+        const newPixelWidth = resizeData.startWidth + diff;
+        let newDuration = Math.round(newPixelWidth / CONFIG.pxPerWeek);
+
+        if(newDuration < 1) newDuration = 1;
+        if((resizeData.task.start + newDuration) > CONFIG.weeks) newDuration = CONFIG.weeks - resizeData.task.start;
+
+        resizeData.task.duration = newDuration;
+
+        document.removeEventListener('mousemove', onResize);
+        document.removeEventListener('mouseup', endResize);
+
+        saveData(true);
+        renderAll();
+    }
+
+    // --- LOGIC: MODAL ---
+    function openModal(task = null) {
+        const modal = document.getElementById('taskModal');
+        const select = document.getElementById('taskStream');
+
+        // Fill streams select
+        select.innerHTML = '<option value="">-- Nog in te plannen --</option>';
+        streams.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.id; opt.innerText = s.name;
+            select.appendChild(opt);
+        });
+
+        if(task) {
+            document.getElementById('modalTitle').innerText = "Taak Bewerken";
+            document.getElementById('taskId').value = task.id;
+            document.getElementById('taskTitle').value = task.title;
+            document.getElementById('taskDesc').value = task.desc;
+            document.getElementById('taskStatus').value = task.status || "todo";
+            document.getElementById('taskOwner').value = task.owner || "";
+            document.getElementById('taskStream').value = task.stream || "";
+            document.getElementById('taskStart').value = (task.start || 0) + 1;
+            document.getElementById('taskDuration').value = task.duration || 4;
+            document.getElementById('btnDelete').style.display = 'block';
+        } else {
+            document.getElementById('modalTitle').innerText = "Nieuwe Taak";
+            document.getElementById('taskId').value = "";
+            document.getElementById('taskTitle').value = "";
+            document.getElementById('taskDesc').value = "";
+            document.getElementById('taskStatus').value = "todo";
+            document.getElementById('taskOwner').value = "";
+            document.getElementById('taskStream').value = "";
+            document.getElementById('taskStart').value = 1;
+            document.getElementById('taskDuration').value = 4;
+            document.getElementById('btnDelete').style.display = 'none';
+        }
+        modal.style.display = 'flex';
+    }
+
+    function closeModal() { document.getElementById('taskModal').style.display = 'none'; }
+
+    function saveTask() {
+        const idVal = document.getElementById('taskId').value;
+        const title = document.getElementById('taskTitle').value;
+        const desc = document.getElementById('taskDesc').value;
+        const status = document.getElementById('taskStatus').value;
+        const owner = document.getElementById('taskOwner').value;
+        const stream = document.getElementById('taskStream').value || null;
+        let start = parseInt(document.getElementById('taskStart').value) - 1;
+        let dur = parseInt(document.getElementById('taskDuration').value);
+
+        if(!title) return alert("Titel verplicht");
+
+        const newTask = {
+            id: idVal ? parseInt(idVal) : Date.now(),
+            title, desc, stream, owner, status,
+            start: start >= 0 ? start : 0,
+            duration: dur > 0 ? dur : 4
+        };
+
+        if(idVal) {
+            const idx = tasks.findIndex(t => t.id == idVal);
+            if(idx > -1) tasks[idx] = newTask;
+        } else {
+            tasks.push(newTask);
+        }
+
+        saveData();
+        renderAll();
+        closeModal();
+    }
+
+    function deleteCurrentTask() {
+        const id = document.getElementById('taskId').value;
+        if(confirm("Taak verwijderen?")) {
+            tasks = tasks.filter(t => t.id != id);
+            saveData();
+            renderAll();
+            closeModal();
+        }
+    }
+
+    function resetToDefault() {
+        if(confirm("Alles resetten naar standaard?")) {
+            tasks = JSON.parse(JSON.stringify(defaultTasks));
+            streams = JSON.parse(JSON.stringify(defaultStreams));
+            milestones = [];
+            pageTitle = "Roadmap Organisatie 2026";
+            saveData();
+            location.reload();
+        }
+    }
+
+    function exportToCSV() {
+        let csv = "ID,Stream,Titel,Omschrijving,Status,Eigenaar,Start Week,Duur\n";
+        tasks.forEach(t => {
+            const sName = t.stream ? (streams.find(s=>s.id===t.stream)?.name || 'Unknown') : 'Backlog';
+            const statusLabel = getStatusLabel(t.status || 'todo');
+            csv += `${t.id},"${sName}","${t.title}","${t.desc}","${statusLabel}","${t.owner || ''}",${t.start+1},${t.duration}\n`;
+        });
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'roadmap.csv';
+        a.click();
+    }
+
+    function manualSave() {
+        saveData();
+    }
+
+    // Go
+    init();
+
+</script>
+</body>
+</html>
