@@ -124,6 +124,30 @@
         .btn-milestone { background-color: white; color: var(--dpg-red); border: 1px solid var(--dpg-red); }
         .btn-milestone:hover { background-color: var(--dpg-red); color: white; }
 
+        .btn-filter { background-color: white; color: var(--dpg-purple); border: 1px solid var(--dpg-purple); }
+        .btn-filter:hover { background-color: var(--dpg-purple); color: white; }
+        .btn-filter.active { background-color: var(--dpg-purple); color: white; }
+
+        /* FILTER BAR */
+        .filter-bar {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        .filter-bar span { font-size: 13px; color: #666; font-weight: 600; }
+        .filter-btn {
+            padding: 6px 12px;
+            font-size: 12px;
+            border-radius: 20px;
+            background: white;
+            border: 1px solid #ddd;
+            cursor: pointer;
+        }
+        .filter-btn:hover { border-color: var(--dpg-purple); }
+        .filter-btn.active { background: var(--dpg-purple); color: white; border-color: var(--dpg-purple); }
+
         /* ROADMAP GRID */
         .roadmap-wrapper {
             overflow-x: auto;
@@ -169,10 +193,14 @@
             grid-row: 1;
             z-index: 20;
         }
-        .week-header input {
-            width: 100%; border: none; background: transparent;
-            text-align: center; font-weight: 600; color: #555;
-            font-family: inherit; font-size: 13px;
+        .week-header.current-week {
+            background: linear-gradient(180deg, #fff8e8 0%, #fff 100%);
+            border-bottom-color: var(--dpg-yellow);
+        }
+        .week-header.current-week::after {
+            content: '📍';
+            display: block;
+            font-size: 10px;
         }
 
         /* Stream Labels */
@@ -202,10 +230,21 @@
             grid-column: 2 / -1;
             position: relative;
             border-bottom: 1px solid var(--border-color);
-            height: 110px;
+            min-height: 110px;
             background-image: linear-gradient(to right, transparent 119px, #fafafa 1px);
             background-size: 120px 100%;
             z-index: 10;
+        }
+
+        /* Current week highlight */
+        .current-week-line {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--dpg-yellow);
+            z-index: 5;
+            pointer-events: none;
         }
 
         /* MILESTONES */
@@ -224,13 +263,13 @@
             width: 2px;
             background-color: var(--dpg-red);
             pointer-events: auto;
-            cursor: pointer;
+            cursor: ew-resize;
         }
 
         .milestone-line::before {
             content: '';
             position: absolute;
-            top: 0; bottom: 0; left: -4px; right: -4px;
+            top: 0; bottom: 0; left: -8px; right: -8px;
             background: transparent;
         }
 
@@ -248,7 +287,7 @@
             white-space: nowrap;
             box-shadow: 0 2px 4px rgba(0,0,0,0.2);
             pointer-events: auto;
-            cursor: pointer;
+            cursor: ew-resize;
         }
 
         .milestone-line:hover .milestone-label {
@@ -301,8 +340,11 @@
             line-height: 1.3;
             transition: all 0.2s ease;
             position: absolute;
-            height: 70px;
-            top: 20px;
+            height: 32px;
+        }
+
+        .task-card.filtered-out {
+            opacity: 0.2;
         }
 
         .backlog-container .task-card {
@@ -318,22 +360,26 @@
 
         .task-card:hover {
             box-shadow: var(--hover-shadow);
-            z-index: 25;
-            transform: translateY(-2px);
+            z-index: 100;
+            transform: scale(1.05);
+            height: auto;
+            min-height: 32px;
         }
         .task-card.dragging { opacity: 0.8; cursor: grabbing; z-index: 1000; pointer-events: none; transform: scale(1.02); box-shadow: 0 15px 30px rgba(0,0,0,0.2);}
 
         .task-header { display: flex; justify-content: space-between; align-items: flex-start; width: 100%; margin-bottom: 2px; }
-        .task-title { font-weight: 700; color: var(--text-color); font-size: 12px; padding-right: 15px; }
-        .task-desc { font-size: 11px; color: #666; display: block; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; margin-bottom: auto;}
+        .task-title { font-weight: 700; color: var(--text-color); font-size: 11px; padding-right: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .task-desc { font-size: 10px; color: #666; display: none; margin-bottom: auto;}
+        .task-card:hover .task-desc { display: block; white-space: normal; }
 
         .task-footer {
             margin-top: auto;
-            display: flex;
+            display: none;
             justify-content: space-between;
             align-items: center;
             width: 100%;
         }
+        .task-card:hover .task-footer { display: flex; }
 
         .task-owner {
             font-size: 10px; color: #888; font-style: italic; display: flex; align-items: center; gap: 3px;
@@ -343,8 +389,8 @@
         /* STATUS BADGE */
         .status-badge {
             display: inline-block;
-            width: 10px;
-            height: 10px;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
             flex-shrink: 0;
             margin-left: 4px;
@@ -385,7 +431,7 @@
             justify-content: center; align-items: center; z-index: 2000;
         }
         .modal-content {
-            background: white; padding: 30px; border-radius: 12px; width: 450px;
+            background: white; padding: 30px; border-radius: 12px; width: 450px; max-height: 90vh; overflow-y: auto;
             box-shadow: 0 20px 40px rgba(0,0,0,0.2);
             border-top: 6px solid var(--dpg-purple);
         }
@@ -394,7 +440,7 @@
 
         .form-group { margin-bottom: 20px; }
         label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px; color: #444; }
-        input[type="text"], input[type="number"], select, textarea {
+        input[type="text"], input[type="number"], input[type="file"], select, textarea {
             width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box;
             font-family: inherit; font-size: 14px; transition: border 0.2s;
         }
@@ -420,7 +466,14 @@
         @keyframes fadein { from {bottom: 0; opacity: 0; transform: translateX(-50%) scale(0.9);} to {bottom: 40px; opacity: 1; transform: translateX(-50%) scale(1);} }
         @keyframes fadeout { from {bottom: 40px; opacity: 1;} to {bottom: 0; opacity: 0;} }
 
-        #js-error { display: none; }
+        /* UNSAVED INDICATOR */
+        .unsaved-indicator {
+            display: none;
+            color: var(--dpg-red);
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .unsaved-indicator.show { display: inline; }
 
     </style>
 </head>
@@ -430,20 +483,28 @@
     <div class="dpg-bar"></div>
     <div class="header-content">
         <div class="header-text">
-            <h1 contenteditable="true" id="roadmapTitle" onblur="saveTitle()">Roadmap Organisatie 2026</h1>
-            <p>Synchroniseert met Google Sheets. Klik 🔄 om wijzigingen van collega's te laden.</p>
+            <h1 contenteditable="true" id="roadmapTitle">Roadmap Organisatie 2026</h1>
+            <p>Klik 💾 om wijzigingen op te slaan. <span id="unsavedIndicator" class="unsaved-indicator">● Niet-opgeslagen wijzigingen</span></p>
         </div>
         <div class="controls">
-            <button class="btn-reset" onclick="changePassword()">🔑</button>
-            <button class="btn-export" onclick="reloadFromServer()">🔄 Herladen</button>
-            <button class="btn-export" onclick="exportToCSV()">📂 Export</button>
-            <button class="btn-success" onclick="manualSave()">💾 Opslaan</button>
+            <button class="btn-reset" onclick="changePassword()" title="Wachtwoord wijzigen">🔑</button>
+            <button class="btn-export" onclick="reloadFromServer()" title="Data herladen van Google Sheets">🔄 Herladen</button>
+            <button class="btn-export" onclick="showImportModal()" title="CSV importeren">📥 Import</button>
+            <button class="btn-export" onclick="exportToCSV()" title="Exporteren naar CSV">📤 Export</button>
+            <button class="btn-success" onclick="manualSave()" title="Opslaan naar Google Sheets">💾 Opslaan</button>
             <button class="btn-milestone" onclick="addMilestone()">⚑ Mijlpaal</button>
             <button class="btn-add-stream" onclick="addNewStream()">+ Stream</button>
             <button class="btn-primary" onclick="openModal()">+ Nieuwe Taak</button>
         </div>
     </div>
 </header>
+
+<!-- Filter Bar -->
+<div class="filter-bar" id="filterBar">
+    <span>Filter op eigenaar:</span>
+    <button class="filter-btn active" onclick="setOwnerFilter(null)">Alle</button>
+    <!-- Dynamic owner buttons -->
+</div>
 
 <div class="roadmap-wrapper">
     <div class="roadmap-grid" id="roadmapGrid">
@@ -463,7 +524,7 @@
     </div>
 </div>
 
-<!-- Modal -->
+<!-- Task Modal -->
 <div id="taskModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -521,6 +582,29 @@
     </div>
 </div>
 
+<!-- Import Modal -->
+<div id="importModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>CSV Importeren</h3>
+        </div>
+        <div class="form-group">
+            <label>Selecteer CSV bestand</label>
+            <input type="file" id="csvFileInput" accept=".csv">
+            <p style="font-size:12px;color:#666;margin-top:8px;">
+                Formaat: ID, Stream, Titel, Omschrijving, Status, Eigenaar, Start Week, Duur
+            </p>
+        </div>
+        <div class="modal-buttons">
+            <div></div>
+            <div class="btn-group-right">
+                <button class="btn-cancel" onclick="closeImportModal()">Annuleren</button>
+                <button class="btn-primary" onclick="importCSV()">Importeren</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div id="toast">Wijzigingen opgeslagen</div>
 
 <script>
@@ -533,7 +617,14 @@
         apiUrl: 'https://script.google.com/macros/s/AKfycbyVURaxiZl7dhZ1I72oyEZ30U3xOB0ckKQqqEtjVDZuA8ou_YCOcRS1BiFfEd1API2s/exec',
         localKeys: {
             apiKey: 'roadmap_api_key'
-        }
+        },
+        // DPG Media kleuren voor nieuwe streams
+        dpgColors: [
+            { color: '#f2ebf5', border: '#783c96' }, // Purple
+            { color: '#faeaf1', border: '#d23278' }, // Pink
+            { color: '#fceceb', border: '#e6463c' }, // Red
+            { color: '#fff8e8', border: '#fabb22' }, // Yellow
+        ]
     };
 
     // --- DEFAULTS (gebruikt als sheet leeg is) ---
@@ -554,6 +645,8 @@
     let pageTitle = "Roadmap Organisatie 2026";
     let apiKey = '';
     let isSaving = false;
+    let hasUnsavedChanges = false;
+    let currentOwnerFilter = null;
 
     // --- INIT ---
     async function init() {
@@ -571,13 +664,21 @@
 
         showLoading(true);
 
-        const loaded = await loadData();
-        if (!loaded) {
-            // Eerste keer of lege sheet: laad defaults
+        const loadResult = await loadData();
+
+        if (loadResult === 'no_access') {
+            // Wachtwoord fout - niet verder gaan
+            showLoading(false);
+            return;
+        }
+
+        if (loadResult === 'empty' || loadResult === 'error') {
+            // Lege sheet of fout - gebruik defaults maar sla NIET op
             streams = JSON.parse(JSON.stringify(defaultStreams));
             tasks = JSON.parse(JSON.stringify(defaultTasks));
             milestones = JSON.parse(JSON.stringify(defaultMilestones));
-            await saveData(true);
+            showToast('Geen data gevonden - standaard streams geladen. Klik 💾 om op te slaan.');
+            markUnsaved();
         }
 
         const el = document.getElementById('roadmapTitle');
@@ -585,6 +686,17 @@
 
         showLoading(false);
         renderAll();
+        renderOwnerFilter();
+    }
+
+    function markUnsaved() {
+        hasUnsavedChanges = true;
+        document.getElementById('unsavedIndicator').classList.add('show');
+    }
+
+    function markSaved() {
+        hasUnsavedChanges = false;
+        document.getElementById('unsavedIndicator').classList.remove('show');
     }
 
     function showLoading(show) {
@@ -618,7 +730,7 @@
                     localStorage.removeItem(CONFIG.localKeys.apiKey);
                     alert('Ongeldig wachtwoord. Probeer opnieuw.');
                     location.reload();
-                    return false;
+                    return 'no_access';
                 }
                 throw new Error(data.error);
             }
@@ -627,16 +739,16 @@
             streams = data.streams || [];
             milestones = data.milestones || [];
 
-            // Als geen streams, gebruik defaults
+            // Als geen streams, return 'empty'
             if (streams.length === 0) {
-                return false;
+                return 'empty';
             }
 
-            return true;
+            return 'success';
         } catch (err) {
             console.error('Laden mislukt:', err);
             showToast('Fout bij laden: ' + err.message);
-            return false;
+            return 'error';
         }
     }
 
@@ -663,7 +775,6 @@
             try {
                 result = JSON.parse(text);
             } catch {
-                // Als response geen JSON is, neem aan dat het gelukt is
                 result = { success: true };
             }
 
@@ -671,6 +782,7 @@
                 throw new Error(result.error);
             }
 
+            markSaved();
             if (!silent) showToast("Opgeslagen naar Google Sheets");
         } catch (err) {
             console.error('Opslaan mislukt:', err);
@@ -686,15 +798,41 @@
         setTimeout(() => t.className = t.className.replace("show", ""), 3000);
     }
 
-    // --- TITEL LOGIC ---
-    async function saveTitle() {
-        const el = document.getElementById('roadmapTitle');
-        pageTitle = el.innerText;
-        await saveData(true);
+    // --- OWNER FILTER ---
+    function renderOwnerFilter() {
+        const bar = document.getElementById('filterBar');
+        // Keep the label and "Alle" button
+        bar.innerHTML = '<span>Filter op eigenaar:</span><button class="filter-btn active" onclick="setOwnerFilter(null)">Alle</button>';
+
+        // Get unique owners
+        const owners = [...new Set(tasks.map(t => t.owner).filter(o => o))];
+        owners.sort();
+
+        owners.forEach(owner => {
+            const btn = document.createElement('button');
+            btn.className = 'filter-btn';
+            btn.textContent = owner;
+            btn.onclick = () => setOwnerFilter(owner);
+            bar.appendChild(btn);
+        });
+    }
+
+    function setOwnerFilter(owner) {
+        currentOwnerFilter = owner;
+
+        // Update button states
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if ((owner === null && btn.textContent === 'Alle') || btn.textContent === owner) {
+                btn.classList.add('active');
+            }
+        });
+
+        renderAll();
     }
 
     // --- MILESTONE LOGIC ---
-    async function addMilestone() {
+    function addMilestone() {
         const name = prompt("Naam van de mijlpaal (vb. Go Live):");
         if(name) {
             const week = prompt("Weeknummer (1-26):", "1");
@@ -705,7 +843,7 @@
                     name: name,
                     week: weekNum - 1 // 0-based
                 });
-                await saveData();
+                markUnsaved();
                 renderMilestones();
             } else {
                 alert("Ongeldig weeknummer.");
@@ -713,33 +851,49 @@
         }
     }
 
-    async function removeMilestone(id) {
+    function removeMilestone(id) {
         if(confirm("Mijlpaal verwijderen?")) {
             milestones = milestones.filter(m => m.id !== id);
-            await saveData();
+            markUnsaved();
             renderMilestones();
         }
     }
 
     // --- LOGIC: STREAMS ---
-    async function addNewStream() {
+    function addNewStream() {
         const name = prompt("Naam van de nieuwe stream:");
         if(name) {
             const id = 'stream_' + Date.now();
+            // Gebruik DPG kleuren in rotatie
+            const colorIdx = streams.length % CONFIG.dpgColors.length;
+            const colors = CONFIG.dpgColors[colorIdx];
+
             streams.push({
                 id: id,
                 name: name,
-                color: '#f4f6f8',
-                border: '#95a5a6'
+                color: colors.color,
+                border: colors.border
             });
-            await saveData();
+            markUnsaved();
             renderAll();
         }
     }
 
-    async function updateStreamName(id, newName) {
+    function updateStreamName(id, newName) {
         const s = streams.find(x => x.id === id);
-        if(s) { s.name = newName; await saveData(true); }
+        if(s) {
+            s.name = newName;
+            markUnsaved();
+        }
+    }
+
+    // --- CURRENT WEEK ---
+    function getCurrentWeekIndex() {
+        const now = new Date();
+        const start = new Date(CONFIG.startDate);
+        const diffTime = now - start;
+        const diffWeeks = Math.floor(diffTime / (7 * 24 * 60 * 60 * 1000));
+        return Math.max(0, Math.min(CONFIG.weeks - 1, diffWeeks));
     }
 
     // --- LOGIC: RENDERING ---
@@ -758,6 +912,7 @@
     function renderGrid() {
         const grid = document.getElementById('roadmapGrid');
         grid.innerHTML = '';
+        const currentWeek = getCurrentWeekIndex();
 
         // 1. Corner
         const corner = document.createElement('div');
@@ -769,10 +924,9 @@
         for(let i=0; i<CONFIG.weeks; i++) {
             const h = document.createElement('div');
             h.className = 'week-header';
+            if (i === currentWeek) h.classList.add('current-week');
             h.style.gridColumn = i + 2;
-            const inp = document.createElement('input');
-            inp.value = getWeekLabel(i);
-            h.appendChild(inp);
+            h.textContent = getWeekLabel(i);
             grid.appendChild(h);
         }
 
@@ -798,15 +952,58 @@
             track.dataset.streamId = s.id;
             track.style.gridRow = row;
 
-            // Scheduled Tasks
+            // Current week line
+            const weekLine = document.createElement('div');
+            weekLine.className = 'current-week-line';
+            weekLine.style.left = `${currentWeek * CONFIG.pxPerWeek + CONFIG.pxPerWeek / 2}px`;
+            track.appendChild(weekLine);
+
+            // Scheduled Tasks - with stacking for overlapping cards
             const myTasks = tasks.filter(t => t.stream === s.id);
+            const rows = assignTaskRows(myTasks);
+            const trackHeight = Math.max(110, rows.length * 38 + 20);
+            track.style.height = `${trackHeight}px`;
+
             myTasks.forEach(t => {
-                const el = createTaskElement(t, s.color, s.border);
+                const rowIdx = rows.findIndex(row => row.includes(t.id));
+                const el = createTaskElement(t, s.color, s.border, rowIdx);
                 track.appendChild(el);
             });
 
             grid.appendChild(track);
         });
+    }
+
+    // Assign tasks to rows to avoid overlap
+    function assignTaskRows(tasks) {
+        const rows = [];
+        const sorted = [...tasks].sort((a, b) => a.start - b.start);
+
+        sorted.forEach(task => {
+            const taskEnd = task.start + task.duration;
+            let placed = false;
+
+            for (let i = 0; i < rows.length; i++) {
+                const canPlace = rows[i].every(existingId => {
+                    const existing = tasks.find(t => t.id === existingId);
+                    if (!existing) return true;
+                    const existingEnd = existing.start + existing.duration;
+                    return taskEnd <= existing.start || task.start >= existingEnd;
+                });
+
+                if (canPlace) {
+                    rows[i].push(task.id);
+                    placed = true;
+                    break;
+                }
+            }
+
+            if (!placed) {
+                rows.push([task.id]);
+            }
+        });
+
+        return rows;
     }
 
     function renderMilestones() {
@@ -816,12 +1013,13 @@
         milestones.forEach(m => {
             const line = document.createElement('div');
             line.className = 'milestone-line';
-            // Startpositie grid = 240px label breedte
-            // Dan weekIndex * 120px
             const leftPos = 240 + (m.week * CONFIG.pxPerWeek);
             line.style.left = `${leftPos}px`;
-            line.onclick = () => removeMilestone(m.id);
-            line.title = "Klik om te verwijderen";
+            line.title = "Sleep om te verplaatsen, dubbelklik om te verwijderen";
+
+            // Drag milestone
+            line.addEventListener('mousedown', (e) => initMilestoneDrag(e, m, line));
+            line.addEventListener('dblclick', () => removeMilestone(m.id));
 
             const label = document.createElement('div');
             label.className = 'milestone-label';
@@ -832,36 +1030,76 @@
         });
     }
 
+    // Milestone drag
+    let milestoneDragData = { active: false, milestone: null, startX: 0 };
+
+    function initMilestoneDrag(e, milestone, el) {
+        e.preventDefault();
+        milestoneDragData = {
+            active: true,
+            milestone: milestone,
+            el: el,
+            startX: e.clientX,
+            originalWeek: milestone.week
+        };
+        document.addEventListener('mousemove', onMilestoneDrag);
+        document.addEventListener('mouseup', endMilestoneDrag);
+    }
+
+    function onMilestoneDrag(e) {
+        if (!milestoneDragData.active) return;
+        const diff = e.clientX - milestoneDragData.startX;
+        const weekDiff = Math.round(diff / CONFIG.pxPerWeek);
+        let newWeek = milestoneDragData.originalWeek + weekDiff;
+        newWeek = Math.max(0, Math.min(CONFIG.weeks - 1, newWeek));
+
+        milestoneDragData.el.style.left = `${240 + (newWeek * CONFIG.pxPerWeek)}px`;
+        milestoneDragData.milestone.week = newWeek;
+    }
+
+    function endMilestoneDrag(e) {
+        if (!milestoneDragData.active) return;
+        milestoneDragData.active = false;
+        document.removeEventListener('mousemove', onMilestoneDrag);
+        document.removeEventListener('mouseup', endMilestoneDrag);
+        markUnsaved();
+    }
+
     function renderBacklog() {
         const container = document.getElementById('backlog-container');
         container.innerHTML = '';
         const backlogTasks = tasks.filter(t => !t.stream);
 
         backlogTasks.forEach(t => {
-            const el = createTaskElement(t, '#fff', '#95a5a6');
+            const el = createTaskElement(t, '#fff', '#95a5a6', 0);
             container.appendChild(el);
         });
     }
 
-    function createTaskElement(task, bgColor, borderColor) {
+    function createTaskElement(task, bgColor, borderColor, rowIdx = 0) {
         const el = document.createElement('div');
         el.className = 'task-card';
         el.id = `task-${task.id}`;
         el.style.borderLeftColor = borderColor;
         el.style.backgroundColor = bgColor;
 
-        if (task.stream) {
-            // Grid Position
-            el.style.left = `${task.start * CONFIG.pxPerWeek}px`;
-            el.style.width = `${task.duration * CONFIG.pxPerWeek}px`;
+        // Apply filter
+        if (currentOwnerFilter && task.owner !== currentOwnerFilter) {
+            el.classList.add('filtered-out');
+        }
 
-            // Resize Handle (alleen in grid)
+        if (task.stream) {
+            // Grid Position with row offset
+            el.style.left = `${task.start * CONFIG.pxPerWeek}px`;
+            el.style.width = `${task.duration * CONFIG.pxPerWeek - 4}px`;
+            el.style.top = `${5 + rowIdx * 38}px`;
+
+            // Resize Handle
             const handle = document.createElement('div');
             handle.className = 'resize-handle';
             handle.addEventListener('mousedown', (e) => initResize(e, task, el));
             el.appendChild(handle);
         } else {
-            // Backlog Position
             el.classList.add('unscheduled');
         }
 
@@ -884,7 +1122,7 @@
 
         const desc = document.createElement('span');
         desc.className = 'task-desc';
-        desc.innerText = task.desc;
+        desc.innerText = task.desc || '';
         el.appendChild(desc);
 
         // Footer (Owner)
@@ -896,6 +1134,16 @@
             owner.className = 'task-owner';
             owner.innerText = task.owner;
             footer.appendChild(owner);
+        }
+
+        // End date
+        if (task.stream && task.start !== undefined && task.duration) {
+            const endDate = document.createElement('span');
+            endDate.style.cssText = 'font-size:10px;color:#888;';
+            const d = new Date(CONFIG.startDate);
+            d.setDate(d.getDate() + ((task.start + task.duration) * 7));
+            endDate.innerText = `→ ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+            footer.appendChild(endDate);
         }
 
         el.appendChild(footer);
@@ -953,7 +1201,6 @@
     function onDrag(e) {
         if(!dragData.active) return;
 
-        // Check threshold voor slepen (5px)
         if (!dragData.isDragging) {
             const dist = Math.sqrt(Math.pow(e.clientX - dragData.startX, 2) + Math.pow(e.clientY - dragData.startY, 2));
             if (dist > 5) {
@@ -999,12 +1246,10 @@
         cleanupDrag();
     }
 
-    async function finishDrop(e) {
-        // Detect Drop Target
+    function finishDrop(e) {
         let droppedOnGrid = false;
         const tracks = document.querySelectorAll('.stream-row-background');
 
-        // 1. Check Grid Drop
         for (let track of tracks) {
             const rect = track.getBoundingClientRect();
             if(e.clientY >= rect.top && e.clientY <= rect.bottom) {
@@ -1023,7 +1268,6 @@
             }
         }
 
-        // 2. Check Backlog Drop
         if (!droppedOnGrid) {
             const backlogRect = document.querySelector('.backlog-wrapper').getBoundingClientRect();
             if (e.clientY >= backlogRect.top - 50) {
@@ -1031,7 +1275,7 @@
             }
         }
 
-        await saveData(true);
+        markUnsaved();
         renderAll();
     }
 
@@ -1047,7 +1291,7 @@
     let resizeData = { active: false, task: null, startX: 0, startWidth: 0 };
 
     function initResize(e, task, el) {
-        e.stopPropagation(); // Stop drag start
+        e.stopPropagation();
         e.preventDefault();
         resizeData = {
             active: true,
@@ -1063,7 +1307,7 @@
         if(!resizeData.active) return;
     }
 
-    async function endResize(e) {
+    function endResize(e) {
         if(!resizeData.active) return;
         resizeData.active = false;
 
@@ -1079,7 +1323,7 @@
         document.removeEventListener('mousemove', onResize);
         document.removeEventListener('mouseup', endResize);
 
-        await saveData(true);
+        markUnsaved();
         renderAll();
     }
 
@@ -1088,7 +1332,6 @@
         const modal = document.getElementById('taskModal');
         const select = document.getElementById('taskStream');
 
-        // Fill streams select
         select.innerHTML = '<option value="">-- Nog in te plannen --</option>';
         streams.forEach(s => {
             const opt = document.createElement('option');
@@ -1100,7 +1343,7 @@
             document.getElementById('modalTitle').innerText = "Taak Bewerken";
             document.getElementById('taskId').value = task.id;
             document.getElementById('taskTitle').value = task.title;
-            document.getElementById('taskDesc').value = task.desc;
+            document.getElementById('taskDesc').value = task.desc || '';
             document.getElementById('taskStatus').value = task.status || "todo";
             document.getElementById('taskOwner').value = task.owner || "";
             document.getElementById('taskStream').value = task.stream || "";
@@ -1115,7 +1358,7 @@
             document.getElementById('taskStatus').value = "todo";
             document.getElementById('taskOwner').value = "";
             document.getElementById('taskStream').value = "";
-            document.getElementById('taskStart').value = 1;
+            document.getElementById('taskStart').value = getCurrentWeekIndex() + 1;
             document.getElementById('taskDuration').value = 4;
             document.getElementById('btnDelete').style.display = 'none';
         }
@@ -1124,7 +1367,7 @@
 
     function closeModal() { document.getElementById('taskModal').style.display = 'none'; }
 
-    async function saveTask() {
+    function saveTask() {
         const idVal = document.getElementById('taskId').value;
         const title = document.getElementById('taskTitle').value;
         const desc = document.getElementById('taskDesc').value;
@@ -1150,30 +1393,114 @@
             tasks.push(newTask);
         }
 
-        await saveData();
+        markUnsaved();
         renderAll();
+        renderOwnerFilter();
         closeModal();
     }
 
-    async function deleteCurrentTask() {
+    function deleteCurrentTask() {
         const id = document.getElementById('taskId').value;
         if(confirm("Taak verwijderen?")) {
             tasks = tasks.filter(t => t.id != id);
-            await saveData();
+            markUnsaved();
             renderAll();
+            renderOwnerFilter();
             closeModal();
         }
     }
 
-    async function resetToDefault() {
-        if(confirm("Alles resetten naar standaard? Dit verwijdert ALLE data in Google Sheets!")) {
-            tasks = JSON.parse(JSON.stringify(defaultTasks));
-            streams = JSON.parse(JSON.stringify(defaultStreams));
-            milestones = [];
-            pageTitle = "Roadmap Organisatie 2026";
-            await saveData();
-            location.reload();
+    // --- IMPORT/EXPORT ---
+    function showImportModal() {
+        document.getElementById('importModal').style.display = 'flex';
+    }
+
+    function closeImportModal() {
+        document.getElementById('importModal').style.display = 'none';
+        document.getElementById('csvFileInput').value = '';
+    }
+
+    function importCSV() {
+        const fileInput = document.getElementById('csvFileInput');
+        const file = fileInput.files[0];
+        if (!file) {
+            alert('Selecteer eerst een CSV bestand');
+            return;
         }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const text = e.target.result;
+            const lines = text.split('\n');
+
+            // Skip header
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+
+                // Parse CSV line (handle quoted values)
+                const values = parseCSVLine(line);
+                if (values.length < 8) continue;
+
+                const [id, streamName, title, desc, status, owner, startWeek, duration] = values;
+
+                // Find stream by name
+                let stream = streams.find(s => s.name === streamName);
+                let streamId = stream ? stream.id : null;
+
+                // Map status
+                let statusCode = 'todo';
+                if (status.includes('bezig')) statusCode = 'busy';
+                else if (status.includes('Klaar')) statusCode = 'done';
+                else if (status.includes('Geblokkeerd')) statusCode = 'blocked';
+
+                const task = {
+                    id: parseInt(id) || Date.now() + i,
+                    stream: streamId,
+                    title: title,
+                    desc: desc,
+                    status: statusCode,
+                    owner: owner,
+                    start: Math.max(0, parseInt(startWeek) - 1) || 0,
+                    duration: parseInt(duration) || 4
+                };
+
+                // Check if task exists, update or add
+                const existingIdx = tasks.findIndex(t => t.id === task.id);
+                if (existingIdx > -1) {
+                    tasks[existingIdx] = task;
+                } else {
+                    tasks.push(task);
+                }
+            }
+
+            markUnsaved();
+            renderAll();
+            renderOwnerFilter();
+            closeImportModal();
+            showToast(`${lines.length - 1} taken geïmporteerd`);
+        };
+        reader.readAsText(file);
+    }
+
+    function parseCSVLine(line) {
+        const result = [];
+        let current = '';
+        let inQuotes = false;
+
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            if (char === '"') {
+                inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+                result.push(current.trim());
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+        result.push(current.trim());
+        return result;
     }
 
     function exportToCSV() {
@@ -1181,7 +1508,7 @@
         tasks.forEach(t => {
             const sName = t.stream ? (streams.find(s=>s.id===t.stream)?.name || 'Unknown') : 'Backlog';
             const statusLabel = getStatusLabel(t.status || 'todo');
-            csv += `${t.id},"${sName}","${t.title}","${t.desc}","${statusLabel}","${t.owner || ''}",${t.start+1},${t.duration}\n`;
+            csv += `${t.id},"${sName}","${t.title || ''}","${t.desc || ''}","${statusLabel}","${t.owner || ''}",${(t.start||0)+1},${t.duration||4}\n`;
         });
         const blob = new Blob([csv], { type: 'text/csv' });
         const url = window.URL.createObjectURL(blob);
@@ -1195,13 +1522,20 @@
     }
 
     async function reloadFromServer() {
-        if (confirm('Data opnieuw laden van Google Sheets? Niet-opgeslagen wijzigingen gaan verloren.')) {
-            showLoading(true);
-            await loadData();
-            renderAll();
-            showLoading(false);
-            showToast('Data herladen van Google Sheets');
+        if (hasUnsavedChanges) {
+            if (!confirm('Er zijn niet-opgeslagen wijzigingen. Toch herladen?')) {
+                return;
+            }
         }
+        showLoading(true);
+        const result = await loadData();
+        if (result === 'success') {
+            markSaved();
+        }
+        renderAll();
+        renderOwnerFilter();
+        showLoading(false);
+        showToast('Data herladen van Google Sheets');
     }
 
     function changePassword() {
@@ -1212,6 +1546,14 @@
             showToast('Wachtwoord gewijzigd - herlaad om te testen');
         }
     }
+
+    // Warn before leaving with unsaved changes
+    window.addEventListener('beforeunload', function(e) {
+        if (hasUnsavedChanges) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
 
     // Go
     init();
