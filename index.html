@@ -216,14 +216,33 @@
             display: flex;
             align-items: center;
             grid-column: 1;
+            gap: 8px;
         }
         .stream-label input {
-            width: 100%; border: 1px solid transparent; padding: 8px 10px;
+            flex: 1; border: 1px solid transparent; padding: 8px 10px;
             font-weight: 700; font-size: 14px; border-radius: 6px;
             color: var(--text-color);
         }
         .stream-label input:hover { background-color: #f4f4f4; }
         .stream-label input:focus { border-color: var(--dpg-purple); outline: none; background: #fff;}
+        .stream-delete-btn {
+            opacity: 0;
+            width: 24px;
+            height: 24px;
+            border: none;
+            background: #fee;
+            color: var(--dpg-red);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.2s;
+            flex-shrink: 0;
+        }
+        .stream-label:hover .stream-delete-btn { opacity: 1; }
+        .stream-delete-btn:hover { background: var(--dpg-red); color: white; }
 
         /* Stream Tracks */
         .stream-row-background {
@@ -338,7 +357,7 @@
             background: white;
             white-space: normal;
             line-height: 1.3;
-            transition: all 0.2s ease;
+            transition: box-shadow 0.2s ease, z-index 0s;
             position: absolute;
             height: 32px;
         }
@@ -361,16 +380,31 @@
         .task-card:hover {
             box-shadow: var(--hover-shadow);
             z-index: 100;
-            transform: scale(1.05);
-            height: auto;
-            min-height: 32px;
         }
         .task-card.dragging { opacity: 0.8; cursor: grabbing; z-index: 1000; pointer-events: none; transform: scale(1.02); box-shadow: 0 15px 30px rgba(0,0,0,0.2);}
 
         .task-header { display: flex; justify-content: space-between; align-items: flex-start; width: 100%; margin-bottom: 2px; }
         .task-title { font-weight: 700; color: var(--text-color); font-size: 11px; padding-right: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .task-desc { font-size: 10px; color: #666; display: none; margin-bottom: auto;}
-        .task-card:hover .task-desc { display: block; white-space: normal; }
+
+        /* Floating tooltip for task cards */
+        .task-tooltip {
+            display: none;
+            position: fixed;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 12px 14px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            z-index: 9999;
+            max-width: 280px;
+            pointer-events: none;
+        }
+        .task-tooltip.visible { display: block; }
+        .task-tooltip .tooltip-title { font-weight: 700; font-size: 13px; margin-bottom: 6px; color: var(--text-color); }
+        .task-tooltip .tooltip-desc { font-size: 12px; color: #666; margin-bottom: 8px; line-height: 1.4; }
+        .task-tooltip .tooltip-meta { font-size: 11px; color: #888; display: flex; gap: 12px; flex-wrap: wrap; }
+        .task-tooltip .tooltip-meta span { display: flex; align-items: center; gap: 4px; }
 
         .task-footer {
             margin-top: auto;
@@ -747,6 +781,13 @@
 
 <div id="toast">Wijzigingen opgeslagen</div>
 
+<!-- Task Tooltip -->
+<div id="taskTooltip" class="task-tooltip">
+    <div class="tooltip-title"></div>
+    <div class="tooltip-desc"></div>
+    <div class="tooltip-meta"></div>
+</div>
+
 <script>
     // --- CONFIG ---
     const CONFIG = {
@@ -1022,6 +1063,33 @@
         }
     }
 
+    function deleteStream(streamId) {
+        const stream = streams.find(s => s.id === streamId);
+        if (!stream) return;
+
+        const tasksInStream = tasks.filter(t => t.stream === streamId).length;
+        let confirmMsg = `Stream "${stream.name}" verwijderen?`;
+        if (tasksInStream > 0) {
+            confirmMsg += `\n\n${tasksInStream} taak/taken worden verplaatst naar de backlog.`;
+        }
+
+        if (confirm(confirmMsg)) {
+            // Move tasks to backlog
+            tasks.forEach(t => {
+                if (t.stream === streamId) {
+                    t.stream = null;
+                }
+            });
+
+            // Remove stream
+            streams = streams.filter(s => s.id !== streamId);
+
+            markUnsaved();
+            renderAll();
+            showToast(`Stream "${stream.name}" verwijderd`);
+        }
+    }
+
     function updateStreamName(id, newName) {
         const s = streams.find(x => x.id === id);
         if(s) {
@@ -1089,6 +1157,15 @@
             inp.value = s.name;
             inp.onchange = (e) => updateStreamName(s.id, e.target.value);
             lbl.appendChild(inp);
+
+            // Delete button
+            const delBtn = document.createElement('button');
+            delBtn.className = 'stream-delete-btn';
+            delBtn.innerHTML = '×';
+            delBtn.title = 'Stream verwijderen';
+            delBtn.onclick = (e) => { e.stopPropagation(); deleteStream(s.id); };
+            lbl.appendChild(delBtn);
+
             grid.appendChild(lbl);
 
             // Track
@@ -1294,10 +1371,86 @@
 
         el.appendChild(footer);
 
+        // Tooltip events
+        el.addEventListener('mouseenter', (e) => showTaskTooltip(e, task));
+        el.addEventListener('mousemove', (e) => moveTaskTooltip(e));
+        el.addEventListener('mouseleave', () => hideTaskTooltip());
+
         // Bind Drag & Click Logic
         el.addEventListener('mousedown', (e) => initDrag(e, task, el));
 
         return el;
+    }
+
+    // --- TOOLTIP ---
+    function showTaskTooltip(e, task) {
+        const tooltip = document.getElementById('taskTooltip');
+        const stream = streams.find(s => s.id === task.stream);
+
+        // Title
+        tooltip.querySelector('.tooltip-title').textContent = task.title || 'Geen titel';
+
+        // Description
+        const descEl = tooltip.querySelector('.tooltip-desc');
+        if (task.desc) {
+            descEl.textContent = task.desc;
+            descEl.style.display = 'block';
+        } else {
+            descEl.style.display = 'none';
+        }
+
+        // Meta info
+        let metaHtml = '';
+        if (task.owner) {
+            metaHtml += `<span>👤 ${task.owner}</span>`;
+        }
+        metaHtml += `<span class="status-badge status-${task.status || 'todo'}" style="width:8px;height:8px;display:inline-block;border-radius:50%;"></span> ${getStatusLabel(task.status || 'todo')}`;
+
+        if (task.stream && task.start !== undefined && task.duration) {
+            const startDate = new Date(CONFIG.startDate);
+            startDate.setDate(startDate.getDate() + (task.start * 7));
+            const endDate = new Date(CONFIG.startDate);
+            endDate.setDate(endDate.getDate() + ((task.start + task.duration) * 7));
+            metaHtml += `<span>📅 ${formatDate(startDate)} → ${formatDate(endDate)}</span>`;
+        }
+
+        if (stream) {
+            metaHtml += `<span style="color:${stream.border};">● ${stream.name}</span>`;
+        }
+
+        tooltip.querySelector('.tooltip-meta').innerHTML = metaHtml;
+
+        // Position
+        tooltip.style.left = (e.clientX + 15) + 'px';
+        tooltip.style.top = (e.clientY + 15) + 'px';
+        tooltip.classList.add('visible');
+    }
+
+    function moveTaskTooltip(e) {
+        const tooltip = document.getElementById('taskTooltip');
+        const tooltipRect = tooltip.getBoundingClientRect();
+
+        let left = e.clientX + 15;
+        let top = e.clientY + 15;
+
+        // Keep tooltip on screen
+        if (left + tooltipRect.width > window.innerWidth - 10) {
+            left = e.clientX - tooltipRect.width - 15;
+        }
+        if (top + tooltipRect.height > window.innerHeight - 10) {
+            top = e.clientY - tooltipRect.height - 15;
+        }
+
+        tooltip.style.left = left + 'px';
+        tooltip.style.top = top + 'px';
+    }
+
+    function hideTaskTooltip() {
+        document.getElementById('taskTooltip').classList.remove('visible');
+    }
+
+    function formatDate(d) {
+        return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
     }
 
     function getStatusLabel(code) {
@@ -1361,6 +1514,7 @@
     }
 
     function startActualDrag() {
+        hideTaskTooltip(); // Hide tooltip when dragging
         dragData.isDragging = true;
         const el = dragData.el;
         const rect = el.getBoundingClientRect();
