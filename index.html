@@ -874,14 +874,13 @@
             return;
         }
 
-        if (loadResult === 'empty' || loadResult === 'error') {
-            // Lege sheet of fout - gebruik defaults maar sla NIET op
-            streams = JSON.parse(JSON.stringify(defaultStreams));
-            tasks = JSON.parse(JSON.stringify(defaultTasks));
-            milestones = JSON.parse(JSON.stringify(defaultMilestones));
-            showToast('Geen data gevonden - standaard streams geladen. Klik 💾 om op te slaan.');
-            markUnsaved();
+        if (loadResult === 'error') {
+            // Fout bij laden - toon lege roadmap maar geen defaults
+            showToast('Fout bij laden van data. Controleer je verbinding.');
         }
+
+        // Als loadResult 'success' of 'empty' is, toon gewoon wat er in de sheet staat
+        // (streams, tasks, milestones zijn al gezet door loadData)
 
         const el = document.getElementById('roadmapTitle');
         el.innerText = pageTitle;
