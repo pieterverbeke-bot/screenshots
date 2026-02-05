@@ -529,7 +529,10 @@
         startDate: new Date('2026-01-26'),
         weeks: 26,
         pxPerWeek: 120,
-        apiUrl: 'https://script.google.com/a/macros/persgroep.net/s/AKfycbzis1yYiprE57XNhmppDWSxZ786yZZ41ksiAkOmzo7DJvJtw-DH5aJPJtB15V-t8_In/exec',
+        // Direct API URL (voor fallback)
+        apiUrlDirect: 'https://script.google.com/a/macros/persgroep.net/s/AKfycbzis1yYiprE57XNhmppDWSxZ786yZZ41ksiAkOmzo7DJvJtw-DH5aJPJtB15V-t8_In/exec',
+        // Via CORS proxy
+        apiUrl: 'https://corsproxy.io/?' + encodeURIComponent('https://script.google.com/a/macros/persgroep.net/s/AKfycbzis1yYiprE57XNhmppDWSxZ786yZZ41ksiAkOmzo7DJvJtw-DH5aJPJtB15V-t8_In/exec'),
         localKeys: {
             apiKey: 'roadmap_api_key'
         }
