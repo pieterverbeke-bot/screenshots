@@ -475,6 +475,119 @@
         }
         .unsaved-indicator.show { display: inline; }
 
+        /* VIEW TOGGLE */
+        .view-toggle {
+            display: flex;
+            gap: 4px;
+            background: #f0f0f0;
+            border-radius: 8px;
+            padding: 4px;
+        }
+        .view-toggle button {
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            color: #666;
+            box-shadow: none;
+        }
+        .view-toggle button:hover { background: #e0e0e0; transform: none; box-shadow: none; }
+        .view-toggle button.active { background: white; color: var(--dpg-purple); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+        /* LIST VIEW */
+        .list-view-wrapper {
+            display: none;
+            background: white;
+            border-radius: 12px;
+            box-shadow: var(--card-shadow);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            margin-bottom: 30px;
+        }
+        .list-view-wrapper.active { display: block; }
+
+        .list-view-header {
+            background: #f9f9f9;
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .list-view-header h3 { margin: 0; font-size: 16px; font-weight: 700; }
+        .list-view-header .task-count { font-size: 13px; color: #666; }
+
+        .list-view-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .list-view-table th {
+            text-align: left;
+            padding: 12px 16px;
+            background: #fafafa;
+            border-bottom: 2px solid var(--border-color);
+            font-size: 12px;
+            font-weight: 700;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .list-view-table th:hover { background: #f0f0f0; }
+        .list-view-table th.sorted-asc::after { content: ' ↑'; }
+        .list-view-table th.sorted-desc::after { content: ' ↓'; }
+
+        .list-view-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+            vertical-align: middle;
+        }
+        .list-view-table tr:hover { background: #fafafa; cursor: pointer; }
+        .list-view-table tr.filtered-out { opacity: 0.3; }
+
+        .list-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .list-status-badge.todo { background: #f0f0f0; color: #666; }
+        .list-status-badge.busy { background: #e3f2fd; color: #1976d2; }
+        .list-status-badge.done { background: #e8f5e9; color: #388e3c; }
+        .list-status-badge.blocked { background: #ffebee; color: #d32f2f; }
+
+        .list-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        .list-status-dot.todo { background: var(--status-todo); }
+        .list-status-dot.busy { background: var(--status-busy); }
+        .list-status-dot.done { background: var(--status-done); }
+        .list-status-dot.blocked { background: var(--status-blocked); }
+
+        .list-stream-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            border-left: 3px solid;
+        }
+
+        .list-owner { color: #666; font-size: 13px; }
+        .list-date { color: #888; font-size: 13px; white-space: nowrap; }
+        .list-date.overdue { color: var(--dpg-red); font-weight: 600; }
+        .list-date.soon { color: var(--dpg-yellow); }
+
     </style>
 </head>
 <body>
@@ -487,6 +600,10 @@
             <p>Klik 💾 om wijzigingen op te slaan. <span id="unsavedIndicator" class="unsaved-indicator">● Niet-opgeslagen wijzigingen</span></p>
         </div>
         <div class="controls">
+            <div class="view-toggle">
+                <button id="btnRoadmapView" class="active" onclick="setView('roadmap')">Roadmap</button>
+                <button id="btnListView" onclick="setView('list')">Lijstweergave</button>
+            </div>
             <button class="btn-reset" onclick="changePassword()" title="Wachtwoord wijzigen">🔑</button>
             <button class="btn-export" onclick="reloadFromServer()" title="Data herladen van Google Sheets">🔄 Herladen</button>
             <button class="btn-export" onclick="showImportModal()" title="CSV importeren">📥 Import</button>
@@ -514,7 +631,7 @@
     <div id="milestoneLayer" class="milestone-container"></div>
 </div>
 
-<div class="backlog-wrapper">
+<div class="backlog-wrapper" id="backlogWrapper">
     <div class="backlog-header">
         <h3>Nog in te plannen (Backlog)</h3>
         <p>Sleep taken vanuit hier naar het rooster om ze in te plannen.</p>
@@ -522,6 +639,29 @@
     <div id="backlog-container" class="backlog-container">
         <!-- Backlog taken via JS -->
     </div>
+</div>
+
+<!-- List View -->
+<div class="list-view-wrapper" id="listViewWrapper">
+    <div class="list-view-header">
+        <h3>Alle Taken</h3>
+        <span class="task-count" id="taskCount">0 taken</span>
+    </div>
+    <table class="list-view-table">
+        <thead>
+            <tr>
+                <th onclick="sortListBy('title')">Titel</th>
+                <th onclick="sortListBy('stream')">Stream</th>
+                <th onclick="sortListBy('owner')">Eigenaar</th>
+                <th onclick="sortListBy('status')">Status</th>
+                <th onclick="sortListBy('start')">Start</th>
+                <th onclick="sortListBy('end')">Deadline</th>
+            </tr>
+        </thead>
+        <tbody id="listViewBody">
+            <!-- Tasks via JS -->
+        </tbody>
+    </table>
 </div>
 
 <!-- Task Modal -->
@@ -647,6 +787,9 @@
     let isSaving = false;
     let hasUnsavedChanges = false;
     let currentOwnerFilter = null;
+    let currentView = 'roadmap';
+    let listSortColumn = 'start';
+    let listSortDirection = 'asc';
 
     // --- INIT ---
     async function init() {
@@ -901,6 +1044,9 @@
         renderGrid();
         renderBacklog();
         renderMilestones();
+        if (currentView === 'list') {
+            renderListView();
+        }
     }
 
     function getWeekLabel(idx) {
@@ -1554,6 +1700,174 @@
             e.returnValue = '';
         }
     });
+
+    // --- VIEW TOGGLE ---
+    function setView(view) {
+        currentView = view;
+
+        // Update toggle buttons
+        document.getElementById('btnRoadmapView').classList.toggle('active', view === 'roadmap');
+        document.getElementById('btnListView').classList.toggle('active', view === 'list');
+
+        // Show/hide views
+        document.querySelector('.roadmap-wrapper').style.display = view === 'roadmap' ? 'block' : 'none';
+        document.getElementById('backlogWrapper').style.display = view === 'roadmap' ? 'block' : 'none';
+        document.getElementById('listViewWrapper').classList.toggle('active', view === 'list');
+        document.getElementById('filterBar').style.display = view === 'roadmap' ? 'flex' : 'none';
+
+        if (view === 'list') {
+            renderListView();
+        }
+    }
+
+    function renderListView() {
+        const tbody = document.getElementById('listViewBody');
+        tbody.innerHTML = '';
+
+        // Sort tasks
+        const sortedTasks = [...tasks].sort((a, b) => {
+            let valA, valB;
+
+            switch (listSortColumn) {
+                case 'title':
+                    valA = (a.title || '').toLowerCase();
+                    valB = (b.title || '').toLowerCase();
+                    break;
+                case 'stream':
+                    valA = getStreamName(a.stream);
+                    valB = getStreamName(b.stream);
+                    break;
+                case 'owner':
+                    valA = (a.owner || '').toLowerCase();
+                    valB = (b.owner || '').toLowerCase();
+                    break;
+                case 'status':
+                    const statusOrder = { 'blocked': 0, 'busy': 1, 'todo': 2, 'done': 3 };
+                    valA = statusOrder[a.status || 'todo'];
+                    valB = statusOrder[b.status || 'todo'];
+                    break;
+                case 'start':
+                    valA = a.start || 0;
+                    valB = b.start || 0;
+                    break;
+                case 'end':
+                    valA = (a.start || 0) + (a.duration || 0);
+                    valB = (b.start || 0) + (b.duration || 0);
+                    break;
+                default:
+                    valA = a.start || 0;
+                    valB = b.start || 0;
+            }
+
+            if (valA < valB) return listSortDirection === 'asc' ? -1 : 1;
+            if (valA > valB) return listSortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        // Update column headers
+        document.querySelectorAll('.list-view-table th').forEach(th => {
+            th.classList.remove('sorted-asc', 'sorted-desc');
+        });
+        const activeHeader = document.querySelector(`.list-view-table th[onclick="sortListBy('${listSortColumn}')"]`);
+        if (activeHeader) {
+            activeHeader.classList.add(listSortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc');
+        }
+
+        // Render tasks
+        sortedTasks.forEach(task => {
+            const tr = document.createElement('tr');
+            tr.onclick = () => openModal(task);
+
+            // Apply owner filter
+            if (currentOwnerFilter && task.owner !== currentOwnerFilter) {
+                tr.classList.add('filtered-out');
+            }
+
+            // Title
+            const tdTitle = document.createElement('td');
+            tdTitle.innerHTML = `<strong>${task.title || 'Geen titel'}</strong>`;
+            if (task.desc) {
+                tdTitle.innerHTML += `<br><span style="font-size:12px;color:#888;">${task.desc.substring(0, 60)}${task.desc.length > 60 ? '...' : ''}</span>`;
+            }
+            tr.appendChild(tdTitle);
+
+            // Stream
+            const tdStream = document.createElement('td');
+            const stream = streams.find(s => s.id === task.stream);
+            if (stream) {
+                tdStream.innerHTML = `<span class="list-stream-badge" style="background:${stream.color};border-left-color:${stream.border}">${stream.name}</span>`;
+            } else {
+                tdStream.innerHTML = `<span style="color:#999;font-style:italic;">Backlog</span>`;
+            }
+            tr.appendChild(tdStream);
+
+            // Owner
+            const tdOwner = document.createElement('td');
+            tdOwner.className = 'list-owner';
+            tdOwner.textContent = task.owner || '-';
+            tr.appendChild(tdOwner);
+
+            // Status
+            const tdStatus = document.createElement('td');
+            const status = task.status || 'todo';
+            tdStatus.innerHTML = `<span class="list-status-badge ${status}"><span class="list-status-dot ${status}"></span>${getStatusLabel(status)}</span>`;
+            tr.appendChild(tdStatus);
+
+            // Start date
+            const tdStart = document.createElement('td');
+            tdStart.className = 'list-date';
+            if (task.stream && task.start !== undefined) {
+                const startDate = new Date(CONFIG.startDate);
+                startDate.setDate(startDate.getDate() + (task.start * 7));
+                tdStart.textContent = `${String(startDate.getDate()).padStart(2,'0')}/${String(startDate.getMonth()+1).padStart(2,'0')}`;
+            } else {
+                tdStart.textContent = '-';
+            }
+            tr.appendChild(tdStart);
+
+            // End date (deadline)
+            const tdEnd = document.createElement('td');
+            tdEnd.className = 'list-date';
+            if (task.stream && task.start !== undefined && task.duration) {
+                const endDate = new Date(CONFIG.startDate);
+                endDate.setDate(endDate.getDate() + ((task.start + task.duration) * 7));
+                const today = new Date();
+
+                tdEnd.textContent = `${String(endDate.getDate()).padStart(2,'0')}/${String(endDate.getMonth()+1).padStart(2,'0')}`;
+
+                // Highlight if overdue or soon
+                if (endDate < today && task.status !== 'done') {
+                    tdEnd.classList.add('overdue');
+                } else if (endDate < new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000) && task.status !== 'done') {
+                    tdEnd.classList.add('soon');
+                }
+            } else {
+                tdEnd.textContent = '-';
+            }
+            tr.appendChild(tdEnd);
+
+            tbody.appendChild(tr);
+        });
+
+        // Update task count
+        document.getElementById('taskCount').textContent = `${tasks.length} taken`;
+    }
+
+    function getStreamName(streamId) {
+        if (!streamId) return 'Backlog';
+        const stream = streams.find(s => s.id === streamId);
+        return stream ? stream.name : 'Onbekend';
+    }
+
+    function sortListBy(column) {
+        if (listSortColumn === column) {
+            listSortDirection = listSortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            listSortColumn = column;
+            listSortDirection = 'asc';
+        }
+        renderListView();
+    }
 
     // Go
     init();
