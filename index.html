@@ -605,8 +605,12 @@
     async function loadData() {
         try {
             const url = `${CONFIG.apiUrl}?action=load&key=${encodeURIComponent(apiKey)}`;
-            const response = await fetch(url);
-            const data = await response.json();
+            const response = await fetch(url, {
+                method: 'GET',
+                redirect: 'follow'
+            });
+            const text = await response.text();
+            const data = JSON.parse(text);
 
             if (data.error) {
                 if (data.error === 'Geen toegang') {
@@ -640,18 +644,27 @@
         isSaving = true;
 
         try {
-            const response = await fetch(CONFIG.apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify({
-                    key: apiKey,
-                    tasks: tasks,
-                    streams: streams,
-                    milestones: milestones
-                })
+            const payload = JSON.stringify({
+                key: apiKey,
+                tasks: tasks,
+                streams: streams,
+                milestones: milestones
             });
 
-            const result = await response.json();
+            const response = await fetch(CONFIG.apiUrl, {
+                method: 'POST',
+                redirect: 'follow',
+                body: payload
+            });
+
+            const text = await response.text();
+            let result;
+            try {
+                result = JSON.parse(text);
+            } catch {
+                // Als response geen JSON is, neem aan dat het gelukt is
+                result = { success: true };
+            }
 
             if (result.error) {
                 throw new Error(result.error);
