@@ -24,24 +24,33 @@ const CONFIG = {
 
 // Scroll naar beneden om alle lazy-loaded afbeeldingen te laden
 async function autoScroll(page) {
-  await page.evaluate(async (scrollDelay) => {
-    await new Promise((resolve) => {
-      let totalHeight = 0;
-      const distance = 500;
-      const timer = setInterval(() => {
-        const scrollHeight = document.body.scrollHeight;
-        window.scrollBy(0, distance);
-        totalHeight += distance;
+  try {
+    await page.evaluate(async (scrollDelay) => {
+      await new Promise((resolve) => {
+        let totalHeight = 0;
+        const distance = 500;
+        const maxScrolls = 50; // Maximum aantal scrolls om infinite loops te voorkomen
+        let scrollCount = 0;
 
-        if (totalHeight >= scrollHeight) {
-          clearInterval(timer);
-          // Scroll terug naar boven
-          window.scrollTo(0, 0);
-          resolve();
-        }
-      }, scrollDelay);
-    });
-  }, CONFIG.scrollDelay);
+        const timer = setInterval(() => {
+          const scrollHeight = document.body.scrollHeight;
+          window.scrollBy(0, distance);
+          totalHeight += distance;
+          scrollCount++;
+
+          if (totalHeight >= scrollHeight || scrollCount >= maxScrolls) {
+            clearInterval(timer);
+            // Scroll terug naar boven
+            window.scrollTo(0, 0);
+            resolve();
+          }
+        }, scrollDelay);
+      });
+    }, CONFIG.scrollDelay);
+  } catch (error) {
+    // Scroll errors negeren (sommige sites redirecten tijdens scroll)
+    console.log(`⚠️  Scroll interrupted: ${error.message}`);
+  }
 }
 
 // Wacht tot alle afbeeldingen geladen zijn
@@ -160,8 +169,14 @@ async function main() {
   const failed = results.filter(r => !r.success).length;
   console.log(`📊 Done: ${successful} successful, ${failed} failed`);
 
-  if (failed > 0) {
+  // Niet falen als minstens 1 screenshot is gelukt (zodat upload doorgaat)
+  if (successful === 0) {
+    console.error('❌ All screenshots failed!');
     process.exit(1);
+  }
+
+  if (failed > 0) {
+    console.log('⚠️  Some screenshots failed, but continuing with upload...');
   }
 }
 
