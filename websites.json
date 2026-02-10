@@ -10,5 +10,29 @@
   {
     "name": "vk",
     "url": "https://www.volkskrant.nl"
+  },
+  {
+    "name": "nieuwsblad",
+    "url": "https://www.nieuwsblad.be"
+  },
+  {
+    "name": "standaard",
+    "url": "https://www.standaard.be"
+  },
+  {
+    "name": "gva",
+    "url": "https://www.gva.be"
+  },
+  {
+    "name": "telegraaf",
+    "url": "https://www.telegraaf.nl"
+  },
+  {
+    "name": "nrc",
+    "url": "https://www.nrc.nl"
+  },
+  {
+    "name": "vrtnws",
+    "url": "https://www.vrt.be/vrtnws/nl"
   }
 ]

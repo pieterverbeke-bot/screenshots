@@ -115,9 +115,8 @@ async function main() {
 
   console.log(`📸 Found ${files.length} screenshot(s) to upload\n`);
 
-  // Create date folder (e.g., "2024-01-15")
+  // Datum voor subfolders
   const today = new Date().toISOString().split('T')[0];
-  const dateFolderId = await getOrCreateFolder(drive, today, folderId);
 
   let successCount = 0;
   let failCount = 0;
@@ -129,11 +128,14 @@ async function main() {
     // Extract website name from filename (e.g., "hln_2024-01-15T10-00-00.png" -> "hln")
     const websiteName = file.split('_')[0];
 
-    // Create website subfolder
-    const websiteFolderId = await getOrCreateFolder(drive, websiteName, dateFolderId);
+    // Structuur: merk > datum
+    // Eerst merk folder maken/vinden
+    const brandFolderId = await getOrCreateFolder(drive, websiteName, folderId);
+    // Dan datum subfolder binnen merk
+    const dateFolderId = await getOrCreateFolder(drive, today, brandFolderId);
 
     try {
-      await uploadFile(drive, filepath, websiteFolderId);
+      await uploadFile(drive, filepath, dateFolderId);
       successCount++;
     } catch (error) {
       console.error(`❌ Failed to upload ${file}: ${error.message}`);
