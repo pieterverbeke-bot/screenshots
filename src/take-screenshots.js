@@ -19,8 +19,32 @@ const CONFIG = {
   fullPage: true,
   timeout: 90000,
   scrollDelay: 300,
-  waitAfterScroll: 3000
+  waitAfterScroll: 3000,
+  // JPEG compressie (0-100), 80 is goede balans tussen kwaliteit en grootte
+  jpegQuality: 80,
+  // Tijdzone voor bestandsnamen
+  timezone: 'Europe/Brussels'
 };
+
+// Genereer timestamp in GMT+1 (België/Nederland)
+function getLocalTimestamp() {
+  const now = new Date();
+  const options = {
+    timeZone: CONFIG.timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  };
+
+  const parts = new Intl.DateTimeFormat('nl-BE', options).formatToParts(now);
+  const get = (type) => parts.find(p => p.type === type)?.value || '00';
+
+  return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}-${get('minute')}-${get('second')}`;
+}
 
 // Scroll naar beneden om alle lazy-loaded afbeeldingen te laden
 async function autoScroll(page) {
@@ -93,14 +117,16 @@ async function takeScreenshot(browser, website) {
     // Extra wachttijd voor eventuele animaties
     await new Promise(resolve => setTimeout(resolve, CONFIG.waitAfterScroll));
 
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filename = `${name}_${timestamp}.png`;
+    const timestamp = getLocalTimestamp();
+    const filename = `${name}_${timestamp}.jpg`;
     const filepath = join(SCREENSHOTS_DIR, filename);
 
     console.log(`📸 ${name}: Taking screenshot...`);
     await page.screenshot({
       path: filepath,
-      fullPage: CONFIG.fullPage
+      fullPage: CONFIG.fullPage,
+      type: 'jpeg',
+      quality: CONFIG.jpegQuality
     });
 
     console.log(`✅ ${name}: Saved ${filename}`);

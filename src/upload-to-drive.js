@@ -65,7 +65,7 @@ async function uploadFile(drive, filepath, folderId) {
   };
 
   const media = {
-    mimeType: 'image/png',
+    mimeType: 'image/jpeg',
     body: createReadStream(filepath)
   };
 
@@ -106,7 +106,7 @@ async function main() {
   }
 
   // Get all screenshots
-  const files = readdirSync(SCREENSHOTS_DIR).filter(f => f.endsWith('.png'));
+  const files = readdirSync(SCREENSHOTS_DIR).filter(f => f.endsWith('.jpg'));
 
   if (files.length === 0) {
     console.log('⚠️  No screenshots found in', SCREENSHOTS_DIR);
