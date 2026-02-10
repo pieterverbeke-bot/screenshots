@@ -32,7 +32,6 @@ jobs:
         run: node src/take-screenshots.js
 
       - name: Upload to Google Drive
-        if: ${{ secrets.GOOGLE_SERVICE_ACCOUNT != '' }}
         env:
           GOOGLE_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT }}
           GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
