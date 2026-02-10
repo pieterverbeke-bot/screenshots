@@ -4,18 +4,9 @@ on:
   # Handmatig triggeren
   workflow_dispatch:
 
-  # Schedule - pas dit aan naar wens
+  # Schedule - elk uur
   schedule:
-    # Elk uur
     - cron: '0 * * * *'
-
-    # Andere voorbeelden (uncomment wat je wilt):
-    # Elke 6 uur:
-    # - cron: '0 */6 * * *'
-    # Eens per dag om 9:00 UTC:
-    # - cron: '0 9 * * *'
-    # Elke 30 minuten:
-    # - cron: '*/30 * * * *'
 
 jobs:
   screenshot:
@@ -40,18 +31,16 @@ jobs:
       - name: Take screenshots
         run: node src/take-screenshots.js
 
-      - name: Upload screenshots as artifacts
+      - name: Upload to Google Drive
+        if: ${{ secrets.GOOGLE_SERVICE_ACCOUNT != '' }}
+        env:
+          GOOGLE_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT }}
+          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+        run: node src/upload-to-drive.js
+
+      - name: Upload screenshots as artifacts (backup)
         uses: actions/upload-artifact@v4
         with:
           name: screenshots-${{ github.run_number }}-${{ github.run_attempt }}
           path: screenshots/
           retention-days: 90
-
-      - name: Commit screenshots to repo (optional)
-        if: ${{ vars.SAVE_TO_REPO == 'true' }}
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add screenshots/
-          git diff --staged --quiet || git commit -m "Screenshots $(date -u +'%Y-%m-%d %H:%M UTC')"
-          git push

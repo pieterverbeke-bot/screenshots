@@ -1,144 +1,133 @@
 # Website Screenshot Monitor
 
-**100% Gratis** website monitoring met GitHub Actions. Neemt automatisch screenshots van websites en bewaart ze als artifacts.
+**100% Gratis** website monitoring met GitHub Actions. Screenshots worden automatisch opgeslagen in Google Drive.
 
 ## Features
 
 - ✅ Volledig gratis (GitHub Actions)
-- ✅ Geen server of hosting nodig
-- ✅ Automatische scheduling (elk uur, dagelijks, etc.)
-- ✅ Screenshots 90 dagen bewaard als artifacts
+- ✅ Automatisch uploaden naar Google Drive
+- ✅ Elk uur screenshots (of ander interval)
 - ✅ Meerdere websites tegelijk
-- ✅ Volledige pagina screenshots
+- ✅ Georganiseerd per datum en website
 
-## Snelle Start
+## Setup
 
-### 1. Fork of clone deze repo
+### Stap 1: Google Cloud Project maken
 
-### 2. Configureer je websites
+1. Ga naar **[console.cloud.google.com](https://console.cloud.google.com)**
+2. Klik bovenaan op het project dropdown → **"New Project"**
+3. Naam: `screenshot-monitor` → **"Create"**
+
+### Stap 2: Google Drive API activeren
+
+1. Ga naar menu (☰) → **"APIs & Services"** → **"Library"**
+2. Zoek **"Google Drive API"**
+3. Klik erop → **"Enable"**
+
+### Stap 3: Service Account maken
+
+1. Ga naar **"APIs & Services"** → **"Credentials"**
+2. Klik **"+ Create Credentials"** → **"Service account"**
+3. Naam: `screenshot-uploader` → **"Create and Continue"**
+4. Klik **"Done"** (role mag leeg blijven)
+5. Klik op de service account die je net maakte
+6. Ga naar **"Keys"** tab
+7. **"Add Key"** → **"Create new key"** → **"JSON"** → **"Create"**
+8. Een JSON bestand wordt gedownload - **bewaar dit goed!**
+
+### Stap 4: Google Drive folder delen
+
+1. Open **[drive.google.com](https://drive.google.com)**
+2. Maak een folder aan (of gebruik een bestaande)
+3. Rechtsklik op de folder → **"Share"**
+4. Voeg het service account email toe (staat in je JSON bestand als `client_email`)
+   - Ziet eruit als: `screenshot-uploader@jouw-project.iam.gserviceaccount.com`
+5. Geef **"Editor"** rechten
+6. Kopieer de folder ID uit de URL:
+   ```
+   https://drive.google.com/drive/folders/1ABC123xyz456
+                                          └─────────────┘
+                                          Dit is je FOLDER_ID
+   ```
+
+### Stap 5: GitHub Secrets instellen
+
+1. Ga naar je GitHub repo → **"Settings"** → **"Secrets and variables"** → **"Actions"**
+2. Klik **"New repository secret"**:
+
+   **Secret 1:**
+   - Name: `GOOGLE_SERVICE_ACCOUNT`
+   - Value: *plak de volledige inhoud van het gedownloade JSON bestand*
+
+   **Secret 2:**
+   - Name: `GOOGLE_DRIVE_FOLDER_ID`
+   - Value: *de folder ID uit stap 4*
+
+### Stap 6: Test!
+
+1. Ga naar **"Actions"** tab
+2. Klik op **"Website Screenshots"**
+3. Klik **"Run workflow"** → **"Run workflow"**
+4. Wacht 2-3 minuten
+5. Check je Google Drive folder!
+
+## Folder structuur in Google Drive
+
+```
+Jouw Folder/
+├── 2024-01-15/
+│   ├── hln/
+│   │   └── hln_2024-01-15T10-00-00-000Z.png
+│   ├── ad/
+│   │   └── ad_2024-01-15T10-00-00-000Z.png
+│   └── vk/
+│       └── vk_2024-01-15T10-00-00-000Z.png
+├── 2024-01-16/
+│   └── ...
+```
+
+## Websites aanpassen
 
 Bewerk `websites.json`:
 
 ```json
 [
   {
-    "name": "mijn-site",
-    "url": "https://mijnwebsite.nl"
+    "name": "hln",
+    "url": "https://www.hln.be"
   },
   {
-    "name": "google",
-    "url": "https://www.google.com"
-  },
-  {
-    "name": "nieuws",
-    "url": "https://nos.nl"
+    "name": "ad",
+    "url": "https://www.ad.nl"
   }
 ]
 ```
 
-### 3. Pas het schedule aan (optioneel)
+## Schedule aanpassen
 
 Bewerk `.github/workflows/screenshot.yml`:
 
 ```yaml
 schedule:
-  # Elk uur
+  # Elk uur (standaard)
   - cron: '0 * * * *'
 
-  # Of kies een ander interval:
   # Elke 30 minuten:
   # - cron: '*/30 * * * *'
 
   # Elke 6 uur:
   # - cron: '0 */6 * * *'
 
-  # Eens per dag om 9:00 UTC (10:00 NL):
+  # Dagelijks om 9:00 UTC:
   # - cron: '0 9 * * *'
-
-  # Alleen doordeweeks om 9:00:
-  # - cron: '0 9 * * 1-5'
 ```
 
-### 4. Push naar GitHub
+## Problemen?
 
-```bash
-git add .
-git commit -m "Configure websites"
-git push
-```
+### "Upload failed" of "Permission denied"
+- Check of je de folder hebt gedeeld met het service account email
+- Check of het service account "Editor" rechten heeft
 
-### 5. Klaar!
-
-De workflow draait automatisch volgens je schedule. Je kunt ook handmatig triggeren:
-
-1. Ga naar je repo op GitHub
-2. Klik op **Actions**
-3. Klik op **Website Screenshots**
-4. Klik op **Run workflow**
-
-## Screenshots bekijken
-
-1. Ga naar **Actions** in je GitHub repo
-2. Klik op een workflow run
-3. Scroll naar beneden naar **Artifacts**
-4. Download `screenshots-X-X.zip`
-
-## Screenshots in de repo bewaren (optioneel)
-
-Wil je screenshots direct in de repo bewaren in plaats van als artifacts?
-
-1. Ga naar je repo **Settings** → **Variables** → **Repository variables**
-2. Klik **New repository variable**
-3. Name: `SAVE_TO_REPO`
-4. Value: `true`
-
-Let op: dit gebruikt meer storage van je repo.
-
-## Lokaal testen
-
-```bash
-# Install dependencies
-npm install
-
-# Install Chrome
-npx puppeteer browsers install chrome
-
-# Run
-npm run screenshots
-```
-
-## Cron Schedule Voorbeelden
-
-| Schedule | Cron expressie |
-|----------|---------------|
-| Elk uur | `0 * * * *` |
-| Elke 30 min | `*/30 * * * *` |
-| Elke 6 uur | `0 */6 * * *` |
-| Dagelijks 9:00 UTC | `0 9 * * *` |
-| Dagelijks 18:00 UTC | `0 18 * * *` |
-| Maandag t/m vrijdag 9:00 | `0 9 * * 1-5` |
-| Elke maandag 8:00 | `0 8 * * 1` |
-
-> **Tip:** GitHub Actions cron gebruikt UTC tijd. Nederland is UTC+1 (winter) of UTC+2 (zomer).
-
-## Limieten (gratis)
-
-- **2000 minuten/maand** voor private repos
-- **Onbeperkt** voor public repos
-- **Artifacts**: 90 dagen bewaard, max 500MB per artifact
-- **Repo storage**: 500MB-2GB afhankelijk van account type
-
-Voor de meeste use cases is dit ruim voldoende.
-
-## Problemen oplossen
-
-### Workflow draait niet
-- Check of Actions is ingeschakeld in je repo settings
-- De eerste schedule kan tot een uur duren voordat hij start
-
-### Screenshot mislukt
-- Controleer of de URL correct is in `websites.json`
-- Sommige sites blokkeren headless browsers - niet veel aan te doen
-
-### Artifacts niet zichtbaar
-- Artifacts verschijnen pas nadat de workflow volledig klaar is
+### Screenshots niet in Drive
+- Check of beide secrets correct zijn ingesteld in GitHub
+- Kijk in de Actions log voor foutmeldingen
