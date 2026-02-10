@@ -7,15 +7,22 @@ const SCREENSHOTS_DIR = './screenshots';
 async function authenticate() {
   console.log('🔑 Authenticating with Google Drive...');
 
-  const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT);
-  console.log(`🔑 Using service account: ${credentials.client_email}`);
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
 
-  const auth = new google.auth.GoogleAuth({
-    credentials,
-    scopes: ['https://www.googleapis.com/auth/drive']
-  });
+  if (!clientId || !clientSecret || !refreshToken) {
+    throw new Error('Missing OAuth credentials. Need GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN');
+  }
 
-  return auth;
+  const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
+  oauth2Client.setCredentials({ refresh_token: refreshToken });
+
+  // Test de credentials door een access token te krijgen
+  await oauth2Client.getAccessToken();
+  console.log('✅ OAuth authentication successful');
+
+  return oauth2Client;
 }
 
 async function getOrCreateFolder(drive, folderName, parentId) {
@@ -23,9 +30,7 @@ async function getOrCreateFolder(drive, folderName, parentId) {
 
   const response = await drive.files.list({
     q: query,
-    fields: 'files(id, name)',
-    supportsAllDrives: true,
-    includeItemsFromAllDrives: true
+    fields: 'files(id, name)'
   });
 
   if (response.data.files.length > 0) {
@@ -41,8 +46,7 @@ async function getOrCreateFolder(drive, folderName, parentId) {
 
   const folder = await drive.files.create({
     resource: folderMetadata,
-    fields: 'id',
-    supportsAllDrives: true
+    fields: 'id'
   });
 
   console.log(`📁 Created new folder: ${folderName}`);
@@ -68,8 +72,7 @@ async function uploadFile(drive, filepath, folderId) {
   const response = await drive.files.create({
     resource: fileMetadata,
     media: media,
-    fields: 'id, name, webViewLink',
-    supportsAllDrives: true
+    fields: 'id, name, webViewLink'
   });
 
   console.log(`✅ Uploaded: ${response.data.name} (ID: ${response.data.id})`);
@@ -87,11 +90,6 @@ async function main() {
   }
   console.log(`📂 Target folder ID: ${folderId}`);
 
-  if (!process.env.GOOGLE_SERVICE_ACCOUNT) {
-    console.error('❌ GOOGLE_SERVICE_ACCOUNT not set');
-    process.exit(1);
-  }
-
   const auth = await authenticate();
   const drive = google.drive({ version: 'v3', auth });
 
@@ -99,13 +97,11 @@ async function main() {
   try {
     const folder = await drive.files.get({
       fileId: folderId,
-      fields: 'id, name',
-      supportsAllDrives: true
+      fields: 'id, name'
     });
     console.log(`✅ Connected to folder: ${folder.data.name}\n`);
   } catch (error) {
     console.error(`❌ Cannot access folder: ${error.message}`);
-    console.error('Make sure the folder is shared with the service account email');
     process.exit(1);
   }
 
