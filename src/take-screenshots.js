@@ -17,9 +17,50 @@ const CONFIG = {
     height: 1080
   },
   fullPage: true,
-  timeout: 60000,
-  waitAfterLoad: 2000
+  timeout: 90000,
+  scrollDelay: 300,
+  waitAfterScroll: 3000
 };
+
+// Scroll naar beneden om alle lazy-loaded afbeeldingen te laden
+async function autoScroll(page) {
+  await page.evaluate(async (scrollDelay) => {
+    await new Promise((resolve) => {
+      let totalHeight = 0;
+      const distance = 500;
+      const timer = setInterval(() => {
+        const scrollHeight = document.body.scrollHeight;
+        window.scrollBy(0, distance);
+        totalHeight += distance;
+
+        if (totalHeight >= scrollHeight) {
+          clearInterval(timer);
+          // Scroll terug naar boven
+          window.scrollTo(0, 0);
+          resolve();
+        }
+      }, scrollDelay);
+    });
+  }, CONFIG.scrollDelay);
+}
+
+// Wacht tot alle afbeeldingen geladen zijn
+async function waitForImages(page) {
+  await page.evaluate(async () => {
+    const images = Array.from(document.querySelectorAll('img'));
+    await Promise.all(
+      images.map((img) => {
+        if (img.complete) return Promise.resolve();
+        return new Promise((resolve) => {
+          img.addEventListener('load', resolve);
+          img.addEventListener('error', resolve);
+          // Timeout na 5 seconden per afbeelding
+          setTimeout(resolve, 5000);
+        });
+      })
+    );
+  });
+}
 
 async function takeScreenshot(browser, website) {
   const { name, url } = website;
@@ -34,13 +75,20 @@ async function takeScreenshot(browser, website) {
       timeout: CONFIG.timeout
     });
 
-    // Wacht op dynamische content
-    await new Promise(resolve => setTimeout(resolve, CONFIG.waitAfterLoad));
+    console.log(`📸 ${name}: Scrolling to load all images...`);
+    await autoScroll(page);
+
+    console.log(`📸 ${name}: Waiting for images to load...`);
+    await waitForImages(page);
+
+    // Extra wachttijd voor eventuele animaties
+    await new Promise(resolve => setTimeout(resolve, CONFIG.waitAfterScroll));
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filename = `${name}_${timestamp}.png`;
     const filepath = join(SCREENSHOTS_DIR, filename);
 
+    console.log(`📸 ${name}: Taking screenshot...`);
     await page.screenshot({
       path: filepath,
       fullPage: CONFIG.fullPage
