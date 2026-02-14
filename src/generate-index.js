@@ -57,11 +57,11 @@ function buildStructure(objects) {
     });
   }
 
-  // Sorteer datums nieuwste eerst
+  // Sorteer datums nieuwste eerst, en bestanden binnen elke datum ook nieuwste eerst
   for (const website of Object.keys(structure)) {
     const sorted = {};
     for (const date of Object.keys(structure[website]).sort().reverse()) {
-      sorted[date] = structure[website][date];
+      sorted[date] = structure[website][date].sort((a, b) => b.filename.localeCompare(a.filename));
     }
     structure[website] = sorted;
   }
@@ -78,116 +78,170 @@ function generateHTML(structure, publicUrl) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Screenshot Monitor</title>
+  <title>RI&amp;G Screenshots</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #f0f2f5;
-      color: #1a1a2e;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #faf9fb;
+      color: #2d2d3a;
+      min-height: 100vh;
     }
 
     header {
-      background: #1a1a2e;
+      background: linear-gradient(135deg, #783c96 0%, #d23278 50%, #e6463c 80%, #fabb22 100%);
       color: #fff;
-      padding: 1.2rem 2rem;
+      padding: 1.5rem 2rem;
       position: sticky;
       top: 0;
       z-index: 100;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      box-shadow: 0 4px 20px rgba(120, 60, 150, 0.3);
     }
 
-    header h1 { font-size: 1.3rem; font-weight: 600; }
-    header p { font-size: 0.8rem; opacity: 0.6; margin-top: 0.2rem; }
+    .header-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    header h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    header p {
+      font-size: 0.78rem;
+      opacity: 0.85;
+      font-weight: 400;
+    }
 
     .tabs {
       display: flex;
-      gap: 0.5rem;
-      padding: 1rem 2rem;
+      gap: 0.4rem;
+      padding: 0.8rem 2rem;
       background: #fff;
-      border-bottom: 1px solid #e0e0e0;
+      border-bottom: 1px solid #ece8f0;
       overflow-x: auto;
       position: sticky;
-      top: 60px;
+      top: 68px;
       z-index: 99;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
+
+    .tabs::-webkit-scrollbar { height: 0; }
 
     .tab {
-      padding: 0.5rem 1.2rem;
-      border: none;
+      padding: 0.45rem 1.1rem;
+      border: 1.5px solid transparent;
       border-radius: 2rem;
-      background: #e8eaf0;
-      color: #1a1a2e;
+      background: #f3eff6;
+      color: #5a4a6a;
       cursor: pointer;
-      font-size: 0.85rem;
+      font-family: inherit;
+      font-size: 0.82rem;
       font-weight: 500;
       white-space: nowrap;
-      transition: all 0.2s;
+      transition: all 0.2s ease;
     }
 
-    .tab:hover { background: #d0d4e0; }
-    .tab.active { background: #1a1a2e; color: #fff; }
+    .tab:hover {
+      background: #ebe4f0;
+      border-color: #c9b8d9;
+    }
+
+    .tab.active {
+      background: #783c96;
+      color: #fff;
+      border-color: #783c96;
+      box-shadow: 0 2px 8px rgba(120, 60, 150, 0.25);
+    }
 
     .content { max-width: 1400px; margin: 0 auto; padding: 1.5rem 2rem 3rem; }
 
     .website-section { display: none; }
     .website-section.active { display: block; }
 
-    .date-group { margin-bottom: 2rem; }
+    .date-group { margin-bottom: 2.5rem; }
 
     .date-header {
-      font-size: 1rem;
+      font-size: 0.95rem;
       font-weight: 600;
-      color: #555;
-      margin-bottom: 0.8rem;
-      padding-bottom: 0.4rem;
-      border-bottom: 2px solid #e0e0e0;
+      color: #783c96;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid #ece8f0;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .date-header::before {
+      content: '';
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #d23278, #e6463c);
+      flex-shrink: 0;
     }
 
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-      gap: 1rem;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 1.2rem;
     }
 
     .card {
       background: #fff;
-      border-radius: 8px;
+      border-radius: 12px;
       overflow: hidden;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
       cursor: pointer;
-      transition: transform 0.15s, box-shadow 0.15s;
+      transition: all 0.2s ease;
+      border: 1px solid #f0ecf3;
     }
 
     .card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+      transform: translateY(-3px);
+      box-shadow: 0 12px 24px rgba(120, 60, 150, 0.12), 0 4px 8px rgba(0,0,0,0.06);
+      border-color: #d9cde3;
     }
 
     .card img {
       width: 100%;
-      height: 200px;
+      height: 220px;
       object-fit: cover;
       object-position: top;
       display: block;
-      background: #f5f5f5;
+      background: #f5f3f7;
     }
 
     .card-info {
-      padding: 0.6rem 0.8rem;
+      padding: 0.7rem 1rem;
       font-size: 0.75rem;
-      color: #888;
+      color: #8a7a9a;
       display: flex;
       justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid #f5f2f8;
     }
+
+    .card-info span:first-child { font-weight: 500; color: #5a4a6a; }
 
     /* Lightbox */
     .lightbox {
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.9);
+      background: rgba(30, 20, 40, 0.92);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
       z-index: 1000;
       cursor: zoom-out;
       overflow: auto;
@@ -199,6 +253,8 @@ function generateHTML(structure, publicUrl) {
       max-width: 95%;
       margin: 2rem auto;
       display: block;
+      border-radius: 8px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
     }
 
     .lightbox-close {
@@ -210,18 +266,29 @@ function generateHTML(structure, publicUrl) {
       cursor: pointer;
       z-index: 1001;
       line-height: 1;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.1);
+      transition: background 0.2s;
     }
+
+    .lightbox-close:hover { background: rgba(255,255,255,0.2); }
 
     .empty {
       text-align: center;
-      color: #999;
-      padding: 3rem;
+      color: #a898b8;
+      padding: 4rem 2rem;
       font-size: 0.95rem;
     }
 
     @media (max-width: 600px) {
       header { padding: 1rem; }
-      .tabs { padding: 0.8rem 1rem; }
+      .header-inner { flex-direction: column; align-items: flex-start; gap: 0.2rem; }
+      .tabs { padding: 0.6rem 1rem; top: 56px; }
       .content { padding: 1rem; }
       .grid { grid-template-columns: 1fr; }
     }
@@ -229,8 +296,10 @@ function generateHTML(structure, publicUrl) {
 </head>
 <body>
   <header>
-    <h1>Screenshot Monitor</h1>
-    <p>Laatste update: ${new Date().toLocaleString('nl-BE', { timeZone: 'Europe/Brussels' })}</p>
+    <div class="header-inner">
+      <h1>RI&amp;G Screenshots</h1>
+      <p>Laatste update: ${new Date().toLocaleString('nl-BE', { timeZone: 'Europe/Brussels' })}</p>
+    </div>
   </header>
 
   <div class="tabs">
