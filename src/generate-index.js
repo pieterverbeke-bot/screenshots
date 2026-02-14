@@ -57,11 +57,11 @@ function buildStructure(objects) {
     });
   }
 
-  // Sorteer datums nieuwste eerst
+  // Sorteer datums nieuwste eerst, en bestanden binnen elke datum ook nieuwste eerst
   for (const website of Object.keys(structure)) {
     const sorted = {};
     for (const date of Object.keys(structure[website]).sort().reverse()) {
-      sorted[date] = structure[website][date];
+      sorted[date] = structure[website][date].sort((a, b) => b.filename.localeCompare(a.filename));
     }
     structure[website] = sorted;
   }
