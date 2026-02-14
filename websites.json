@@ -1,30 +1,194 @@
 [
   {
     "name": "hln",
-    "url": "https://www.hln.be"
+    "label": "HLN",
+    "url": "https://www.hln.be",
+    "land": "België",
+    "medium": "nieuwsmedia",
+    "cluster": "België"
   },
   {
-    "name": "ad",
-    "url": "https://www.ad.nl"
+    "name": "dm",
+    "label": "DM",
+    "url": "https://www.demorgen.be",
+    "land": "België",
+    "medium": "nieuwsmedia",
+    "cluster": "België"
   },
   {
-    "name": "vk",
-    "url": "https://www.volkskrant.nl"
-  },
-  {
-    "name": "nieuwsblad",
-    "url": "https://www.nieuwsblad.be"
-  },
-  {
-    "name": "gva",
-    "url": "https://www.gva.be"
-  },
-  {
-    "name": "nrc",
-    "url": "https://www.nrc.nl"
+    "name": "humo",
+    "label": "Humo",
+    "url": "https://www.humo.be",
+    "land": "België",
+    "medium": "nieuwsmedia",
+    "cluster": "België"
   },
   {
     "name": "vrtnws",
-    "url": "https://www.vrt.be/vrtnws/nl"
+    "label": "vrtnws",
+    "url": "https://www.vrt.be/vrtnws/nl/",
+    "land": "België",
+    "medium": "nieuwsmedia",
+    "cluster": "België"
+  },
+  {
+    "name": "nieuwsblad",
+    "label": "Nieuwsblad",
+    "url": "https://www.nieuwsblad.be",
+    "land": "België",
+    "medium": "nieuwsmedia",
+    "cluster": "België"
+  },
+  {
+    "name": "gva",
+    "label": "GvA",
+    "url": "https://www.gva.be",
+    "land": "België",
+    "medium": "nieuwsmedia",
+    "cluster": "België"
+  },
+  {
+    "name": "nu",
+    "label": "NU.nl",
+    "url": "https://www.nu.nl",
+    "land": "Nederland",
+    "medium": "nieuwsmedia",
+    "cluster": "NU"
+  },
+  {
+    "name": "ad",
+    "label": "AD",
+    "url": "https://www.ad.nl",
+    "land": "Nederland",
+    "medium": "nieuwsmedia",
+    "cluster": "ADR"
+  },
+  {
+    "name": "ed",
+    "label": "ED",
+    "url": "https://www.ed.nl",
+    "land": "Nederland",
+    "medium": "nieuwsmedia",
+    "cluster": "ADR"
+  },
+  {
+    "name": "bd",
+    "label": "BD",
+    "url": "https://www.bd.nl",
+    "land": "Nederland",
+    "medium": "nieuwsmedia",
+    "cluster": "ADR"
+  },
+  {
+    "name": "bn",
+    "label": "BN",
+    "url": "https://www.bndestem.nl",
+    "land": "Nederland",
+    "medium": "nieuwsmedia",
+    "cluster": "ADR"
+  },
+  {
+    "name": "pzc",
+    "label": "PZC",
+    "url": "https://www.pzc.nl",
+    "land": "Nederland",
+    "medium": "nieuwsmedia",
+    "cluster": "ADR"
+  },
+  {
+    "name": "dg",
+    "label": "DG",
+    "url": "https://www.degelderlander.nl",
+    "land": "Nederland",
+    "medium": "nieuwsmedia",
+    "cluster": "ADR"
+  },
+  {
+    "name": "st",
+    "label": "ST",
+    "url": "https://www.destentor.nl",
+    "land": "Nederland",
+    "medium": "nieuwsmedia",
+    "cluster": "ADR"
+  },
+  {
+    "name": "tt",
+    "label": "TT",
+    "url": "https://www.tubantia.nl",
+    "land": "Nederland",
+    "medium": "nieuwsmedia",
+    "cluster": "ADR"
+  },
+  {
+    "name": "vk",
+    "label": "VK",
+    "url": "https://www.vk.nl",
+    "land": "Nederland",
+    "medium": "nieuwsmedia",
+    "cluster": "VTP"
+  },
+  {
+    "name": "trouw",
+    "label": "Trouw",
+    "url": "https://www.trouw.nl",
+    "land": "Nederland",
+    "medium": "nieuwsmedia",
+    "cluster": "VTP"
+  },
+  {
+    "name": "parool",
+    "label": "Het Parool",
+    "url": "https://www.parool.nl",
+    "land": "Nederland",
+    "medium": "nieuwsmedia",
+    "cluster": "VTP"
+  },
+  {
+    "name": "linda",
+    "label": "Linda",
+    "url": "https://www.linda.nl",
+    "land": "Nederland",
+    "medium": "Magazines",
+    "cluster": "Magazines"
+  },
+  {
+    "name": "libelle",
+    "label": "Libelle",
+    "url": "https://www.libelle.nl",
+    "land": "Nederland",
+    "medium": "Magazines",
+    "cluster": "Magazines"
+  },
+  {
+    "name": "margriet",
+    "label": "Margriet",
+    "url": "https://www.margriet.nl",
+    "land": "Nederland",
+    "medium": "Magazines",
+    "cluster": "Magazines"
+  },
+  {
+    "name": "flair",
+    "label": "Flair",
+    "url": "https://www.flair.nl",
+    "land": "Nederland",
+    "medium": "Magazines",
+    "cluster": "Magazines"
+  },
+  {
+    "name": "veronicasg",
+    "label": "Veronica SG",
+    "url": "https://www.veronicasuperguide.nl",
+    "land": "Nederland",
+    "medium": "Magazines",
+    "cluster": "Magazines"
+  },
+  {
+    "name": "story",
+    "label": "Story.nl",
+    "url": "https://www.story.nl",
+    "land": "Nederland",
+    "medium": "Magazines",
+    "cluster": "Magazines"
   }
 ]
