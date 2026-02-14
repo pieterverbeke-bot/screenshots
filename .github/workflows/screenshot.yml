@@ -1,10 +1,11 @@
 name: Website Screenshots
 
 on:
-  # Handmatig triggeren
+  # Triggeren via cron-job.org of handmatig (primair)
   workflow_dispatch:
 
-  # Schedule - elk uur
+  # Fallback schedule - GitHub Actions cron is onbetrouwbaar (delays tot ~3u)
+  # De primaire trigger is via cron-job.org (zie README)
   schedule:
     - cron: '0 * * * *'
 
@@ -31,13 +32,22 @@ jobs:
       - name: Take screenshots
         run: node src/take-screenshots.js
 
-      - name: Upload to Google Drive
+      - name: Upload to Cloudflare R2
         env:
-          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
-          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
-        run: node src/upload-to-drive.js
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+        run: node src/upload-to-r2.js
+
+      - name: Update viewer page
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
+        run: node src/generate-index.js
 
       - name: Upload screenshots as artifacts (backup)
         uses: actions/upload-artifact@v4
