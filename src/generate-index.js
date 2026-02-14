@@ -1,4 +1,5 @@
 import { S3Client, ListObjectsV2Command, PutObjectCommand } from '@aws-sdk/client-s3';
+import { readFileSync } from 'fs';
 
 function createR2Client() {
   const accountId = (process.env.R2_ACCOUNT_ID || '').trim();
@@ -69,9 +70,22 @@ function buildStructure(objects) {
   return structure;
 }
 
-function generateHTML(structure, publicUrl) {
+function loadWebsitesMeta() {
+  const raw = readFileSync(new URL('../websites.json', import.meta.url), 'utf-8');
+  const websites = JSON.parse(raw);
+  const meta = {};
+  for (const w of websites) {
+    meta[w.name] = { label: w.label, land: w.land, medium: w.medium, cluster: w.cluster };
+  }
+  return meta;
+}
+
+function generateHTML(structure, publicUrl, websitesMeta) {
   const websites = Object.keys(structure).sort();
   const baseUrl = publicUrl.replace(/\/$/, '');
+
+  // Bouw metadata JSON voor client-side filtering
+  const metaJSON = JSON.stringify(websitesMeta);
 
   return `<!DOCTYPE html>
 <html lang="nl">
@@ -122,30 +136,97 @@ function generateHTML(structure, publicUrl) {
       font-weight: 400;
     }
 
-    .tabs {
-      display: flex;
-      gap: 0.4rem;
-      padding: 0.8rem 2rem;
+    /* Filter bar */
+    .filter-bar {
       background: #fff;
       border-bottom: 1px solid #ece8f0;
-      overflow-x: auto;
+      padding: 0.8rem 2rem;
       position: sticky;
       top: 68px;
       z-index: 99;
       box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
 
-    .tabs::-webkit-scrollbar { height: 0; }
+    .filter-bar-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
 
-    .tab {
-      padding: 0.45rem 1.1rem;
-      border: 1.5px solid transparent;
+    .filter-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: #8a7a9a;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      min-width: 58px;
+    }
+
+    .filter-chips {
+      display: flex;
+      gap: 0.3rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-chip {
+      padding: 0.3rem 0.8rem;
+      border: 1.5px solid #e0dae6;
       border-radius: 2rem;
-      background: #f3eff6;
+      background: #f8f5fa;
       color: #5a4a6a;
       cursor: pointer;
       font-family: inherit;
-      font-size: 0.82rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+
+    .filter-chip:hover {
+      background: #ebe4f0;
+      border-color: #c9b8d9;
+    }
+
+    .filter-chip.active {
+      background: #783c96;
+      color: #fff;
+      border-color: #783c96;
+      box-shadow: 0 2px 6px rgba(120, 60, 150, 0.2);
+    }
+
+    /* Website tabs */
+    .tabs {
+      display: flex;
+      gap: 0.35rem;
+      padding: 0.6rem 2rem;
+      background: #f8f5fa;
+      border-bottom: 1px solid #ece8f0;
+      overflow-x: auto;
+      position: sticky;
+      top: 152px;
+      z-index: 98;
+    }
+
+    .tabs::-webkit-scrollbar { height: 0; }
+
+    .tab {
+      padding: 0.4rem 0.9rem;
+      border: 1.5px solid transparent;
+      border-radius: 2rem;
+      background: #fff;
+      color: #5a4a6a;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.78rem;
       font-weight: 500;
       white-space: nowrap;
       transition: all 0.2s ease;
@@ -162,6 +243,8 @@ function generateHTML(structure, publicUrl) {
       border-color: #783c96;
       box-shadow: 0 2px 8px rgba(120, 60, 150, 0.25);
     }
+
+    .tab.hidden { display: none; }
 
     .content { max-width: 1400px; margin: 0 auto; padding: 1.5rem 2rem 3rem; }
 
@@ -285,10 +368,11 @@ function generateHTML(structure, publicUrl) {
       font-size: 0.95rem;
     }
 
-    @media (max-width: 600px) {
+    @media (max-width: 700px) {
       header { padding: 1rem; }
       .header-inner { flex-direction: column; align-items: flex-start; gap: 0.2rem; }
-      .tabs { padding: 0.6rem 1rem; top: 56px; }
+      .filter-bar { padding: 0.6rem 1rem; top: 56px; }
+      .tabs { padding: 0.5rem 1rem; top: auto; position: relative; }
       .content { padding: 1rem; }
       .grid { grid-template-columns: 1fr; }
     }
@@ -302,8 +386,29 @@ function generateHTML(structure, publicUrl) {
     </div>
   </header>
 
-  <div class="tabs">
-    ${websites.map((w, i) => `<button class="tab${i === 0 ? ' active' : ''}" data-site="${w}">${w}</button>`).join('\n    ')}
+  <div class="filter-bar">
+    <div class="filter-bar-inner">
+      <div class="filter-row" data-filter="land">
+        <span class="filter-label">Land</span>
+        <div class="filter-chips" id="filter-land"></div>
+      </div>
+      <div class="filter-row" data-filter="medium">
+        <span class="filter-label">Medium</span>
+        <div class="filter-chips" id="filter-medium"></div>
+      </div>
+      <div class="filter-row" data-filter="cluster">
+        <span class="filter-label">Cluster</span>
+        <div class="filter-chips" id="filter-cluster"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    ${websites.map((w, i) => {
+      const m = websitesMeta[w];
+      const label = m ? m.label : w;
+      return `<button class="tab${i === 0 ? ' active' : ''}" data-site="${w}" data-land="${m ? m.land : ''}" data-medium="${m ? m.medium : ''}" data-cluster="${m ? m.cluster : ''}">${label}</button>`;
+    }).join('\n    ')}
   </div>
 
   <div class="content">
@@ -315,13 +420,14 @@ function generateHTML(structure, publicUrl) {
         <div class="date-header">${date}</div>
         <div class="grid">
           ${files.map(f => {
-            const time = f.filename.match(/T(\d{2})-(\d{2})-(\d{2})/);
-            const timeStr = time ? `${time[1]}:${time[2]}:${time[3]}` : '';
+            const tIdx = f.filename.indexOf('T');
+            const timePart = tIdx > -1 ? f.filename.slice(tIdx+1, tIdx+9) : '';
+            const timeStr = timePart.length === 8 ? timePart.replace(/-/g, ':') : '';
             const sizeKB = Math.round((f.size || 0) / 1024);
-            return `<div class="card" data-url="${baseUrl}/${f.key}">
-            <img src="${baseUrl}/${f.key}" loading="lazy" alt="${f.filename}">
-            <div class="card-info"><span>${timeStr}</span><span>${sizeKB} KB</span></div>
-          </div>`;
+            return '<div class="card" data-url="'+baseUrl+'/'+f.key+'">'
+            +'<img src="'+baseUrl+'/'+f.key+'" loading="lazy" alt="'+f.filename+'">'
+            +'<div class="card-info"><span>'+timeStr+'</span><span>'+sizeKB+' KB</span></div>'
+            +'</div>';
           }).join('\n          ')}
         </div>
       </div>`).join('\n      ')}
@@ -335,15 +441,78 @@ function generateHTML(structure, publicUrl) {
   </div>
 
   <script>
-    // Tabs
-    document.querySelectorAll('.tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.website-section').forEach(s => s.classList.remove('active'));
-        tab.classList.add('active');
-        const section = document.querySelector('.website-section[data-site="' + tab.dataset.site + '"]');
-        if (section) section.classList.add('active');
+    const meta = ${metaJSON};
+
+    // Bouw filter-chips dynamisch uit metadata
+    const filterState = { land: null, medium: null, cluster: null };
+    const filterKeys = ['land', 'medium', 'cluster'];
+
+    function getUniqueValues(key) {
+      const vals = new Set();
+      Object.values(meta).forEach(m => { if (m[key]) vals.add(m[key]); });
+      return [...vals].sort();
+    }
+
+    filterKeys.forEach(key => {
+      const container = document.getElementById('filter-' + key);
+      getUniqueValues(key).forEach(val => {
+        const chip = document.createElement('button');
+        chip.className = 'filter-chip';
+        chip.textContent = val;
+        chip.dataset.value = val;
+        chip.addEventListener('click', () => toggleFilter(key, val, chip));
+        container.appendChild(chip);
       });
+    });
+
+    function toggleFilter(key, val, chip) {
+      if (filterState[key] === val) {
+        filterState[key] = null;
+        chip.classList.remove('active');
+      } else {
+        // Deactiveer andere chips in deze rij
+        chip.parentElement.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+        filterState[key] = val;
+        chip.classList.add('active');
+      }
+      applyFilters();
+    }
+
+    function applyFilters() {
+      const tabs = document.querySelectorAll('.tab');
+      let firstVisible = null;
+      let activeIsVisible = false;
+
+      tabs.forEach(tab => {
+        const land = tab.dataset.land;
+        const medium = tab.dataset.medium;
+        const cluster = tab.dataset.cluster;
+        const matchLand = !filterState.land || land === filterState.land;
+        const matchMedium = !filterState.medium || medium === filterState.medium;
+        const matchCluster = !filterState.cluster || cluster === filterState.cluster;
+        const visible = matchLand && matchMedium && matchCluster;
+        tab.classList.toggle('hidden', !visible);
+        if (visible && !firstVisible) firstVisible = tab;
+        if (visible && tab.classList.contains('active')) activeIsVisible = true;
+      });
+
+      // Als de actieve tab verborgen is, selecteer de eerste zichtbare
+      if (!activeIsVisible && firstVisible) {
+        activateTab(firstVisible);
+      }
+    }
+
+    // Tabs
+    function activateTab(tab) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.website-section').forEach(s => s.classList.remove('active'));
+      tab.classList.add('active');
+      const section = document.querySelector('.website-section[data-site="' + tab.dataset.site + '"]');
+      if (section) section.classList.add('active');
+    }
+
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => activateTab(tab));
     });
 
     // Lightbox
@@ -374,35 +543,36 @@ function generateHTML(structure, publicUrl) {
 }
 
 async function main() {
-  console.log('\n📄 Generating screenshot viewer\n');
+  console.log('\\n Generating screenshot viewer\\n');
   console.log('='.repeat(50));
 
   const bucketName = process.env.R2_BUCKET_NAME;
   const publicUrl = process.env.R2_PUBLIC_URL;
 
   if (!bucketName) {
-    console.error('❌ R2_BUCKET_NAME not set');
+    console.error('R2_BUCKET_NAME not set');
     process.exit(1);
   }
 
   if (!publicUrl) {
-    console.error('❌ R2_PUBLIC_URL not set — enable public access on your R2 bucket and add the URL as secret');
+    console.error('R2_PUBLIC_URL not set');
     process.exit(1);
   }
 
   const client = createR2Client();
 
-  console.log('📋 Listing all objects in bucket...');
+  console.log('Listing all objects in bucket...');
   const objects = await listAllObjects(client, bucketName);
   console.log(`   Found ${objects.length} object(s)`);
 
   const structure = buildStructure(objects);
+  const websitesMeta = loadWebsitesMeta();
   const websiteCount = Object.keys(structure).length;
   console.log(`   ${websiteCount} website(s) with screenshots\n`);
 
-  const html = generateHTML(structure, publicUrl);
+  const html = generateHTML(structure, publicUrl, websitesMeta);
 
-  console.log('📤 Uploading index.html...');
+  console.log('Uploading index.html...');
   await client.send(new PutObjectCommand({
     Bucket: bucketName,
     Key: 'index.html',
@@ -410,7 +580,7 @@ async function main() {
     ContentType: 'text/html; charset=utf-8',
   }));
 
-  console.log(`✅ Viewer uploaded to: ${publicUrl}/index.html`);
+  console.log(`Viewer uploaded to: ${publicUrl}/index.html`);
 }
 
 main().catch(error => {
