@@ -9,6 +9,10 @@ on:
   schedule:
     - cron: '0 * * * *'
 
+concurrency:
+  group: screenshots
+  cancel-in-progress: true
+
 jobs:
   screenshot:
     runs-on: ubuntu-latest
