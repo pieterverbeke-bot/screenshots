@@ -103,13 +103,66 @@ Bewerk `websites.json`:
 ]
 ```
 
-## Schedule aanpassen
+## Betrouwbare scheduling via cron-job.org (aanbevolen)
 
-Bewerk `.github/workflows/screenshot.yml`:
+GitHub Actions cron is onbetrouwbaar — runs worden vaak 1-3 uur uitgesteld bij hoge load. Gebruik **[cron-job.org](https://cron-job.org)** als externe trigger voor betrouwbare, stipte uitvoering.
+
+### Stap 1: GitHub Personal Access Token (PAT) maken
+
+1. Ga naar **[github.com/settings/tokens](https://github.com/settings/tokens)**
+2. Klik **"Generate new token"** → **"Generate new token (classic)"**
+3. Naam: `cron-job-screenshot-trigger`
+4. Expiration: kies een passende duur (of "No expiration")
+5. Selecteer scope: **`repo`** (volledige repo access nodig voor workflow dispatch)
+6. Klik **"Generate token"**
+7. **Kopieer het token** — je ziet het maar één keer!
+
+### Stap 2: Account maken op cron-job.org
+
+1. Ga naar **[cron-job.org](https://cron-job.org)** en maak een gratis account
+2. Het gratis plan ondersteunt cronjobs tot elke minuut
+
+### Stap 3: Cronjob aanmaken
+
+1. Klik **"Create cronjob"**
+2. Vul in:
+   - **Title:** `Screenshot workflow trigger`
+   - **URL:**
+     ```
+     https://api.github.com/repos/OWNER/REPO/actions/workflows/screenshot.yml/dispatches
+     ```
+     Vervang `OWNER` door je GitHub-gebruikersnaam en `REPO` door de repository-naam.
+   - **Schedule:** Every **1 hour** (of kies je gewenst interval)
+   - **Request method:** `POST`
+3. Ga naar het tabblad **"Advanced"**:
+   - **Headers:**
+     ```
+     Authorization: Bearer JOUW_GITHUB_PAT
+     Accept: application/vnd.github.v3+json
+     ```
+     Vervang `JOUW_GITHUB_PAT` door het token uit stap 1.
+   - **Request body:**
+     ```json
+     {"ref":"main"}
+     ```
+4. Klik **"Save"**
+
+### Stap 4: Testen
+
+1. Klik op de cronjob en kies **"Test run"**
+2. Je zou status **204** moeten krijgen (= success, no content)
+3. Check je GitHub Actions tab — de workflow zou nu moeten starten
+
+> **Tip:** De `schedule` in de workflow YAML blijft als fallback staan. Zelfs als cron-job.org een keer faalt, pikt GitHub Actions het uiteindelijk op.
+
+## Schedule aanpassen (fallback)
+
+De ingebouwde GitHub Actions cron in `.github/workflows/screenshot.yml` dient als fallback.
+Dit interval is **niet betrouwbaar** voor stipte uitvoering — gebruik cron-job.org (zie hierboven).
 
 ```yaml
 schedule:
-  # Elk uur (standaard)
+  # Elk uur (standaard, fallback)
   - cron: '0 * * * *'
 
   # Elke 30 minuten:
@@ -123,6 +176,16 @@ schedule:
 ```
 
 ## Problemen?
+
+### Cron-job.org geeft geen 204 response
+- Check of je GitHub PAT geldig is en de `repo` scope heeft
+- Check of de URL klopt: `https://api.github.com/repos/OWNER/REPO/actions/workflows/screenshot.yml/dispatches`
+- Check of de `ref` in de body overeenkomt met een bestaande branch (standaard: `main`)
+
+### Workflow draait niet elk uur (zonder cron-job.org)
+- Dit is een **bekend probleem** met GitHub Actions scheduled workflows
+- GitHub garandeert geen stipte uitvoering — delays van 1-3+ uur komen vaak voor
+- Oplossing: gebruik cron-job.org (zie sectie hierboven)
 
 ### "Upload failed" of "Permission denied"
 - Check of je de folder hebt gedeeld met het service account email
