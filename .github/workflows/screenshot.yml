@@ -1,13 +1,7 @@
 name: Website Screenshots
 
 on:
-  # Triggeren via cron-job.org of handmatig (primair)
   workflow_dispatch:
-
-  # Fallback schedule - GitHub Actions cron is onbetrouwbaar (delays tot ~3u)
-  # De primaire trigger is via cron-job.org (zie README)
-  schedule:
-    - cron: '0 * * * *'
 
 concurrency:
   group: screenshots
