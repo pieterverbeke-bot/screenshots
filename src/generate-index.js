@@ -42,10 +42,14 @@ function buildStructure(objects) {
 
   for (const obj of objects) {
     const parts = obj.Key.split('/');
-    // Verwacht: website/datum/bestand.jpg
-    if (parts.length !== 3 || !parts[2].endsWith('.jpg')) continue;
+    // Verwacht: website/datum/bestand.webp of .jpg
+    if (parts.length !== 3) continue;
+    if (!parts[2].endsWith('.webp') && !parts[2].endsWith('.jpg')) continue;
 
     const [website, date, filename] = parts;
+
+    // Detecteer of het een mobiele screenshot is (bevat _mobile voor de extensie)
+    const isMobile = /_mobile\.\w+$/.test(filename);
 
     if (!structure[website]) structure[website] = {};
     if (!structure[website][date]) structure[website][date] = [];
@@ -55,6 +59,7 @@ function buildStructure(objects) {
       filename,
       size: obj.Size,
       lastModified: obj.LastModified,
+      device: isMobile ? 'mobile' : 'desktop',
     });
   }
 
@@ -212,7 +217,7 @@ function generateHTML(structure, publicUrl, websitesMeta) {
       border-bottom: 1px solid #ece8f0;
       overflow-x: auto;
       position: sticky;
-      top: 112px;
+      top: 144px;
       z-index: 98;
     }
 
@@ -388,6 +393,13 @@ function generateHTML(structure, publicUrl, websitesMeta) {
 
   <div class="filter-bar">
     <div class="filter-bar-inner">
+      <div class="filter-row" data-filter="device">
+        <span class="filter-label">Weergave</span>
+        <div class="filter-chips" id="filter-device">
+          <button class="filter-chip active" data-value="desktop">Desktop</button>
+          <button class="filter-chip" data-value="mobile">Mobiel</button>
+        </div>
+      </div>
       <div class="filter-row" data-filter="cluster">
         <span class="filter-label">Cluster</span>
         <div class="filter-chips" id="filter-cluster"></div>
@@ -416,7 +428,8 @@ function generateHTML(structure, publicUrl, websitesMeta) {
             const timePart = tIdx > -1 ? f.filename.slice(tIdx+1, tIdx+9) : '';
             const timeStr = timePart.length === 8 ? timePart.replace(/-/g, ':') : '';
             const sizeKB = Math.round((f.size || 0) / 1024);
-            return '<div class="card" data-url="'+baseUrl+'/'+f.key+'">'
+            const device = f.device || 'desktop';
+            return '<div class="card" data-url="'+baseUrl+'/'+f.key+'" data-device="'+device+'">'
             +'<img src="'+baseUrl+'/'+f.key+'" loading="lazy" alt="'+f.filename+'">'
             +'<div class="card-info"><span>'+timeStr+'</span><span>'+sizeKB+' KB</span></div>'
             +'</div>';
@@ -436,7 +449,7 @@ function generateHTML(structure, publicUrl, websitesMeta) {
     const meta = ${metaJSON};
 
     // Bouw filter-chips dynamisch uit metadata
-    const filterState = { cluster: null };
+    const filterState = { cluster: null, device: 'desktop' };
     const filterKeys = ['cluster'];
 
     function getUniqueValues(key) {
@@ -457,6 +470,16 @@ function generateHTML(structure, publicUrl, websitesMeta) {
       });
     });
 
+    // Device filter (Desktop/Mobiel) - altijd één actief
+    document.querySelectorAll('#filter-device .filter-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('#filter-device .filter-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        filterState.device = chip.dataset.value;
+        applyFilters();
+      });
+    });
+
     function toggleFilter(key, val, chip) {
       if (filterState[key] === val) {
         filterState[key] = null;
@@ -471,6 +494,7 @@ function generateHTML(structure, publicUrl, websitesMeta) {
     }
 
     function applyFilters() {
+      // Filter tabs op cluster
       const tabs = document.querySelectorAll('.tab');
       let firstVisible = null;
       let activeIsVisible = false;
@@ -487,7 +511,16 @@ function generateHTML(structure, publicUrl, websitesMeta) {
       if (!activeIsVisible && firstVisible) {
         activateTab(firstVisible);
       }
+
+      // Filter cards op device
+      document.querySelectorAll('.card').forEach(card => {
+        const device = card.dataset.device || 'desktop';
+        card.style.display = (device === filterState.device) ? '' : 'none';
+      });
     }
+
+    // Pas initieel device filter toe
+    applyFilters();
 
     // Tabs
     function activateTab(tab) {
