@@ -1,14 +1,10 @@
 #!/usr/bin/env node
 
-import puppeteer from 'puppeteer-extra';
-import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import puppeteer from 'puppeteer';
 import { KnownDevices } from 'puppeteer';
 import { readFileSync, existsSync, mkdirSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-
-// Stealth plugin om bot-detectie te omzeilen (Cloudflare, etc.)
-puppeteer.use(StealthPlugin());
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = join(__dirname, '..');
@@ -26,8 +22,8 @@ const CONFIG = {
   timeout: 60000,
   scrollDelay: 300,
   waitAfterScroll: 2000,
-  // WebP compressie (0-100), 80 is goede balans tussen kwaliteit en grootte
-  webpQuality: 80,
+  // JPEG compressie (0-100), 80 is goede balans tussen kwaliteit en grootte
+  jpegQuality: 80,
   // Tijdzone voor bestandsnamen
   timezone: 'Europe/Brussels',
   // Aantal sites die tegelijk verwerkt worden
@@ -533,15 +529,15 @@ async function takeScreenshot(browser, website) {
     await desktopPage.setViewport(CONFIG.desktopViewport);
     await loadAndPrepare(desktopPage, website);
 
-    const desktopFilename = `${name}_${timestamp}.webp`;
+    const desktopFilename = `${name}_${timestamp}.jpg`;
     const desktopFilepath = join(SCREENSHOTS_DIR, desktopFilename);
 
     console.log(`📸 ${name}: Taking desktop screenshot...`);
     await desktopPage.screenshot({
       path: desktopFilepath,
       fullPage: CONFIG.fullPage,
-      type: 'webp',
-      quality: CONFIG.webpQuality
+      type: 'jpeg',
+      quality: CONFIG.jpegQuality
     });
 
     console.log(`✅ ${name}: Saved ${desktopFilename}`);
@@ -560,15 +556,15 @@ async function takeScreenshot(browser, website) {
     await mobilePage.emulate(mobileDevice);
     await loadAndPrepare(mobilePage, website);
 
-    const mobileFilename = `${name}_${timestamp}_mobile.webp`;
+    const mobileFilename = `${name}_${timestamp}_mobile.jpg`;
     const mobileFilepath = join(SCREENSHOTS_DIR, mobileFilename);
 
     console.log(`📱 ${name}: Taking mobile screenshot...`);
     await mobilePage.screenshot({
       path: mobileFilepath,
       fullPage: CONFIG.fullPage,
-      type: 'webp',
-      quality: CONFIG.webpQuality
+      type: 'jpeg',
+      quality: CONFIG.jpegQuality
     });
 
     console.log(`✅ ${name}: Saved ${mobileFilename}`);
