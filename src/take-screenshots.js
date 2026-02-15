@@ -1,9 +1,14 @@
 #!/usr/bin/env node
 
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import { KnownDevices } from 'puppeteer';
 import { readFileSync, existsSync, mkdirSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+
+// Stealth plugin om bot-detectie te omzeilen (Cloudflare, etc.)
+puppeteer.use(StealthPlugin());
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = join(__dirname, '..');
@@ -94,6 +99,69 @@ async function waitForImages(page) {
       })
     );
   });
+}
+
+// Detecteer en wacht op Cloudflare "Verify you are human" challenge
+async function handleCloudflareChallenge(page) {
+  try {
+    const isChallengePage = await page.evaluate(() => {
+      const bodyText = document.body?.innerText || '';
+      const title = document.title || '';
+      return (
+        bodyText.includes('Verify you are human') ||
+        bodyText.includes('Controleer of u een mens bent') ||
+        bodyText.includes('confirm you are human') ||
+        bodyText.includes('Just a moment') ||
+        title.includes('Just a moment') ||
+        !!document.querySelector('#challenge-running') ||
+        !!document.querySelector('#challenge-stage') ||
+        !!document.querySelector('.cf-turnstile') ||
+        !!document.querySelector('iframe[src*="challenges.cloudflare.com"]')
+      );
+    });
+
+    if (!isChallengePage) return false;
+
+    console.log(`🛡️  Cloudflare challenge detected, waiting for resolution...`);
+
+    // Probeer de Turnstile checkbox te klikken als die er is
+    try {
+      const turnstileFrame = await page.$('iframe[src*="challenges.cloudflare.com"]');
+      if (turnstileFrame) {
+        const frame = await turnstileFrame.contentFrame();
+        if (frame) {
+          const checkbox = await frame.$('input[type="checkbox"]');
+          if (checkbox) {
+            await checkbox.click();
+            console.log(`🛡️  Clicked Turnstile checkbox`);
+          }
+        }
+      }
+    } catch {
+      // Frame access kan falen door cross-origin, dat is normaal
+    }
+
+    // Wacht tot de challenge-pagina verdwijnt (max 15 seconden)
+    await page.waitForFunction(() => {
+      const bodyText = document.body?.innerText || '';
+      const title = document.title || '';
+      return (
+        !bodyText.includes('Verify you are human') &&
+        !bodyText.includes('Controleer of u een mens bent') &&
+        !bodyText.includes('confirm you are human') &&
+        !title.includes('Just a moment') &&
+        !document.querySelector('#challenge-running')
+      );
+    }, { timeout: 15000 });
+
+    console.log(`🛡️  Cloudflare challenge passed!`);
+    // Extra wachttijd na de challenge zodat de pagina volledig laadt
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    return true;
+  } catch (error) {
+    console.log(`⚠️  Cloudflare challenge timeout or error: ${error.message}`);
+    return false;
+  }
 }
 
 // Probeer cookie/consent popups weg te klikken
@@ -199,6 +267,9 @@ async function loadAndPrepare(page, website) {
     timeout: CONFIG.timeout
   });
 
+  // Cloudflare "Verify you are human" challenge afhandelen
+  await handleCloudflareChallenge(page);
+
   console.log(`📸 ${name}: Dismissing popups...`);
   await dismissPopups(page);
 
@@ -246,7 +317,7 @@ async function takeScreenshot(browser, website) {
   // --- Mobiele screenshot ---
   const mobilePage = await browser.newPage();
   try {
-    const mobileDevice = puppeteer.KnownDevices[CONFIG.mobileDevice];
+    const mobileDevice = KnownDevices[CONFIG.mobileDevice];
     await mobilePage.emulate(mobileDevice);
     await loadAndPrepare(mobilePage, website);
 
