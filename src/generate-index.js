@@ -75,7 +75,7 @@ function loadWebsitesMeta() {
   const websites = JSON.parse(raw);
   const meta = {};
   for (const w of websites) {
-    meta[w.name] = { label: w.label, land: w.land, medium: w.medium, cluster: w.cluster };
+    meta[w.name] = { label: w.label, cluster: w.cluster };
   }
   return meta;
 }
@@ -212,7 +212,7 @@ function generateHTML(structure, publicUrl, websitesMeta) {
       border-bottom: 1px solid #ece8f0;
       overflow-x: auto;
       position: sticky;
-      top: 152px;
+      top: 112px;
       z-index: 98;
     }
 
@@ -388,14 +388,6 @@ function generateHTML(structure, publicUrl, websitesMeta) {
 
   <div class="filter-bar">
     <div class="filter-bar-inner">
-      <div class="filter-row" data-filter="land">
-        <span class="filter-label">Land</span>
-        <div class="filter-chips" id="filter-land"></div>
-      </div>
-      <div class="filter-row" data-filter="medium">
-        <span class="filter-label">Medium</span>
-        <div class="filter-chips" id="filter-medium"></div>
-      </div>
       <div class="filter-row" data-filter="cluster">
         <span class="filter-label">Cluster</span>
         <div class="filter-chips" id="filter-cluster"></div>
@@ -407,7 +399,7 @@ function generateHTML(structure, publicUrl, websitesMeta) {
     ${websites.map((w, i) => {
       const m = websitesMeta[w];
       const label = m ? m.label : w;
-      return `<button class="tab${i === 0 ? ' active' : ''}" data-site="${w}" data-land="${m ? m.land : ''}" data-medium="${m ? m.medium : ''}" data-cluster="${m ? m.cluster : ''}">${label}</button>`;
+      return `<button class="tab${i === 0 ? ' active' : ''}" data-site="${w}" data-cluster="${m ? m.cluster : ''}">${label}</button>`;
     }).join('\n    ')}
   </div>
 
@@ -444,8 +436,8 @@ function generateHTML(structure, publicUrl, websitesMeta) {
     const meta = ${metaJSON};
 
     // Bouw filter-chips dynamisch uit metadata
-    const filterState = { land: null, medium: null, cluster: null };
-    const filterKeys = ['land', 'medium', 'cluster'];
+    const filterState = { cluster: null };
+    const filterKeys = ['cluster'];
 
     function getUniqueValues(key) {
       const vals = new Set();
@@ -484,13 +476,8 @@ function generateHTML(structure, publicUrl, websitesMeta) {
       let activeIsVisible = false;
 
       tabs.forEach(tab => {
-        const land = tab.dataset.land;
-        const medium = tab.dataset.medium;
         const cluster = tab.dataset.cluster;
-        const matchLand = !filterState.land || land === filterState.land;
-        const matchMedium = !filterState.medium || medium === filterState.medium;
-        const matchCluster = !filterState.cluster || cluster === filterState.cluster;
-        const visible = matchLand && matchMedium && matchCluster;
+        const visible = !filterState.cluster || cluster === filterState.cluster;
         tab.classList.toggle('hidden', !visible);
         if (visible && !firstVisible) firstVisible = tab;
         if (visible && tab.classList.contains('active')) activeIsVisible = true;
