@@ -224,6 +224,98 @@ async function handleDPGPrivacyGate(page) {
   }
 }
 
+// Verwijder hardnekkige overlays/modals/popups uit de DOM (laatste redmiddel voor schone screenshots)
+async function removeRemainingOverlays(page) {
+  try {
+    const removed = await page.evaluate(() => {
+      const removedElements = [];
+
+      // 1. Sluit open <dialog> elementen
+      document.querySelectorAll('dialog[open]').forEach(d => {
+        d.close();
+        removedElements.push('dialog');
+      });
+
+      // 2. Verwijder bekende popup/overlay containers
+      const overlaySelectors = [
+        // Sourcepoint consent containers
+        'div[id^="sp_message_container"]',
+        'div[class*="sp_message"]',
+        '.message-overlay',
+        // DPG Media specifieke overlays
+        '[class*="privacy-gate"]',
+        '[class*="privacy-wall"]',
+        '[id*="privacy-gate"]',
+        '[id*="privacy-wall"]',
+        // Notificatie/abonnement prompts
+        '[class*="notification-prompt"]',
+        '[class*="push-notification"]',
+        '[class*="newsletter-popup"]',
+        '[class*="subscribe-popup"]',
+        // Login/registratie walls
+        '[class*="regwall"]',
+        '[class*="loginwall"]',
+        '[class*="paywall-overlay"]',
+        // App promotie banners
+        '[class*="smart-banner"]',
+        '[class*="app-banner"]',
+        '[class*="app-promotion"]',
+        // Generieke modal/popup patronen
+        '[aria-modal="true"]',
+        '[role="dialog"]',
+        '[class*="consent-overlay"]',
+        '[class*="cookie-wall"]',
+        '[id*="consent-overlay"]',
+      ];
+
+      for (const selector of overlaySelectors) {
+        document.querySelectorAll(selector).forEach(el => {
+          el.remove();
+          removedElements.push(selector);
+        });
+      }
+
+      // 3. Verwijder fixed/absolute elementen met hoge z-index die een groot deel van het scherm bedekken
+      const allElements = document.querySelectorAll('*');
+      for (const el of allElements) {
+        const style = window.getComputedStyle(el);
+        const pos = style.position;
+        if (pos !== 'fixed' && pos !== 'absolute') continue;
+
+        const zIndex = parseInt(style.zIndex, 10);
+        if (isNaN(zIndex) || zIndex < 900) continue;
+
+        const rect = el.getBoundingClientRect();
+        const viewportArea = window.innerWidth * window.innerHeight;
+        const elArea = rect.width * rect.height;
+
+        // Verwijder alleen elementen die >30% van het viewport bedekken
+        if (elArea > viewportArea * 0.3) {
+          el.remove();
+          removedElements.push(`z-index:${zIndex} (${Math.round(elArea / viewportArea * 100)}% viewport)`);
+        }
+      }
+
+      // 4. Herstel scrolling op body/html (vaak geblokkeerd door modals)
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow = '';
+      document.documentElement.style.position = '';
+      document.body.style.position = '';
+      // Verwijder ook overflow:hidden classes die DPG sites vaak toevoegen
+      document.documentElement.classList.remove('has-overlay', 'modal-open', 'no-scroll', 'overflow-hidden');
+      document.body.classList.remove('has-overlay', 'modal-open', 'no-scroll', 'overflow-hidden');
+
+      return removedElements;
+    });
+
+    if (removed.length > 0) {
+      console.log(`🧹 Removed ${removed.length} overlay(s): ${removed.join(', ')}`);
+    }
+  } catch (error) {
+    console.log(`⚠️  Overlay removal error: ${error.message}`);
+  }
+}
+
 // Generieke functie om accept-knoppen te vinden en klikken (werkt op page of frame)
 async function clickAcceptButton(context) {
   return context.evaluate(() => {
@@ -272,10 +364,16 @@ async function dismissPopups(page) {
     'button[class*="privacy-gate"]',
     '.privacy-gate button',
     '[id*="privacy-gate"] button',
-    // Sourcepoint
+    // Sourcepoint (inclusief v2 patronen)
     'button[title="Akkoord"]',
     'button[title="Accept"]',
     'button[title="Accepteren"]',
+    'button[title="Alle cookies accepteren"]',
+    'button[title="Alles accepteren"]',
+    '[class*="sp_choice_type_11"]',
+    '[class*="sp_choice_type_ACCEPT_ALL"]',
+    'div[id^="sp_message_container"] button[title*="kkoord"]',
+    'div[id^="sp_message_container"] button[title*="ccept"]',
     // OneTrust
     '#onetrust-accept-btn-handler',
     // CookieBot
@@ -284,6 +382,16 @@ async function dismissPopups(page) {
     // Quantcast / TCF
     'button.css-47sehv',
     '.qc-cmp2-summary-buttons button:first-child',
+    // DPG notificatie/abonnement popups (verschijnen na consent)
+    '[data-testid="close-button"]',
+    '[class*="notification-prompt"] button[class*="close"]',
+    '[class*="newsletter"] button[class*="close"]',
+    '[class*="subscribe"] button[class*="close"]',
+    // Generieke sluiten/weigeren knoppen voor popups
+    '[aria-label="Sluiten"]',
+    '[aria-label="Close"]',
+    '[aria-label="close"]',
+    'button[class*="dismiss"]',
     // Generieke selectors op tekst en class/id patronen
     'button[id*="accept" i]',
     'button[id*="agree" i]',
@@ -336,7 +444,14 @@ async function dismissPopups(page) {
             /^ik ga akkoord$/i,
             /^ja,? ik accepteer$/i,
             /^alles accepteren$/i,
+            /^alles aanvaarden$/i,
             /^toestaan$/i,
+            /^nee,? bedankt$/i,
+            /^niet nu$/i,
+            /^later$/i,
+            /^sluiten$/i,
+            /^no,? thanks$/i,
+            /^overslaan$/i,
           ];
 
           const buttons = [...document.querySelectorAll('button, a[role="button"], [class*="button"]')];
@@ -390,6 +505,10 @@ async function loadAndPrepare(page, website) {
   // Na cookie consent kan DPG privacy gate pas verschijnen, dus opnieuw checken
   await handleDPGPrivacyGate(page);
 
+  // Laatste redmiddel: verwijder hardnekkige overlays/modals die niet via klikken weggaan
+  console.log(`📸 ${name}: Cleaning up remaining overlays...`);
+  await removeRemainingOverlays(page);
+
   console.log(`📸 ${name}: Scrolling to load all images...`);
   await autoScroll(page);
 
@@ -398,6 +517,9 @@ async function loadAndPrepare(page, website) {
 
   // Extra wachttijd voor eventuele animaties
   await new Promise(resolve => setTimeout(resolve, CONFIG.waitAfterScroll));
+
+  // Laatste cleanup: scrollen kan nieuwe popups triggeren (notificatie-prompts, etc.)
+  await removeRemainingOverlays(page);
 }
 
 async function takeScreenshot(browser, website) {
