@@ -12,16 +12,17 @@ const WEBSITES_FILE = join(ROOT_DIR, 'websites.json');
 
 // Configuratie
 const CONFIG = {
-  viewport: {
+  desktopViewport: {
     width: 1920,
     height: 1080
   },
+  mobileDevice: 'iPhone 14 Pro',
   fullPage: true,
   timeout: 90000,
   scrollDelay: 300,
   waitAfterScroll: 3000,
-  // JPEG compressie (0-100), 80 is goede balans tussen kwaliteit en grootte
-  jpegQuality: 80,
+  // WebP compressie (0-100), 80 is goede balans tussen kwaliteit en grootte
+  webpQuality: 80,
   // Tijdzone voor bestandsnamen
   timezone: 'Europe/Brussels'
 };
@@ -189,53 +190,87 @@ async function dismissPopups(page) {
   }
 }
 
+async function loadAndPrepare(page, website) {
+  const { name, url } = website;
+
+  console.log(`📸 ${name}: Navigating to ${url}`);
+  await page.goto(url, {
+    waitUntil: 'networkidle2',
+    timeout: CONFIG.timeout
+  });
+
+  console.log(`📸 ${name}: Dismissing popups...`);
+  await dismissPopups(page);
+
+  console.log(`📸 ${name}: Scrolling to load all images...`);
+  await autoScroll(page);
+
+  console.log(`📸 ${name}: Waiting for images to load...`);
+  await waitForImages(page);
+
+  // Extra wachttijd voor eventuele animaties
+  await new Promise(resolve => setTimeout(resolve, CONFIG.waitAfterScroll));
+}
+
 async function takeScreenshot(browser, website) {
   const { name, url } = website;
-  const page = await browser.newPage();
+  const timestamp = getLocalTimestamp();
+  const results = [];
 
+  // --- Desktop screenshot ---
+  const desktopPage = await browser.newPage();
   try {
-    await page.setViewport(CONFIG.viewport);
+    await desktopPage.setViewport(CONFIG.desktopViewport);
+    await loadAndPrepare(desktopPage, website);
 
-    console.log(`📸 ${name}: Navigating to ${url}`);
-    await page.goto(url, {
-      waitUntil: 'networkidle2',
-      timeout: CONFIG.timeout
-    });
+    const desktopFilename = `${name}_${timestamp}.webp`;
+    const desktopFilepath = join(SCREENSHOTS_DIR, desktopFilename);
 
-    console.log(`📸 ${name}: Dismissing popups...`);
-    await dismissPopups(page);
-
-    console.log(`📸 ${name}: Scrolling to load all images...`);
-    await autoScroll(page);
-
-    console.log(`📸 ${name}: Waiting for images to load...`);
-    await waitForImages(page);
-
-    // Extra wachttijd voor eventuele animaties
-    await new Promise(resolve => setTimeout(resolve, CONFIG.waitAfterScroll));
-
-    const timestamp = getLocalTimestamp();
-    const filename = `${name}_${timestamp}.jpg`;
-    const filepath = join(SCREENSHOTS_DIR, filename);
-
-    console.log(`📸 ${name}: Taking screenshot...`);
-    await page.screenshot({
-      path: filepath,
+    console.log(`📸 ${name}: Taking desktop screenshot...`);
+    await desktopPage.screenshot({
+      path: desktopFilepath,
       fullPage: CONFIG.fullPage,
-      type: 'jpeg',
-      quality: CONFIG.jpegQuality
+      type: 'webp',
+      quality: CONFIG.webpQuality
     });
 
-    console.log(`✅ ${name}: Saved ${filename}`);
-    return { success: true, name, filename };
-
+    console.log(`✅ ${name}: Saved ${desktopFilename}`);
+    results.push({ success: true, name, filename: desktopFilename });
   } catch (error) {
-    console.error(`❌ ${name}: ${error.message}`);
-    return { success: false, name, error: error.message };
-
+    console.error(`❌ ${name} (desktop): ${error.message}`);
+    results.push({ success: false, name, error: error.message });
   } finally {
-    await page.close();
+    await desktopPage.close();
   }
+
+  // --- Mobiele screenshot ---
+  const mobilePage = await browser.newPage();
+  try {
+    const mobileDevice = puppeteer.KnownDevices[CONFIG.mobileDevice];
+    await mobilePage.emulate(mobileDevice);
+    await loadAndPrepare(mobilePage, website);
+
+    const mobileFilename = `${name}_${timestamp}_mobile.webp`;
+    const mobileFilepath = join(SCREENSHOTS_DIR, mobileFilename);
+
+    console.log(`📱 ${name}: Taking mobile screenshot...`);
+    await mobilePage.screenshot({
+      path: mobileFilepath,
+      fullPage: CONFIG.fullPage,
+      type: 'webp',
+      quality: CONFIG.webpQuality
+    });
+
+    console.log(`✅ ${name}: Saved ${mobileFilename}`);
+    results.push({ success: true, name, filename: mobileFilename });
+  } catch (error) {
+    console.error(`❌ ${name} (mobile): ${error.message}`);
+    results.push({ success: false, name, error: error.message });
+  } finally {
+    await mobilePage.close();
+  }
+
+  return results;
 }
 
 async function main() {
@@ -279,8 +314,8 @@ async function main() {
 
   try {
     for (const website of websites) {
-      const result = await takeScreenshot(browser, website);
-      results.push(result);
+      const siteResults = await takeScreenshot(browser, website);
+      results.push(...siteResults);
     }
   } finally {
     await browser.close();
