@@ -23,13 +23,15 @@ const CONFIG = {
   },
   mobileDevice: 'iPhone 14 Pro',
   fullPage: true,
-  timeout: 90000,
+  timeout: 60000,
   scrollDelay: 300,
-  waitAfterScroll: 3000,
+  waitAfterScroll: 2000,
   // WebP compressie (0-100), 80 is goede balans tussen kwaliteit en grootte
   webpQuality: 80,
   // Tijdzone voor bestandsnamen
-  timezone: 'Europe/Brussels'
+  timezone: 'Europe/Brussels',
+  // Aantal sites die tegelijk verwerkt worden
+  concurrency: 4
 };
 
 // Genereer timestamp in GMT+1 (België/Nederland)
@@ -55,17 +57,20 @@ function getLocalTimestamp() {
 // Scroll naar beneden om alle lazy-loaded afbeeldingen te laden
 async function autoScroll(page) {
   try {
-    await page.evaluate(async (scrollDelay) => {
+    // Detecteer viewport hoogte voor adaptieve scroll-stap
+    const viewportHeight = await page.evaluate(() => window.innerHeight);
+    const scrollStep = Math.max(200, Math.floor(viewportHeight * 0.6));
+
+    await page.evaluate(async (scrollDelay, step) => {
       await new Promise((resolve) => {
         let totalHeight = 0;
-        const distance = 500;
-        const maxScrolls = 50; // Maximum aantal scrolls om infinite loops te voorkomen
+        const maxScrolls = 50;
         let scrollCount = 0;
 
         const timer = setInterval(() => {
           const scrollHeight = document.body.scrollHeight;
-          window.scrollBy(0, distance);
-          totalHeight += distance;
+          window.scrollBy(0, step);
+          totalHeight += step;
           scrollCount++;
 
           if (totalHeight >= scrollHeight || scrollCount >= maxScrolls) {
@@ -76,7 +81,7 @@ async function autoScroll(page) {
           }
         }, scrollDelay);
       });
-    }, CONFIG.scrollDelay);
+    }, CONFIG.scrollDelay, scrollStep);
   } catch (error) {
     // Scroll errors negeren (sommige sites redirecten tijdens scroll)
     console.log(`⚠️  Scroll interrupted: ${error.message}`);
@@ -85,20 +90,24 @@ async function autoScroll(page) {
 
 // Wacht tot alle afbeeldingen geladen zijn
 async function waitForImages(page) {
-  await page.evaluate(async () => {
-    const images = Array.from(document.querySelectorAll('img'));
-    await Promise.all(
-      images.map((img) => {
-        if (img.complete) return Promise.resolve();
-        return new Promise((resolve) => {
-          img.addEventListener('load', resolve);
-          img.addEventListener('error', resolve);
-          // Timeout na 5 seconden per afbeelding
-          setTimeout(resolve, 5000);
-        });
-      })
-    );
-  });
+  try {
+    await page.evaluate(async () => {
+      const images = Array.from(document.querySelectorAll('img'));
+      await Promise.all(
+        images.map((img) => {
+          if (img.complete) return Promise.resolve();
+          return new Promise((resolve) => {
+            img.addEventListener('load', resolve);
+            img.addEventListener('error', resolve);
+            // Timeout na 5 seconden per afbeelding
+            setTimeout(resolve, 5000);
+          });
+        })
+      );
+    });
+  } catch {
+    // Pagina kan al genavigeerd zijn
+  }
 }
 
 // Detecteer en wacht op Cloudflare "Verify you are human" challenge
@@ -155,8 +164,7 @@ async function handleCloudflareChallenge(page) {
     }, { timeout: 15000 });
 
     console.log(`🛡️  Cloudflare challenge passed!`);
-    // Extra wachttijd na de challenge zodat de pagina volledig laadt
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    await new Promise(resolve => setTimeout(resolve, 2000));
     return true;
   } catch (error) {
     console.log(`⚠️  Cloudflare challenge timeout or error: ${error.message}`);
@@ -164,7 +172,7 @@ async function handleCloudflareChallenge(page) {
   }
 }
 
-// Probeer cookie/consent popups weg te klikken
+// Probeer cookie/consent popups weg te klikken (meerdere rondes voor opeenvolgende popups)
 async function dismissPopups(page) {
   // Veelgebruikte selectors voor consent-knoppen (Didomi, Sourcepoint, OneTrust, CookieBot, generiek)
   const consentSelectors = [
@@ -172,6 +180,11 @@ async function dismissPopups(page) {
     '#didomi-notice-agree-button',
     '.didomi-continue-without-agreeing',
     '[data-testid="notice-accept-btn"]',
+    // DPG Media privacy gate (verschijnt NA cookie consent)
+    '[data-testid="privacy-gate-agree-button"]',
+    'button[class*="privacy-gate"]',
+    '.privacy-gate button',
+    '[id*="privacy-gate"] button',
     // Sourcepoint
     'button[title="Akkoord"]',
     'button[title="Accept"]',
@@ -182,7 +195,7 @@ async function dismissPopups(page) {
     '#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll',
     '#CybotCookiebotDialogBodyButtonAccept',
     // Quantcast / TCF
-    'button.css-47sehv', // Quantcast accept
+    'button.css-47sehv',
     '.qc-cmp2-summary-buttons button:first-child',
     // Generieke selectors op tekst en class/id patronen
     'button[id*="accept" i]',
@@ -195,66 +208,77 @@ async function dismissPopups(page) {
     'a[class*="accept" i]',
   ];
 
-  for (const selector of consentSelectors) {
-    try {
-      const button = await page.$(selector);
-      if (button) {
-        const isVisible = await page.evaluate(el => {
-          const rect = el.getBoundingClientRect();
-          const style = window.getComputedStyle(el);
-          return rect.width > 0 && rect.height > 0 &&
-                 style.display !== 'none' && style.visibility !== 'hidden';
-        }, button);
-        if (isVisible) {
-          await button.click();
-          console.log(`🍪 Dismissed popup via: ${selector}`);
-          // Korte wachttijd zodat popup verdwijnt
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          return;
-        }
-      }
-    } catch {
-      // Negeer fouten per selector, probeer volgende
-    }
-  }
+  // Meerdere rondes: soms verschijnt een tweede popup (privacy gate) na de eerste (cookie consent)
+  for (let round = 0; round < 3; round++) {
+    let clickedSomething = false;
 
-  // Fallback: zoek knoppen op tekst (Akkoord, Accepteren, Accept, Alle cookies accepteren, etc.)
-  try {
-    const dismissed = await page.evaluate(() => {
-      const textPatterns = [
-        /^akkoord$/i,
-        /^accepteren$/i,
-        /^accept(eer)? all(es?)?$/i,
-        /^alle cookies accepteren$/i,
-        /^accept$/i,
-        /^agree$/i,
-        /^ik ga akkoord$/i,
-        /^ja,? ik accepteer$/i,
-        /^alles accepteren$/i,
-        /^toestaan$/i,
-      ];
-
-      const buttons = [...document.querySelectorAll('button, a[role="button"], [class*="button"]')];
-      for (const btn of buttons) {
-        const text = (btn.textContent || '').trim();
-        if (textPatterns.some(pattern => pattern.test(text))) {
-          const rect = btn.getBoundingClientRect();
-          const style = window.getComputedStyle(btn);
-          if (rect.width > 0 && rect.height > 0 &&
-              style.display !== 'none' && style.visibility !== 'hidden') {
-            btn.click();
-            return text;
+    for (const selector of consentSelectors) {
+      try {
+        const button = await page.$(selector);
+        if (button) {
+          const isVisible = await page.evaluate(el => {
+            const rect = el.getBoundingClientRect();
+            const style = window.getComputedStyle(el);
+            return rect.width > 0 && rect.height > 0 &&
+                   style.display !== 'none' && style.visibility !== 'hidden';
+          }, button);
+          if (isVisible) {
+            await button.click();
+            console.log(`🍪 Dismissed popup via: ${selector}`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            clickedSomething = true;
+            break; // Probeer volgende ronde voor eventuele volgende popup
           }
         }
+      } catch {
+        // Negeer fouten per selector, probeer volgende
       }
-      return null;
-    });
-    if (dismissed) {
-      console.log(`🍪 Dismissed popup via text: "${dismissed}"`);
-      await new Promise(resolve => setTimeout(resolve, 1000));
     }
-  } catch {
-    // Negeer fouten
+
+    // Fallback: zoek knoppen op tekst
+    if (!clickedSomething) {
+      try {
+        const dismissed = await page.evaluate(() => {
+          const textPatterns = [
+            /^akkoord$/i,
+            /^accepteren$/i,
+            /^accept(eer)? all(es?)?$/i,
+            /^alle cookies accepteren$/i,
+            /^accept$/i,
+            /^agree$/i,
+            /^ik ga akkoord$/i,
+            /^ja,? ik accepteer$/i,
+            /^alles accepteren$/i,
+            /^toestaan$/i,
+          ];
+
+          const buttons = [...document.querySelectorAll('button, a[role="button"], [class*="button"]')];
+          for (const btn of buttons) {
+            const text = (btn.textContent || '').trim();
+            if (textPatterns.some(pattern => pattern.test(text))) {
+              const rect = btn.getBoundingClientRect();
+              const style = window.getComputedStyle(btn);
+              if (rect.width > 0 && rect.height > 0 &&
+                  style.display !== 'none' && style.visibility !== 'hidden') {
+                btn.click();
+                return text;
+              }
+            }
+          }
+          return null;
+        });
+        if (dismissed) {
+          console.log(`🍪 Dismissed popup via text: "${dismissed}"`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          clickedSomething = true;
+        }
+      } catch {
+        // Negeer fouten
+      }
+    }
+
+    // Als er niets meer te klikken valt, stoppen
+    if (!clickedSomething) break;
   }
 }
 
@@ -344,6 +368,26 @@ async function takeScreenshot(browser, website) {
   return results;
 }
 
+// Verwerk websites in parallelle batches
+async function processInBatches(browser, websites, concurrency) {
+  const results = [];
+  for (let i = 0; i < websites.length; i += concurrency) {
+    const batch = websites.slice(i, i + concurrency);
+    console.log(`\n⚡ Batch ${Math.floor(i / concurrency) + 1}: ${batch.map(w => w.name).join(', ')}`);
+    const batchResults = await Promise.allSettled(
+      batch.map(website => takeScreenshot(browser, website))
+    );
+    for (const result of batchResults) {
+      if (result.status === 'fulfilled') {
+        results.push(...result.value);
+      } else {
+        console.error(`❌ Batch error: ${result.reason?.message}`);
+      }
+    }
+  }
+  return results;
+}
+
 async function main() {
   console.log('🚀 Website Screenshot Monitor\n');
   console.log(`⏰ ${new Date().toISOString()}\n`);
@@ -368,26 +412,26 @@ async function main() {
     process.exit(0);
   }
 
-  console.log(`📋 Found ${websites.length} website(s) to screenshot\n`);
+  console.log(`📋 Found ${websites.length} website(s) to screenshot`);
+  console.log(`⚡ Concurrency: ${CONFIG.concurrency} sites per batch\n`);
 
-  // Start browser
+  // Start browser met realistische instellingen
   const browser = await puppeteer.launch({
     headless: 'new',
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
-      '--disable-gpu'
+      '--disable-blink-features=AutomationControlled',
+      '--window-size=1920,1080',
+      '--lang=nl-NL,nl,en'
     ]
   });
 
-  const results = [];
+  let results = [];
 
   try {
-    for (const website of websites) {
-      const siteResults = await takeScreenshot(browser, website);
-      results.push(...siteResults);
-    }
+    results = await processInBatches(browser, websites, CONFIG.concurrency);
   } finally {
     await browser.close();
   }
