@@ -95,6 +95,100 @@ async function waitForImages(page) {
   });
 }
 
+// Probeer cookie/consent popups weg te klikken
+async function dismissPopups(page) {
+  // Veelgebruikte selectors voor consent-knoppen (Didomi, Sourcepoint, OneTrust, CookieBot, generiek)
+  const consentSelectors = [
+    // Didomi (NU.nl, AD, DPG Media sites)
+    '#didomi-notice-agree-button',
+    '.didomi-continue-without-agreeing',
+    '[data-testid="notice-accept-btn"]',
+    // Sourcepoint
+    'button[title="Akkoord"]',
+    'button[title="Accept"]',
+    'button[title="Accepteren"]',
+    // OneTrust
+    '#onetrust-accept-btn-handler',
+    // CookieBot
+    '#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll',
+    '#CybotCookiebotDialogBodyButtonAccept',
+    // Quantcast / TCF
+    'button.css-47sehv', // Quantcast accept
+    '.qc-cmp2-summary-buttons button:first-child',
+    // Generieke selectors op tekst en class/id patronen
+    'button[id*="accept" i]',
+    'button[id*="agree" i]',
+    'button[id*="consent" i]',
+    'button[class*="accept" i]',
+    'button[class*="agree" i]',
+    'button[class*="consent" i]',
+    'a[id*="accept" i]',
+    'a[class*="accept" i]',
+  ];
+
+  for (const selector of consentSelectors) {
+    try {
+      const button = await page.$(selector);
+      if (button) {
+        const isVisible = await page.evaluate(el => {
+          const rect = el.getBoundingClientRect();
+          const style = window.getComputedStyle(el);
+          return rect.width > 0 && rect.height > 0 &&
+                 style.display !== 'none' && style.visibility !== 'hidden';
+        }, button);
+        if (isVisible) {
+          await button.click();
+          console.log(`🍪 Dismissed popup via: ${selector}`);
+          // Korte wachttijd zodat popup verdwijnt
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          return;
+        }
+      }
+    } catch {
+      // Negeer fouten per selector, probeer volgende
+    }
+  }
+
+  // Fallback: zoek knoppen op tekst (Akkoord, Accepteren, Accept, Alle cookies accepteren, etc.)
+  try {
+    const dismissed = await page.evaluate(() => {
+      const textPatterns = [
+        /^akkoord$/i,
+        /^accepteren$/i,
+        /^accept(eer)? all(es?)?$/i,
+        /^alle cookies accepteren$/i,
+        /^accept$/i,
+        /^agree$/i,
+        /^ik ga akkoord$/i,
+        /^ja,? ik accepteer$/i,
+        /^alles accepteren$/i,
+        /^toestaan$/i,
+      ];
+
+      const buttons = [...document.querySelectorAll('button, a[role="button"], [class*="button"]')];
+      for (const btn of buttons) {
+        const text = (btn.textContent || '').trim();
+        if (textPatterns.some(pattern => pattern.test(text))) {
+          const rect = btn.getBoundingClientRect();
+          const style = window.getComputedStyle(btn);
+          if (rect.width > 0 && rect.height > 0 &&
+              style.display !== 'none' && style.visibility !== 'hidden') {
+            btn.click();
+            return text;
+          }
+        }
+      }
+      return null;
+    });
+    if (dismissed) {
+      console.log(`🍪 Dismissed popup via text: "${dismissed}"`);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  } catch {
+    // Negeer fouten
+  }
+}
+
 async function takeScreenshot(browser, website) {
   const { name, url } = website;
   const page = await browser.newPage();
@@ -107,6 +201,9 @@ async function takeScreenshot(browser, website) {
       waitUntil: 'networkidle2',
       timeout: CONFIG.timeout
     });
+
+    console.log(`📸 ${name}: Dismissing popups...`);
+    await dismissPopups(page);
 
     console.log(`📸 ${name}: Scrolling to load all images...`);
     await autoScroll(page);
