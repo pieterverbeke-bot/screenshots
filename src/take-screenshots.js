@@ -172,6 +172,93 @@ async function handleCloudflareChallenge(page) {
   }
 }
 
+// Detecteer en handel DPG Media privacy gate af (redirect naar myprivacy.dpgmedia.* of iframe)
+async function handleDPGPrivacyGate(page) {
+  const url = page.url();
+
+  // Case 1: Volledig geredirect naar myprivacy.dpgmedia.be of .nl consent-pagina
+  if (url.includes('myprivacy.dpgmedia')) {
+    console.log(`🔒 DPG privacy gate redirect detected: ${url}`);
+    // Wacht zodat de consent-pagina volledig gerenderd is
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    const clicked = await clickAcceptButton(page);
+    if (clicked) {
+      console.log(`🔒 Clicked DPG consent: "${clicked}"`);
+      // Wacht op redirect terug naar de originele site
+      await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 15000 }).catch(() => {});
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+    return;
+  }
+
+  // Case 2: Privacy gate als iframe op de pagina
+  for (const frame of page.frames()) {
+    if (frame.url().includes('myprivacy.dpgmedia')) {
+      console.log(`🔒 DPG privacy gate iframe detected`);
+      try {
+        const clicked = await clickAcceptButton(frame);
+        if (clicked) {
+          console.log(`🔒 Clicked DPG iframe consent: "${clicked}"`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      } catch {
+        // Cross-origin iframe access kan falen
+      }
+      return;
+    }
+  }
+
+  // Case 3: Privacy gate overlay op de pagina zelf (niet via iframe/redirect)
+  const hasPrivacyWall = await page.evaluate(() => {
+    return !!document.querySelector('[class*="privacy-wall"], [class*="privacy-gate"], [id*="privacy-wall"], [id*="privacy-gate"], [data-testid*="privacy"]');
+  }).catch(() => false);
+
+  if (hasPrivacyWall) {
+    console.log(`🔒 DPG privacy wall overlay detected`);
+    const clicked = await clickAcceptButton(page);
+    if (clicked) {
+      console.log(`🔒 Clicked DPG overlay consent: "${clicked}"`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+  }
+}
+
+// Generieke functie om accept-knoppen te vinden en klikken (werkt op page of frame)
+async function clickAcceptButton(context) {
+  return context.evaluate(() => {
+    const acceptPatterns = [
+      /^akkoord$/i,
+      /^accepteren$/i,
+      /^accept$/i,
+      /^agree$/i,
+      /alle cookies accepteren/i,
+      /alles aanvaarden/i,
+      /alles accepteren/i,
+      /accept(eer)? (en )?door/i,
+      /ik ga akkoord/i,
+      /ja,? ik accepteer/i,
+      /toestaan/i,
+      /doorgaan/i,
+    ];
+
+    const elements = [...document.querySelectorAll('button, a, [role="button"], input[type="submit"], input[type="button"]')];
+    for (const el of elements) {
+      const text = (el.textContent || el.value || '').trim();
+      if (acceptPatterns.some(p => p.test(text))) {
+        const rect = el.getBoundingClientRect();
+        const style = window.getComputedStyle(el);
+        if (rect.width > 0 && rect.height > 0 &&
+            style.display !== 'none' && style.visibility !== 'hidden') {
+          el.click();
+          return text;
+        }
+      }
+    }
+    return null;
+  });
+}
+
 // Probeer cookie/consent popups weg te klikken (meerdere rondes voor opeenvolgende popups)
 async function dismissPopups(page) {
   // Veelgebruikte selectors voor consent-knoppen (Didomi, Sourcepoint, OneTrust, CookieBot, generiek)
@@ -294,8 +381,14 @@ async function loadAndPrepare(page, website) {
   // Cloudflare "Verify you are human" challenge afhandelen
   await handleCloudflareChallenge(page);
 
+  // DPG privacy gate afhandelen (redirect of iframe)
+  await handleDPGPrivacyGate(page);
+
   console.log(`📸 ${name}: Dismissing popups...`);
   await dismissPopups(page);
+
+  // Na cookie consent kan DPG privacy gate pas verschijnen, dus opnieuw checken
+  await handleDPGPrivacyGate(page);
 
   console.log(`📸 ${name}: Scrolling to load all images...`);
   await autoScroll(page);

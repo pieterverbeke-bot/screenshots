@@ -77,6 +77,13 @@ async function main() {
     // Structuur: website/datum/bestand.jpg
     const key = `${websiteName}/${today}/${file}`;
 
+    // Skip lege bestanden (mislukte screenshots)
+    const fileSize = statSync(filepath).size;
+    if (fileSize === 0) {
+      console.log(`⚠️  Skipping empty file: ${file}`);
+      continue;
+    }
+
     try {
       await uploadFile(client, bucketName, filepath, key);
       successCount++;
