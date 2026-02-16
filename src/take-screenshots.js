@@ -27,7 +27,7 @@ const CONFIG = {
   // Tijdzone voor bestandsnamen
   timezone: 'Europe/Brussels',
   // Aantal sites die tegelijk verwerkt worden
-  concurrency: 4
+  concurrency: 2
 };
 
 // Genereer timestamp in GMT+1 (België/Nederland)
@@ -271,21 +271,31 @@ async function removeRemainingOverlays(page) {
         });
       }
 
-      // 3. Verwijder fixed/absolute elementen met hoge z-index die een groot deel van het scherm bedekken
-      const allElements = document.querySelectorAll('*');
-      for (const el of allElements) {
+      // 3. Verwijder fixed/absolute overlays die het scherm bedekken (gericht zoeken, niet alle elementen)
+      const overlayTagsAndSelectors = [
+        'div[style*="z-index"]',
+        'div[style*="position: fixed"]',
+        'div[style*="position:fixed"]',
+        'section[style*="z-index"]',
+        'aside[style*="position: fixed"]',
+        'aside[style*="position:fixed"]',
+        'iframe[style*="z-index"]',
+        '[class*="overlay"]',
+        '[class*="modal"]',
+        '[class*="popup"]',
+        '[class*="backdrop"]',
+        '[class*="curtain"]',
+      ];
+      const candidates = document.querySelectorAll(overlayTagsAndSelectors.join(','));
+      const viewportArea = window.innerWidth * window.innerHeight;
+      for (const el of candidates) {
         const style = window.getComputedStyle(el);
         const pos = style.position;
         if (pos !== 'fixed' && pos !== 'absolute') continue;
-
         const zIndex = parseInt(style.zIndex, 10);
         if (isNaN(zIndex) || zIndex < 900) continue;
-
         const rect = el.getBoundingClientRect();
-        const viewportArea = window.innerWidth * window.innerHeight;
         const elArea = rect.width * rect.height;
-
-        // Verwijder alleen elementen die >30% van het viewport bedekken
         if (elArea > viewportArea * 0.3) {
           el.remove();
           removedElements.push(`z-index:${zIndex} (${Math.round(elArea / viewportArea * 100)}% viewport)`);

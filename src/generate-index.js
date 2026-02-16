@@ -515,20 +515,23 @@ function generateHTML(structure, publicUrl, websitesMeta) {
         activateTab(firstVisible);
       }
 
-      // Filter cards op device - laad/ontlaad images om geheugen te besparen
-      document.querySelectorAll('.card').forEach(card => {
-        const device = card.dataset.device || 'desktop';
-        const visible = device === filterState.device;
-        card.style.display = visible ? '' : 'none';
-        const img = card.querySelector('img');
-        if (img) {
-          if (visible && !img.src && img.dataset.src) {
-            img.src = img.dataset.src;
-          } else if (!visible && img.src) {
-            img.removeAttribute('src');
+      // Filter cards op device - alleen in de actieve sectie laden/ontladen
+      const activeSection = document.querySelector('.website-section.active');
+      if (activeSection) {
+        activeSection.querySelectorAll('.card').forEach(card => {
+          const device = card.dataset.device || 'desktop';
+          const visible = device === filterState.device;
+          card.style.display = visible ? '' : 'none';
+          const img = card.querySelector('img');
+          if (img) {
+            if (visible && !img.src && img.dataset.src) {
+              img.src = img.dataset.src;
+            } else if (!visible && img.src) {
+              img.removeAttribute('src');
+            }
           }
-        }
-      });
+        });
+      }
     }
 
     // Pas initieel device filter toe
