@@ -574,15 +574,26 @@ async function takeScreenshot(browser, website) {
     console.log(`✅ ${name}: Saved ${desktopFilename}`);
     results.push({ success: true, name, filename: desktopFilename });
 
-    // --- Mobiel: zelfde pagina, viewport verkleinen ---
+    // --- Mobiel: zelfde pagina, viewport verkleinen met mobiele emulatie ---
     console.log(`📱 ${name}: Resizing to mobile viewport...`);
-    await page.setViewport(CONFIG.mobileViewport);
+    await page.setViewport({ ...CONFIG.mobileViewport, isMobile: true, hasTouch: true });
 
     // Wacht tot de pagina zich aanpast aan de nieuwe viewport
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // DPG Media sites (AD, ED, BD, etc.) kunnen bij mobiele viewport opnieuw
+    // een privacy gate of consent popup tonen — deze moeten opnieuw worden afgehandeld
+    await handleDPGPrivacyGate(page);
+    await dismissPopups(page);
 
     // Scroll naar boven en verwijder eventuele nieuwe overlays
     await page.evaluate(() => window.scrollTo(0, 0));
+
+    // Scroll ook op mobiel om lazy-loaded content te laden
+    await autoScroll(page);
+    await waitForImages(page);
+    await new Promise(resolve => setTimeout(resolve, CONFIG.waitAfterScroll));
+
     await removeRemainingOverlays(page);
 
     const mobileFilename = `${name}_${timestamp}_mobile.webp`;
