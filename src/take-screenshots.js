@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 import puppeteer from 'puppeteer';
-import { KnownDevices } from 'puppeteer';
 import { readFileSync, existsSync, mkdirSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
@@ -17,7 +16,10 @@ const CONFIG = {
     width: 1920,
     height: 1080
   },
-  mobileDevice: 'iPhone 14 Pro',
+  mobileViewport: {
+    width: 390,
+    height: 844
+  },
   fullPage: true,
   timeout: 60000,
   scrollDelay: 300,
@@ -552,17 +554,17 @@ async function takeScreenshot(browser, website) {
   const timestamp = getLocalTimestamp();
   const results = [];
 
-  // --- Desktop screenshot ---
-  const desktopPage = await browser.newPage();
+  const page = await browser.newPage();
   try {
-    await desktopPage.setViewport(CONFIG.desktopViewport);
-    await loadAndPrepare(desktopPage, website);
+    // --- Desktop: laden, popups wegklikken, scrollen, screenshot ---
+    await page.setViewport(CONFIG.desktopViewport);
+    await loadAndPrepare(page, website);
 
     const desktopFilename = `${name}_${timestamp}.webp`;
     const desktopFilepath = join(SCREENSHOTS_DIR, desktopFilename);
 
     console.log(`📸 ${name}: Taking desktop screenshot...`);
-    await desktopPage.screenshot({
+    await page.screenshot({
       path: desktopFilepath,
       fullPage: CONFIG.fullPage,
       type: 'webp',
@@ -571,25 +573,23 @@ async function takeScreenshot(browser, website) {
 
     console.log(`✅ ${name}: Saved ${desktopFilename}`);
     results.push({ success: true, name, filename: desktopFilename });
-  } catch (error) {
-    console.error(`❌ ${name} (desktop): ${error.message}`);
-    results.push({ success: false, name, error: error.message });
-  } finally {
-    await desktopPage.close();
-  }
 
-  // --- Mobiele screenshot ---
-  const mobilePage = await browser.newPage();
-  try {
-    const mobileDevice = KnownDevices[CONFIG.mobileDevice];
-    await mobilePage.emulate(mobileDevice);
-    await loadAndPrepare(mobilePage, website);
+    // --- Mobiel: zelfde pagina, viewport verkleinen ---
+    console.log(`📱 ${name}: Resizing to mobile viewport...`);
+    await page.setViewport(CONFIG.mobileViewport);
+
+    // Wacht tot de pagina zich aanpast aan de nieuwe viewport
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    // Scroll naar boven en verwijder eventuele nieuwe overlays
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await removeRemainingOverlays(page);
 
     const mobileFilename = `${name}_${timestamp}_mobile.webp`;
     const mobileFilepath = join(SCREENSHOTS_DIR, mobileFilename);
 
     console.log(`📱 ${name}: Taking mobile screenshot...`);
-    await mobilePage.screenshot({
+    await page.screenshot({
       path: mobileFilepath,
       fullPage: CONFIG.fullPage,
       type: 'webp',
@@ -599,10 +599,10 @@ async function takeScreenshot(browser, website) {
     console.log(`✅ ${name}: Saved ${mobileFilename}`);
     results.push({ success: true, name, filename: mobileFilename });
   } catch (error) {
-    console.error(`❌ ${name} (mobile): ${error.message}`);
+    console.error(`❌ ${name}: ${error.message}`);
     results.push({ success: false, name, error: error.message });
   } finally {
-    await mobilePage.close();
+    await page.close();
   }
 
   return results;

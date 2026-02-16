@@ -48,6 +48,14 @@
     "cluster": "BE concurrentie"
   },
   {
+    "name": "standaard",
+    "label": "De Standaard",
+    "url": "https://www.standaard.be",
+    "land": "België",
+    "medium": "nieuwsmedia",
+    "cluster": "BE concurrentie"
+  },
+  {
     "name": "telegraaf",
     "label": "De Telegraaf",
     "url": "https://www.telegraaf.nl",
