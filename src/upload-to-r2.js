@@ -27,7 +27,7 @@ async function uploadFile(client, bucketName, filepath, key) {
 
   console.log(`📤 Uploading ${filename} (${Math.round(fileSize / 1024)} KB) → ${key}`);
 
-  const contentType = 'image/jpeg';
+  const contentType = filename.endsWith('.webp') ? 'image/webp' : 'image/jpeg';
 
   await client.send(new PutObjectCommand({
     Bucket: bucketName,
@@ -53,7 +53,7 @@ async function main() {
   const client = createR2Client();
 
   // Get all screenshots
-  const files = readdirSync(SCREENSHOTS_DIR).filter(f => f.endsWith('.jpg'));
+  const files = readdirSync(SCREENSHOTS_DIR).filter(f => f.endsWith('.webp') || f.endsWith('.jpg'));
 
   if (files.length === 0) {
     console.log('⚠️  No screenshots found in', SCREENSHOTS_DIR);

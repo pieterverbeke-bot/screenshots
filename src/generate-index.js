@@ -429,8 +429,11 @@ function generateHTML(structure, publicUrl, websitesMeta) {
             const timeStr = timePart.length === 8 ? timePart.replace(/-/g, ':') : '';
             const sizeKB = Math.round((f.size || 0) / 1024);
             const device = f.device || 'desktop';
-            return '<div class="card" data-url="'+baseUrl+'/'+f.key+'" data-device="'+device+'">'
-            +'<img src="'+baseUrl+'/'+f.key+'" loading="lazy" alt="'+f.filename+'">'
+            const imgUrl = baseUrl+'/'+f.key;
+            // Alleen desktop images direct laden (standaard filter), mobiel via data-src
+            const srcAttr = device === 'desktop' ? 'src="'+imgUrl+'"' : '';
+            return '<div class="card" data-url="'+imgUrl+'" data-device="'+device+'">'
+            +'<img '+srcAttr+' data-src="'+imgUrl+'" loading="lazy" alt="'+f.filename+'">'
             +'<div class="card-info"><span>'+timeStr+'</span><span>'+sizeKB+' KB</span></div>'
             +'</div>';
           }).join('\n          ')}
@@ -512,10 +515,19 @@ function generateHTML(structure, publicUrl, websitesMeta) {
         activateTab(firstVisible);
       }
 
-      // Filter cards op device
+      // Filter cards op device - laad/ontlaad images om geheugen te besparen
       document.querySelectorAll('.card').forEach(card => {
         const device = card.dataset.device || 'desktop';
-        card.style.display = (device === filterState.device) ? '' : 'none';
+        const visible = device === filterState.device;
+        card.style.display = visible ? '' : 'none';
+        const img = card.querySelector('img');
+        if (img) {
+          if (visible && !img.src && img.dataset.src) {
+            img.src = img.dataset.src;
+          } else if (!visible && img.src) {
+            img.removeAttribute('src');
+          }
+        }
       });
     }
 
@@ -525,10 +537,24 @@ function generateHTML(structure, publicUrl, websitesMeta) {
     // Tabs
     function activateTab(tab) {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.website-section').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.website-section').forEach(s => {
+        s.classList.remove('active');
+        // Ontlaad images van verborgen secties om geheugen te besparen
+        s.querySelectorAll('.card img[src]').forEach(img => img.removeAttribute('src'));
+      });
       tab.classList.add('active');
       const section = document.querySelector('.website-section[data-site="' + tab.dataset.site + '"]');
-      if (section) section.classList.add('active');
+      if (section) {
+        section.classList.add('active');
+        // Laad images van de actieve sectie die bij het device filter passen
+        section.querySelectorAll('.card').forEach(card => {
+          const device = card.dataset.device || 'desktop';
+          if (device === filterState.device) {
+            const img = card.querySelector('img');
+            if (img && !img.src && img.dataset.src) img.src = img.dataset.src;
+          }
+        });
+      }
     }
 
     document.querySelectorAll('.tab').forEach(tab => {

@@ -22,8 +22,8 @@ const CONFIG = {
   timeout: 60000,
   scrollDelay: 300,
   waitAfterScroll: 2000,
-  // JPEG compressie (0-100), 80 is goede balans tussen kwaliteit en grootte
-  jpegQuality: 80,
+  // WebP compressie (0-100), 80 is goede balans tussen kwaliteit en grootte
+  webpQuality: 80,
   // Tijdzone voor bestandsnamen
   timezone: 'Europe/Brussels',
   // Aantal sites die tegelijk verwerkt worden
@@ -403,6 +403,25 @@ async function dismissPopups(page) {
   for (let round = 0; round < 3; round++) {
     let clickedSomething = false;
 
+    // Stap 1: Probeer consent-knoppen in iframes (Sourcepoint/Didomi renderen vaak in iframe, vooral op mobiel)
+    for (const frame of page.frames()) {
+      if (frame === page.mainFrame()) continue;
+      try {
+        const clicked = await clickAcceptButton(frame);
+        if (clicked) {
+          console.log(`🍪 Dismissed popup in iframe: "${clicked}"`);
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          clickedSomething = true;
+          break;
+        }
+      } catch {
+        // Cross-origin iframe, negeren
+      }
+    }
+
+    if (clickedSomething) continue; // Volgende ronde voor eventuele volgende popup
+
+    // Stap 2: Probeer consent-knoppen op de main page via selectors
     for (const selector of consentSelectors) {
       try {
         const button = await page.$(selector);
@@ -426,7 +445,7 @@ async function dismissPopups(page) {
       }
     }
 
-    // Fallback: zoek knoppen op tekst
+    // Stap 3: Fallback - zoek knoppen op tekst
     if (!clickedSomething) {
       try {
         const dismissed = await page.evaluate(() => {
@@ -529,15 +548,15 @@ async function takeScreenshot(browser, website) {
     await desktopPage.setViewport(CONFIG.desktopViewport);
     await loadAndPrepare(desktopPage, website);
 
-    const desktopFilename = `${name}_${timestamp}.jpg`;
+    const desktopFilename = `${name}_${timestamp}.webp`;
     const desktopFilepath = join(SCREENSHOTS_DIR, desktopFilename);
 
     console.log(`📸 ${name}: Taking desktop screenshot...`);
     await desktopPage.screenshot({
       path: desktopFilepath,
       fullPage: CONFIG.fullPage,
-      type: 'jpeg',
-      quality: CONFIG.jpegQuality
+      type: 'webp',
+      quality: CONFIG.webpQuality
     });
 
     console.log(`✅ ${name}: Saved ${desktopFilename}`);
@@ -556,15 +575,15 @@ async function takeScreenshot(browser, website) {
     await mobilePage.emulate(mobileDevice);
     await loadAndPrepare(mobilePage, website);
 
-    const mobileFilename = `${name}_${timestamp}_mobile.jpg`;
+    const mobileFilename = `${name}_${timestamp}_mobile.webp`;
     const mobileFilepath = join(SCREENSHOTS_DIR, mobileFilename);
 
     console.log(`📱 ${name}: Taking mobile screenshot...`);
     await mobilePage.screenshot({
       path: mobileFilepath,
       fullPage: CONFIG.fullPage,
-      type: 'jpeg',
-      quality: CONFIG.jpegQuality
+      type: 'webp',
+      quality: CONFIG.webpQuality
     });
 
     console.log(`✅ ${name}: Saved ${mobileFilename}`);
