@@ -92,6 +92,16 @@ function generateHTML(structure, publicUrl, websitesMeta) {
   // Bouw metadata JSON voor client-side filtering
   const metaJSON = JSON.stringify(websitesMeta);
 
+  // Verzamel alle unieke datums (nieuwste eerst) voor het datumfilter
+  const allDates = new Set();
+  for (const website of Object.values(structure)) {
+    for (const date of Object.keys(website)) {
+      allDates.add(date);
+    }
+  }
+  const sortedDates = [...allDates].sort().reverse();
+  const datesJSON = JSON.stringify(sortedDates);
+
   return `<!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -217,7 +227,7 @@ function generateHTML(structure, publicUrl, websitesMeta) {
       border-bottom: 1px solid #ece8f0;
       overflow-x: auto;
       position: sticky;
-      top: 144px;
+      top: 176px;
       z-index: 98;
     }
 
@@ -400,6 +410,10 @@ function generateHTML(structure, publicUrl, websitesMeta) {
           <button class="filter-chip" data-value="mobile">Mobiel</button>
         </div>
       </div>
+      <div class="filter-row" data-filter="date">
+        <span class="filter-label">Datum</span>
+        <div class="filter-chips" id="filter-date"></div>
+      </div>
       <div class="filter-row" data-filter="cluster">
         <span class="filter-label">Cluster</span>
         <div class="filter-chips" id="filter-cluster"></div>
@@ -419,8 +433,9 @@ function generateHTML(structure, publicUrl, websitesMeta) {
     ${websites.length === 0 ? '<div class="empty">Nog geen screenshots gevonden.</div>' : ''}
     ${websites.map((website, i) => {
       const dates = structure[website];
+      const dateKeys = Object.keys(dates);
       return `<div class="website-section${i === 0 ? ' active' : ''}" data-site="${website}">
-      ${Object.entries(dates).map(([date, files]) => `<div class="date-group">
+      ${Object.entries(dates).map(([date, files]) => `<div class="date-group" data-date="${date}">
         <div class="date-header">${date}</div>
         <div class="grid">
           ${files.map(f => {
@@ -430,8 +445,9 @@ function generateHTML(structure, publicUrl, websitesMeta) {
             const sizeKB = Math.round((f.size || 0) / 1024);
             const device = f.device || 'desktop';
             const imgUrl = baseUrl+'/'+f.key;
-            // Alleen desktop images direct laden (standaard filter), mobiel via data-src
-            const srcAttr = device === 'desktop' ? 'src="'+imgUrl+'"' : '';
+            // Alleen desktop images van eerste sectie + eerste datum laden, rest via data-src
+            const shouldLoad = i === 0 && device === 'desktop' && date === dateKeys[0];
+            const srcAttr = shouldLoad ? 'src="'+imgUrl+'"' : '';
             return '<div class="card" data-url="'+imgUrl+'" data-device="'+device+'">'
             +'<img '+srcAttr+' data-src="'+imgUrl+'" loading="lazy" alt="'+f.filename+'">'
             +'<div class="card-info"><span>'+timeStr+'</span><span>'+sizeKB+' KB</span></div>'
@@ -450,9 +466,12 @@ function generateHTML(structure, publicUrl, websitesMeta) {
 
   <script>
     const meta = ${metaJSON};
+    const allDates = ${datesJSON};
 
-    // Bouw filter-chips dynamisch uit metadata
-    const filterState = { cluster: null, device: 'desktop' };
+    // Standaard de meest recente datum selecteren
+    const filterState = { cluster: null, device: 'desktop', date: allDates[0] || null };
+
+    // Bouw cluster-chips dynamisch uit metadata
     const filterKeys = ['cluster'];
 
     function getUniqueValues(key) {
@@ -473,6 +492,24 @@ function generateHTML(structure, publicUrl, websitesMeta) {
       });
     });
 
+    // Bouw datum-chips (nieuwste eerst, standaard meest recente actief)
+    (function buildDateChips() {
+      const container = document.getElementById('filter-date');
+      allDates.forEach((date, i) => {
+        const chip = document.createElement('button');
+        chip.className = 'filter-chip' + (i === 0 ? ' active' : '');
+        chip.textContent = date;
+        chip.dataset.value = date;
+        chip.addEventListener('click', () => {
+          container.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+          filterState.date = date;
+          applyFilters();
+        });
+        container.appendChild(chip);
+      });
+    })();
+
     // Device filter (Desktop/Mobiel) - altijd één actief
     document.querySelectorAll('#filter-device .filter-chip').forEach(chip => {
       chip.addEventListener('click', () => {
@@ -488,7 +525,6 @@ function generateHTML(structure, publicUrl, websitesMeta) {
         filterState[key] = null;
         chip.classList.remove('active');
       } else {
-        // Deactiveer andere chips in deze rij
         chip.parentElement.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
         filterState[key] = val;
         chip.classList.add('active');
@@ -510,31 +546,43 @@ function generateHTML(structure, publicUrl, websitesMeta) {
         if (visible && tab.classList.contains('active')) activeIsVisible = true;
       });
 
-      // Als de actieve tab verborgen is, selecteer de eerste zichtbare
       if (!activeIsVisible && firstVisible) {
         activateTab(firstVisible);
+        return; // activateTab roept applyFilters indirect aan via loadSection
       }
 
-      // Filter cards op device - alleen in de actieve sectie laden/ontladen
+      // Filter date-groups en cards in de actieve sectie
+      loadSection();
+    }
+
+    function loadSection() {
       const activeSection = document.querySelector('.website-section.active');
-      if (activeSection) {
-        activeSection.querySelectorAll('.card').forEach(card => {
+      if (!activeSection) return;
+
+      // Filter date-groups op datum
+      activeSection.querySelectorAll('.date-group').forEach(group => {
+        const date = group.dataset.date;
+        const dateVisible = !filterState.date || date === filterState.date;
+        group.style.display = dateVisible ? '' : 'none';
+
+        // Laad/ontlaad images op basis van device + datum-zichtbaarheid
+        group.querySelectorAll('.card').forEach(card => {
           const device = card.dataset.device || 'desktop';
-          const visible = device === filterState.device;
-          card.style.display = visible ? '' : 'none';
+          const cardVisible = dateVisible && device === filterState.device;
+          card.style.display = cardVisible ? '' : 'none';
           const img = card.querySelector('img');
           if (img) {
-            if (visible && !img.src && img.dataset.src) {
+            if (cardVisible && !img.src && img.dataset.src) {
               img.src = img.dataset.src;
-            } else if (!visible && img.src) {
+            } else if (!cardVisible && img.src) {
               img.removeAttribute('src');
             }
           }
         });
-      }
+      });
     }
 
-    // Pas initieel device filter toe
+    // Pas initieel filter toe
     applyFilters();
 
     // Tabs
@@ -549,14 +597,7 @@ function generateHTML(structure, publicUrl, websitesMeta) {
       const section = document.querySelector('.website-section[data-site="' + tab.dataset.site + '"]');
       if (section) {
         section.classList.add('active');
-        // Laad images van de actieve sectie die bij het device filter passen
-        section.querySelectorAll('.card').forEach(card => {
-          const device = card.dataset.device || 'desktop';
-          if (device === filterState.device) {
-            const img = card.querySelector('img');
-            if (img && !img.src && img.dataset.src) img.src = img.dataset.src;
-          }
-        });
+        loadSection();
       }
     }
 
