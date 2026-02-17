@@ -18,8 +18,13 @@ const CONFIG = {
   },
   mobileViewport: {
     width: 390,
-    height: 844
+    height: 844,
+    isMobile: true,
+    hasTouch: true,
+    deviceScaleFactor: 2
   },
+  // Realistische mobiele User-Agent (iPhone 15 Pro, Safari)
+  mobileUserAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1',
   fullPage: true,
   timeout: 60000,
   scrollDelay: 300,
@@ -554,17 +559,17 @@ async function takeScreenshot(browser, website) {
   const timestamp = getLocalTimestamp();
   const results = [];
 
-  const page = await browser.newPage();
+  // --- Desktop screenshot: eigen pagina ---
+  const desktopPage = await browser.newPage();
   try {
-    // --- Desktop: laden, popups wegklikken, scrollen, screenshot ---
-    await page.setViewport(CONFIG.desktopViewport);
-    await loadAndPrepare(page, website);
+    await desktopPage.setViewport(CONFIG.desktopViewport);
+    await loadAndPrepare(desktopPage, website);
 
     const desktopFilename = `${name}_${timestamp}.webp`;
     const desktopFilepath = join(SCREENSHOTS_DIR, desktopFilename);
 
     console.log(`📸 ${name}: Taking desktop screenshot...`);
-    await page.screenshot({
+    await desktopPage.screenshot({
       path: desktopFilepath,
       fullPage: CONFIG.fullPage,
       type: 'webp',
@@ -573,23 +578,28 @@ async function takeScreenshot(browser, website) {
 
     console.log(`✅ ${name}: Saved ${desktopFilename}`);
     results.push({ success: true, name, filename: desktopFilename });
+  } catch (error) {
+    console.error(`❌ ${name} (desktop): ${error.message}`);
+    results.push({ success: false, name, error: error.message });
+  } finally {
+    await desktopPage.close();
+  }
 
-    // --- Mobiel: zelfde pagina, viewport verkleinen ---
-    console.log(`📱 ${name}: Resizing to mobile viewport...`);
-    await page.setViewport(CONFIG.mobileViewport);
+  // --- Mobiel screenshot: verse pagina met mobiele user-agent en viewport ---
+  const mobilePage = await browser.newPage();
+  try {
+    // Stel mobiele user-agent in VOOR navigatie zodat de server mobiele content serveert
+    await mobilePage.setUserAgent(CONFIG.mobileUserAgent);
+    await mobilePage.setViewport(CONFIG.mobileViewport);
 
-    // Wacht tot de pagina zich aanpast aan de nieuwe viewport
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    // Scroll naar boven en verwijder eventuele nieuwe overlays
-    await page.evaluate(() => window.scrollTo(0, 0));
-    await removeRemainingOverlays(page);
+    // Volledige mobiele flow: navigeren, popups, scrollen - alles opnieuw
+    await loadAndPrepare(mobilePage, website);
 
     const mobileFilename = `${name}_${timestamp}_mobile.webp`;
     const mobileFilepath = join(SCREENSHOTS_DIR, mobileFilename);
 
     console.log(`📱 ${name}: Taking mobile screenshot...`);
-    await page.screenshot({
+    await mobilePage.screenshot({
       path: mobileFilepath,
       fullPage: CONFIG.fullPage,
       type: 'webp',
@@ -599,10 +609,10 @@ async function takeScreenshot(browser, website) {
     console.log(`✅ ${name}: Saved ${mobileFilename}`);
     results.push({ success: true, name, filename: mobileFilename });
   } catch (error) {
-    console.error(`❌ ${name}: ${error.message}`);
+    console.error(`❌ ${name} (mobile): ${error.message}`);
     results.push({ success: false, name, error: error.message });
   } finally {
-    await page.close();
+    await mobilePage.close();
   }
 
   return results;
