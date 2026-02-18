@@ -185,12 +185,12 @@ async function handleDPGPrivacyGate(page) {
     // Wacht zodat de consent-pagina volledig gerenderd is
     await new Promise(resolve => setTimeout(resolve, 3000));
 
+    // Start navigatie-wacht VOOR de klik (race condition fix: klik kan onmiddellijk redirect triggeren)
+    const navigationPromise = page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
     const clicked = await clickAcceptButton(page);
     if (clicked) {
       console.log(`🔒 Clicked DPG consent: "${clicked}"`);
-      // Wacht op redirect terug naar de originele site
-      // Gebruik domcontentloaded i.p.v. networkidle2: op mobiel kan networkidle2 hangen
-      await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
+      await navigationPromise;
       await new Promise(resolve => setTimeout(resolve, 3000));
     }
     return;
@@ -517,32 +517,15 @@ async function dismissPopups(page) {
   }
 }
 
-async function loadAndPrepare(page, website, { isMobile = false } = {}) {
+// Desktop: volledige flow met consent-afhandeling
+async function loadAndPrepare(page, website) {
   const { name, url } = website;
-  const label = isMobile ? '📱' : '📸';
 
-  console.log(`${label} ${name}: Navigating to ${url}${isMobile ? ' (mobile)' : ''}`);
-
-  if (isMobile) {
-    // MOBIEL: Gebruik domcontentloaded + vaste wachttijd.
-    // Reden: zware nieuwssites (AD, HLN, Telegraaf, etc.) bereiken NOOIT networkidle2
-    // op mobiel vanwege ad-scripts, trackers en push-notification workers die
-    // continu connecties openhouden. Dit veroorzaakt een 60s timeout → geen screenshot.
-    // Magazines (Flair, Libelle) zijn lichter en werkten wel, maar nieuwssites niet.
-    await page.goto(url, {
-      waitUntil: 'domcontentloaded',
-      timeout: CONFIG.timeout
-    });
-    // Wacht 8 seconden zodat JS kan renderen, ads laden, consent popups verschijnen
-    console.log(`${label} ${name}: Waiting for mobile page to render...`);
-    await new Promise(resolve => setTimeout(resolve, 8000));
-  } else {
-    // DESKTOP: networkidle2 werkt prima voor desktop versies
-    await page.goto(url, {
-      waitUntil: 'networkidle2',
-      timeout: CONFIG.timeout
-    });
-  }
+  console.log(`📸 ${name}: Navigating to ${url}`);
+  await page.goto(url, {
+    waitUntil: 'networkidle2',
+    timeout: CONFIG.timeout
+  });
 
   // Cloudflare "Verify you are human" challenge afhandelen
   await handleCloudflareChallenge(page);
@@ -550,27 +533,20 @@ async function loadAndPrepare(page, website, { isMobile = false } = {}) {
   // DPG privacy gate afhandelen (redirect of iframe)
   await handleDPGPrivacyGate(page);
 
-  if (isMobile) {
-    // Op mobiel verschijnen consent popups (Sourcepoint iframe) trager.
-    // Extra wachttijd zodat de iframe content volledig gerenderd is.
-    console.log(`${label} ${name}: Extra wait for mobile consent popups...`);
-    await new Promise(resolve => setTimeout(resolve, 3000));
-  }
-
-  console.log(`${label} ${name}: Dismissing popups...`);
+  console.log(`📸 ${name}: Dismissing popups...`);
   await dismissPopups(page);
 
   // Na cookie consent kan DPG privacy gate pas verschijnen, dus opnieuw checken
   await handleDPGPrivacyGate(page);
 
   // Laatste redmiddel: verwijder hardnekkige overlays/modals die niet via klikken weggaan
-  console.log(`${label} ${name}: Cleaning up remaining overlays...`);
+  console.log(`📸 ${name}: Cleaning up remaining overlays...`);
   await removeRemainingOverlays(page);
 
-  console.log(`${label} ${name}: Scrolling to load all images...`);
+  console.log(`📸 ${name}: Scrolling to load all images...`);
   await autoScroll(page);
 
-  console.log(`${label} ${name}: Waiting for images to load...`);
+  console.log(`📸 ${name}: Waiting for images to load...`);
   await waitForImages(page);
 
   // Extra wachttijd voor eventuele animaties
@@ -578,74 +554,143 @@ async function loadAndPrepare(page, website, { isMobile = false } = {}) {
 
   // Laatste cleanup: scrollen kan nieuwe popups triggeren (notificatie-prompts, etc.)
   await removeRemainingOverlays(page);
-
-  if (isMobile) {
-    // Op mobiel: nog een extra ronde popup-dismissal + overlay cleanup.
-    // Scrollen kan op mobiel app-download banners, notification prompts etc. triggeren.
-    await dismissPopups(page);
-    await removeRemainingOverlays(page);
-  }
 }
+
+// CSS die alle bekende consent/overlay/popup elementen verbergt met !important.
+// Dit is het ultieme veiligheidsnet: zelfs als JavaScript een popup opnieuw toont,
+// wint CSS !important altijd. Wordt geïnjecteerd bij mobiele screenshots.
+const OVERLAY_HIDE_CSS = `
+  div[id^="sp_message_container"],
+  div[class*="sp_message"],
+  .message-overlay,
+  [class*="privacy-gate"],
+  [class*="privacy-wall"],
+  [id*="privacy-gate"],
+  [id*="privacy-wall"],
+  [class*="consent-overlay"],
+  [class*="cookie-wall"],
+  [id*="consent-overlay"],
+  [class*="notification-prompt"],
+  [class*="push-notification"],
+  [class*="newsletter-popup"],
+  [class*="subscribe-popup"],
+  [class*="smart-banner"],
+  [class*="app-banner"],
+  [class*="app-promotion"],
+  [class*="regwall"],
+  [class*="loginwall"],
+  [class*="paywall-overlay"],
+  [role="dialog"],
+  [aria-modal="true"],
+  .didomi-popup-container,
+  #didomi-host,
+  #onetrust-consent-sdk,
+  [id*="CybotCookiebot"],
+  .qc-cmp2-container {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+  body, html {
+    overflow: auto !important;
+    position: static !important;
+  }
+  body.has-overlay, body.modal-open, body.no-scroll, body.overflow-hidden,
+  html.has-overlay, html.modal-open, html.no-scroll, html.overflow-hidden {
+    overflow: auto !important;
+    position: static !important;
+  }
+`;
 
 async function takeScreenshot(browser, website) {
   const { name, url } = website;
   const timestamp = getLocalTimestamp();
   const results = [];
 
-  // --- Desktop screenshot: eigen pagina ---
-  const desktopPage = await browser.newPage();
+  // Eén pagina voor zowel desktop als mobiel.
+  // Desktop handelt consent af (cookies + localStorage worden bewaard).
+  // Mobiel herlaadt dezelfde pagina met mobiele UA — consent is al gegeven,
+  // dus geen redirect naar myprivacy.dpgmedia en geen consent popup.
+  const page = await browser.newPage();
+
   try {
-    await desktopPage.setViewport(CONFIG.desktopViewport);
-    await loadAndPrepare(desktopPage, website);
+    // --- STAP 1: Desktop screenshot (consent wordt hier afgehandeld) ---
+    try {
+      await page.setViewport(CONFIG.desktopViewport);
+      await loadAndPrepare(page, website);
 
-    const desktopFilename = `${name}_${timestamp}.webp`;
-    const desktopFilepath = join(SCREENSHOTS_DIR, desktopFilename);
+      const desktopFilename = `${name}_${timestamp}.webp`;
+      const desktopFilepath = join(SCREENSHOTS_DIR, desktopFilename);
 
-    console.log(`📸 ${name}: Taking desktop screenshot...`);
-    await desktopPage.screenshot({
-      path: desktopFilepath,
-      fullPage: CONFIG.fullPage,
-      type: 'webp',
-      quality: CONFIG.webpQuality
-    });
+      console.log(`📸 ${name}: Taking desktop screenshot...`);
+      await page.screenshot({
+        path: desktopFilepath,
+        fullPage: CONFIG.fullPage,
+        type: 'webp',
+        quality: CONFIG.webpQuality
+      });
 
-    console.log(`✅ ${name}: Saved ${desktopFilename}`);
-    results.push({ success: true, name, filename: desktopFilename });
-  } catch (error) {
-    console.error(`❌ ${name} (desktop): ${error.message}`);
-    results.push({ success: false, name, error: error.message });
+      console.log(`✅ ${name}: Saved ${desktopFilename}`);
+      results.push({ success: true, name, filename: desktopFilename });
+    } catch (error) {
+      console.error(`❌ ${name} (desktop): ${error.message}`);
+      results.push({ success: false, name, error: error.message });
+    }
+
+    // --- STAP 2: Mobiel screenshot (zelfde pagina, consent al afgehandeld) ---
+    try {
+      console.log(`📱 ${name}: Switching to mobile...`);
+
+      // Wissel naar mobiele instellingen
+      await page.setUserAgent(CONFIG.mobileUserAgent);
+      await page.setViewport(CONFIG.mobileViewport);
+
+      // Herlaad de pagina: server krijgt nu mobiele User-Agent + consent cookies.
+      // Consent is al gegeven via desktop, dus GEEN redirect naar myprivacy.dpgmedia.
+      // Gebruik domcontentloaded: mobiele nieuwspagina's bereiken nooit networkidle2
+      // vanwege ad-scripts/trackers die continu connecties openhouden.
+      await page.reload({ waitUntil: 'domcontentloaded', timeout: CONFIG.timeout });
+      console.log(`📱 ${name}: Waiting for mobile page to render...`);
+      await new Promise(resolve => setTimeout(resolve, 5000));
+
+      // Injecteer CSS die ALLE overlay/popup elementen verbergt met !important.
+      // Dit is het ultieme veiligheidsnet: zelfs als er een popup verschijnt,
+      // wordt die via CSS verborgen. JavaScript kan !important niet overschrijven.
+      await page.addStyleTag({ content: OVERLAY_HIDE_CSS });
+
+      // Probeer ook nog knoppen te klikken en DOM-elementen te verwijderen
+      await dismissPopups(page);
+      await removeRemainingOverlays(page);
+
+      // Scroll voor lazy images
+      console.log(`📱 ${name}: Scrolling to load images...`);
+      await autoScroll(page);
+      await waitForImages(page);
+      await new Promise(resolve => setTimeout(resolve, CONFIG.waitAfterScroll));
+
+      // Finale cleanup
+      await removeRemainingOverlays(page);
+
+      const mobileFilename = `${name}_${timestamp}_mobile.webp`;
+      const mobileFilepath = join(SCREENSHOTS_DIR, mobileFilename);
+
+      console.log(`📱 ${name}: Taking mobile screenshot...`);
+      await page.screenshot({
+        path: mobileFilepath,
+        fullPage: CONFIG.fullPage,
+        type: 'webp',
+        quality: CONFIG.webpQuality
+      });
+
+      console.log(`✅ ${name}: Saved ${mobileFilename}`);
+      results.push({ success: true, name, filename: mobileFilename });
+    } catch (error) {
+      console.error(`❌ ${name} (mobile): ${error.message}`);
+      results.push({ success: false, name, error: error.message });
+    }
   } finally {
-    await desktopPage.close();
-  }
-
-  // --- Mobiel screenshot: verse pagina met mobiele user-agent en viewport ---
-  const mobilePage = await browser.newPage();
-  try {
-    // Stel mobiele user-agent in VOOR navigatie zodat de server mobiele content serveert
-    await mobilePage.setUserAgent(CONFIG.mobileUserAgent);
-    await mobilePage.setViewport(CONFIG.mobileViewport);
-
-    // Volledige mobiele flow: navigeren, popups, scrollen - alles opnieuw
-    await loadAndPrepare(mobilePage, website, { isMobile: true });
-
-    const mobileFilename = `${name}_${timestamp}_mobile.webp`;
-    const mobileFilepath = join(SCREENSHOTS_DIR, mobileFilename);
-
-    console.log(`📱 ${name}: Taking mobile screenshot...`);
-    await mobilePage.screenshot({
-      path: mobileFilepath,
-      fullPage: CONFIG.fullPage,
-      type: 'webp',
-      quality: CONFIG.webpQuality
-    });
-
-    console.log(`✅ ${name}: Saved ${mobileFilename}`);
-    results.push({ success: true, name, filename: mobileFilename });
-  } catch (error) {
-    console.error(`❌ ${name} (mobile): ${error.message}`);
-    results.push({ success: false, name, error: error.message });
-  } finally {
-    await mobilePage.close();
+    await page.close();
   }
 
   return results;
