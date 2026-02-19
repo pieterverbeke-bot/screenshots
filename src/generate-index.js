@@ -48,9 +48,6 @@ function buildStructure(objects) {
 
     const [website, date, filename] = parts;
 
-    // Detecteer of het een mobiele screenshot is (bevat _mobile voor de extensie)
-    const isMobile = /_mobile\.\w+$/.test(filename);
-
     if (!structure[website]) structure[website] = {};
     if (!structure[website][date]) structure[website][date] = [];
 
@@ -59,7 +56,6 @@ function buildStructure(objects) {
       filename,
       size: obj.Size,
       lastModified: obj.LastModified,
-      device: isMobile ? 'mobile' : 'desktop',
     });
   }
 
@@ -403,13 +399,6 @@ function generateHTML(structure, publicUrl, websitesMeta) {
 
   <div class="filter-bar">
     <div class="filter-bar-inner">
-      <div class="filter-row" data-filter="device">
-        <span class="filter-label">Weergave</span>
-        <div class="filter-chips" id="filter-device">
-          <button class="filter-chip active" data-value="desktop">Desktop</button>
-          <button class="filter-chip" data-value="mobile">Mobiel</button>
-        </div>
-      </div>
       <div class="filter-row" data-filter="date">
         <span class="filter-label">Datum</span>
         <div class="filter-chips" id="filter-date"></div>
@@ -443,12 +432,11 @@ function generateHTML(structure, publicUrl, websitesMeta) {
             const timePart = tIdx > -1 ? f.filename.slice(tIdx+1, tIdx+9) : '';
             const timeStr = timePart.length === 8 ? timePart.replace(/-/g, ':') : '';
             const sizeKB = Math.round((f.size || 0) / 1024);
-            const device = f.device || 'desktop';
             const imgUrl = baseUrl+'/'+f.key;
-            // Alleen desktop images van eerste sectie + eerste datum laden, rest via data-src
-            const shouldLoad = i === 0 && device === 'desktop' && date === dateKeys[0];
+            // Alleen images van eerste sectie + eerste datum laden, rest via data-src
+            const shouldLoad = i === 0 && date === dateKeys[0];
             const srcAttr = shouldLoad ? 'src="'+imgUrl+'"' : '';
-            return '<div class="card" data-url="'+imgUrl+'" data-device="'+device+'">'
+            return '<div class="card" data-url="'+imgUrl+'">'
             +'<img '+srcAttr+' data-src="'+imgUrl+'" loading="lazy" alt="'+f.filename+'">'
             +'<div class="card-info"><span>'+timeStr+'</span><span>'+sizeKB+' KB</span></div>'
             +'</div>';
@@ -469,7 +457,7 @@ function generateHTML(structure, publicUrl, websitesMeta) {
     const allDates = ${datesJSON};
 
     // Standaard de meest recente datum selecteren
-    const filterState = { cluster: null, device: 'desktop', date: allDates[0] || null };
+    const filterState = { cluster: null, date: allDates[0] || null };
 
     // Bouw cluster-chips dynamisch uit metadata
     const filterKeys = ['cluster'];
@@ -509,16 +497,6 @@ function generateHTML(structure, publicUrl, websitesMeta) {
         container.appendChild(chip);
       });
     })();
-
-    // Device filter (Desktop/Mobiel) - altijd één actief
-    document.querySelectorAll('#filter-device .filter-chip').forEach(chip => {
-      chip.addEventListener('click', () => {
-        document.querySelectorAll('#filter-device .filter-chip').forEach(c => c.classList.remove('active'));
-        chip.classList.add('active');
-        filterState.device = chip.dataset.value;
-        applyFilters();
-      });
-    });
 
     function toggleFilter(key, val, chip) {
       if (filterState[key] === val) {
@@ -565,16 +543,14 @@ function generateHTML(structure, publicUrl, websitesMeta) {
         const dateVisible = !filterState.date || date === filterState.date;
         group.style.display = dateVisible ? '' : 'none';
 
-        // Laad/ontlaad images op basis van device + datum-zichtbaarheid
+        // Laad/ontlaad images op basis van datum-zichtbaarheid
         group.querySelectorAll('.card').forEach(card => {
-          const device = card.dataset.device || 'desktop';
-          const cardVisible = dateVisible && device === filterState.device;
-          card.style.display = cardVisible ? '' : 'none';
+          card.style.display = dateVisible ? '' : 'none';
           const img = card.querySelector('img');
           if (img) {
-            if (cardVisible && !img.src && img.dataset.src) {
+            if (dateVisible && !img.src && img.dataset.src) {
               img.src = img.dataset.src;
-            } else if (!cardVisible && img.src) {
+            } else if (!dateVisible && img.src) {
               img.removeAttribute('src');
             }
           }
