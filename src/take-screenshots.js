@@ -16,15 +16,6 @@ const CONFIG = {
     width: 1920,
     height: 1080
   },
-  mobileViewport: {
-    width: 390,
-    height: 844,
-    isMobile: true,
-    hasTouch: true,
-    deviceScaleFactor: 1
-  },
-  // Realistische mobiele User-Agent (iPhone 15 Pro, Safari)
-  mobileUserAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1',
   fullPage: true,
   timeout: 60000,
   scrollDelay: 300,
@@ -556,144 +547,34 @@ async function loadAndPrepare(page, website) {
   await removeRemainingOverlays(page);
 }
 
-// CSS die alle bekende consent/overlay/popup elementen verbergt met !important.
-// Dit is het ultieme veiligheidsnet: zelfs als JavaScript een popup opnieuw toont,
-// wint CSS !important altijd. Wordt geïnjecteerd bij mobiele screenshots.
-const OVERLAY_HIDE_CSS = `
-  div[id^="sp_message_container"],
-  div[class*="sp_message"],
-  .message-overlay,
-  [class*="privacy-gate"],
-  [class*="privacy-wall"],
-  [id*="privacy-gate"],
-  [id*="privacy-wall"],
-  [class*="consent-overlay"],
-  [class*="cookie-wall"],
-  [id*="consent-overlay"],
-  [class*="notification-prompt"],
-  [class*="push-notification"],
-  [class*="newsletter-popup"],
-  [class*="subscribe-popup"],
-  [class*="smart-banner"],
-  [class*="app-banner"],
-  [class*="app-promotion"],
-  [class*="regwall"],
-  [class*="loginwall"],
-  [class*="paywall-overlay"],
-  [role="dialog"],
-  [aria-modal="true"],
-  .didomi-popup-container,
-  #didomi-host,
-  #onetrust-consent-sdk,
-  [id*="CybotCookiebot"],
-  .qc-cmp2-container {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
-  }
-  body, html {
-    overflow: auto !important;
-    position: static !important;
-  }
-  body.has-overlay, body.modal-open, body.no-scroll, body.overflow-hidden,
-  html.has-overlay, html.modal-open, html.no-scroll, html.overflow-hidden {
-    overflow: auto !important;
-    position: static !important;
-  }
-`;
-
 async function takeScreenshot(browser, website) {
   const { name, url } = website;
   const timestamp = getLocalTimestamp();
-  const results = [];
 
-  // Eén pagina voor zowel desktop als mobiel.
-  // Desktop handelt consent af (cookies + localStorage worden bewaard).
-  // Mobiel herlaadt dezelfde pagina met mobiele UA — consent is al gegeven,
-  // dus geen redirect naar myprivacy.dpgmedia en geen consent popup.
   const page = await browser.newPage();
-
   try {
-    // --- STAP 1: Desktop screenshot (consent wordt hier afgehandeld) ---
-    try {
-      await page.setViewport(CONFIG.desktopViewport);
-      await loadAndPrepare(page, website);
+    await page.setViewport(CONFIG.desktopViewport);
+    await loadAndPrepare(page, website);
 
-      const desktopFilename = `${name}_${timestamp}.webp`;
-      const desktopFilepath = join(SCREENSHOTS_DIR, desktopFilename);
+    const filename = `${name}_${timestamp}.webp`;
+    const filepath = join(SCREENSHOTS_DIR, filename);
 
-      console.log(`📸 ${name}: Taking desktop screenshot...`);
-      await page.screenshot({
-        path: desktopFilepath,
-        fullPage: CONFIG.fullPage,
-        type: 'webp',
-        quality: CONFIG.webpQuality
-      });
+    console.log(`📸 ${name}: Taking screenshot...`);
+    await page.screenshot({
+      path: filepath,
+      fullPage: CONFIG.fullPage,
+      type: 'webp',
+      quality: CONFIG.webpQuality
+    });
 
-      console.log(`✅ ${name}: Saved ${desktopFilename}`);
-      results.push({ success: true, name, filename: desktopFilename });
-    } catch (error) {
-      console.error(`❌ ${name} (desktop): ${error.message}`);
-      results.push({ success: false, name, error: error.message });
-    }
-
-    // --- STAP 2: Mobiel screenshot (zelfde pagina, consent al afgehandeld) ---
-    try {
-      console.log(`📱 ${name}: Switching to mobile...`);
-
-      // Wissel naar mobiele instellingen
-      await page.setUserAgent(CONFIG.mobileUserAgent);
-      await page.setViewport(CONFIG.mobileViewport);
-
-      // Herlaad de pagina: server krijgt nu mobiele User-Agent + consent cookies.
-      // Consent is al gegeven via desktop, dus GEEN redirect naar myprivacy.dpgmedia.
-      // Gebruik domcontentloaded: mobiele nieuwspagina's bereiken nooit networkidle2
-      // vanwege ad-scripts/trackers die continu connecties openhouden.
-      await page.reload({ waitUntil: 'domcontentloaded', timeout: CONFIG.timeout });
-      console.log(`📱 ${name}: Waiting for mobile page to render...`);
-      await new Promise(resolve => setTimeout(resolve, 5000));
-
-      // Injecteer CSS die ALLE overlay/popup elementen verbergt met !important.
-      // Dit is het ultieme veiligheidsnet: zelfs als er een popup verschijnt,
-      // wordt die via CSS verborgen. JavaScript kan !important niet overschrijven.
-      await page.addStyleTag({ content: OVERLAY_HIDE_CSS });
-
-      // Probeer ook nog knoppen te klikken en DOM-elementen te verwijderen
-      await dismissPopups(page);
-      await removeRemainingOverlays(page);
-
-      // Scroll voor lazy images
-      console.log(`📱 ${name}: Scrolling to load images...`);
-      await autoScroll(page);
-      await waitForImages(page);
-      await new Promise(resolve => setTimeout(resolve, CONFIG.waitAfterScroll));
-
-      // Finale cleanup
-      await removeRemainingOverlays(page);
-
-      const mobileFilename = `${name}_${timestamp}_mobile.webp`;
-      const mobileFilepath = join(SCREENSHOTS_DIR, mobileFilename);
-
-      console.log(`📱 ${name}: Taking mobile screenshot...`);
-      await page.screenshot({
-        path: mobileFilepath,
-        fullPage: CONFIG.fullPage,
-        type: 'webp',
-        quality: CONFIG.webpQuality
-      });
-
-      console.log(`✅ ${name}: Saved ${mobileFilename}`);
-      results.push({ success: true, name, filename: mobileFilename });
-    } catch (error) {
-      console.error(`❌ ${name} (mobile): ${error.message}`);
-      results.push({ success: false, name, error: error.message });
-    }
+    console.log(`✅ ${name}: Saved ${filename}`);
+    return { success: true, name, filename };
+  } catch (error) {
+    console.error(`❌ ${name}: ${error.message}`);
+    return { success: false, name, error: error.message };
   } finally {
     await page.close();
   }
-
-  return results;
 }
 
 // Verwerk websites in parallelle batches
@@ -707,7 +588,7 @@ async function processInBatches(browser, websites, concurrency) {
     );
     for (const result of batchResults) {
       if (result.status === 'fulfilled') {
-        results.push(...result.value);
+        results.push(result.value);
       } else {
         console.error(`❌ Batch error: ${result.reason?.message}`);
       }
