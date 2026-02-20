@@ -614,14 +614,25 @@ async function main() {
     process.exit(1);
   }
 
-  const websites = JSON.parse(readFileSync(WEBSITES_FILE, 'utf-8'));
+  const allWebsites = JSON.parse(readFileSync(WEBSITES_FILE, 'utf-8'));
 
-  if (websites.length === 0) {
+  if (allWebsites.length === 0) {
     console.log('⚠️  No websites configured in websites.json');
     process.exit(0);
   }
 
-  console.log(`📋 Found ${websites.length} website(s) to screenshot`);
+  // Filter websites op basis van interval en huidige tijd (Brussels-tijdzone)
+  const now = new Date();
+  const currentMinute = parseInt(
+    new Intl.DateTimeFormat('nl-BE', { timeZone: CONFIG.timezone, minute: '2-digit' }).format(now),
+    10
+  );
+  const isOnTheHour = currentMinute < 15;
+  const websites = isOnTheHour
+    ? allWebsites
+    : allWebsites.filter(w => (w.interval || 60) <= 30);
+
+  console.log(`📋 Found ${allWebsites.length} website(s) configured, ${websites.length} scheduled this run (minute=${currentMinute}, ${isOnTheHour ? 'full run' : 'half-hour run'})`);
   console.log(`⚡ Concurrency: ${CONFIG.concurrency} sites per batch\n`);
 
   // Start browser met realistische instellingen
