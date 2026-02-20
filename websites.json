@@ -54,24 +54,6 @@
     "interval": 60
   },
   {
-    "name": "standaard",
-    "label": "De Standaard",
-    "url": "https://www.standaard.be",
-    "land": "België",
-    "medium": "nieuwsmedia",
-    "cluster": "BE concurrentie",
-    "interval": 60
-  },
-  {
-    "name": "telegraaf",
-    "label": "De Telegraaf",
-    "url": "https://www.telegraaf.nl",
-    "land": "Nederland",
-    "medium": "nieuwsmedia",
-    "cluster": "NL concurrentie",
-    "interval": 60
-  },
-  {
     "name": "nrc",
     "label": "NRC Handelsblad",
     "url": "https://www.nrc.nl",
@@ -169,6 +151,24 @@
     "medium": "nieuwsmedia",
     "cluster": "ADR",
     "interval": 60
+  },
+  {
+    "name": "ad-rotterdam",
+    "label": "AD Rotterdam",
+    "url": "https://www.ad.nl/rotterdam",
+    "land": "Nederland",
+    "medium": "nieuwsmedia",
+    "cluster": "AD Regiosites",
+    "interval": 180
+  },
+  {
+    "name": "ad-den-haag",
+    "label": "AD Den Haag",
+    "url": "https://www.ad.nl/den-haag",
+    "land": "Nederland",
+    "medium": "nieuwsmedia",
+    "cluster": "AD Regiosites",
+    "interval": 180
   },
   {
     "name": "vk",

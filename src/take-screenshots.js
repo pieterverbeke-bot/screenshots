@@ -627,12 +627,28 @@ async function main() {
     new Intl.DateTimeFormat('nl-BE', { timeZone: CONFIG.timezone, minute: '2-digit' }).format(now),
     10
   );
+  const currentHour = parseInt(
+    new Intl.DateTimeFormat('nl-BE', { timeZone: CONFIG.timezone, hour: '2-digit', hour12: false }).format(now),
+    10
+  );
   const isOnTheHour = currentMinute < 15;
-  const websites = isOnTheHour
-    ? allWebsites
-    : allWebsites.filter(w => (w.interval || 60) <= 30);
 
-  console.log(`📋 Found ${allWebsites.length} website(s) configured, ${websites.length} scheduled this run (minute=${currentMinute}, ${isOnTheHour ? 'full run' : 'half-hour run'})`);
+  let websites;
+  if (isOnTheHour) {
+    // Op het hele uur: alle sites, maar filter sites met interval > 60 op basis van uur
+    websites = allWebsites.filter(w => {
+      const interval = w.interval || 60;
+      if (interval <= 60) return true;
+      // Voor interval > 60 (bv. 180 = elke 3 uur): alleen als het uur deelbaar is door (interval/60)
+      const hourCycle = interval / 60;
+      return currentHour % hourCycle === 0;
+    });
+  } else {
+    // Half-uur run: alleen sites met interval <= 30
+    websites = allWebsites.filter(w => (w.interval || 60) <= 30);
+  }
+
+  console.log(`📋 Found ${allWebsites.length} website(s) configured, ${websites.length} scheduled this run (minute=${currentMinute}, hour=${currentHour}, ${isOnTheHour ? 'full run' : 'half-hour run'})`);
   console.log(`⚡ Concurrency: ${CONFIG.concurrency} sites per batch\n`);
 
   // Start browser met realistische instellingen
