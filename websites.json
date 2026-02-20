@@ -5,7 +5,8 @@
     "url": "https://www.hln.be",
     "land": "België",
     "medium": "nieuwsmedia",
-    "cluster": "België"
+    "cluster": "België",
+    "interval": 30
   },
   {
     "name": "dm",
@@ -13,7 +14,8 @@
     "url": "https://www.demorgen.be",
     "land": "België",
     "medium": "nieuwsmedia",
-    "cluster": "België"
+    "cluster": "België",
+    "interval": 60
   },
   {
     "name": "humo",
@@ -21,7 +23,8 @@
     "url": "https://www.humo.be",
     "land": "België",
     "medium": "nieuwsmedia",
-    "cluster": "België"
+    "cluster": "België",
+    "interval": 60
   },
   {
     "name": "vrtnws",
@@ -29,7 +32,8 @@
     "url": "https://www.vrt.be/vrtnws/nl/",
     "land": "België",
     "medium": "nieuwsmedia",
-    "cluster": "BE concurrentie"
+    "cluster": "BE concurrentie",
+    "interval": 60
   },
   {
     "name": "nieuwsblad",
@@ -37,7 +41,8 @@
     "url": "https://www.nieuwsblad.be",
     "land": "België",
     "medium": "nieuwsmedia",
-    "cluster": "BE concurrentie"
+    "cluster": "BE concurrentie",
+    "interval": 60
   },
   {
     "name": "gva",
@@ -45,7 +50,8 @@
     "url": "https://www.gva.be",
     "land": "België",
     "medium": "nieuwsmedia",
-    "cluster": "BE concurrentie"
+    "cluster": "BE concurrentie",
+    "interval": 60
   },
   {
     "name": "standaard",
@@ -53,7 +59,8 @@
     "url": "https://www.standaard.be",
     "land": "België",
     "medium": "nieuwsmedia",
-    "cluster": "BE concurrentie"
+    "cluster": "BE concurrentie",
+    "interval": 60
   },
   {
     "name": "telegraaf",
@@ -61,7 +68,8 @@
     "url": "https://www.telegraaf.nl",
     "land": "Nederland",
     "medium": "nieuwsmedia",
-    "cluster": "NL concurrentie"
+    "cluster": "NL concurrentie",
+    "interval": 60
   },
   {
     "name": "nrc",
@@ -69,7 +77,8 @@
     "url": "https://www.nrc.nl",
     "land": "Nederland",
     "medium": "nieuwsmedia",
-    "cluster": "NL concurrentie"
+    "cluster": "NL concurrentie",
+    "interval": 60
   },
   {
     "name": "nos",
@@ -77,7 +86,8 @@
     "url": "https://nos.nl",
     "land": "Nederland",
     "medium": "nieuwsmedia",
-    "cluster": "NL concurrentie"
+    "cluster": "NL concurrentie",
+    "interval": 60
   },
   {
     "name": "nu",
@@ -85,7 +95,8 @@
     "url": "https://www.nu.nl",
     "land": "Nederland",
     "medium": "nieuwsmedia",
-    "cluster": "NU"
+    "cluster": "NU",
+    "interval": 30
   },
   {
     "name": "ad",
@@ -93,7 +104,8 @@
     "url": "https://www.ad.nl",
     "land": "Nederland",
     "medium": "nieuwsmedia",
-    "cluster": "ADR"
+    "cluster": "ADR",
+    "interval": 30
   },
   {
     "name": "ed",
@@ -101,7 +113,8 @@
     "url": "https://www.ed.nl",
     "land": "Nederland",
     "medium": "nieuwsmedia",
-    "cluster": "ADR"
+    "cluster": "ADR",
+    "interval": 60
   },
   {
     "name": "bd",
@@ -109,7 +122,8 @@
     "url": "https://www.bd.nl",
     "land": "Nederland",
     "medium": "nieuwsmedia",
-    "cluster": "ADR"
+    "cluster": "ADR",
+    "interval": 60
   },
   {
     "name": "bn",
@@ -117,7 +131,8 @@
     "url": "https://www.bndestem.nl",
     "land": "Nederland",
     "medium": "nieuwsmedia",
-    "cluster": "ADR"
+    "cluster": "ADR",
+    "interval": 60
   },
   {
     "name": "pzc",
@@ -125,7 +140,8 @@
     "url": "https://www.pzc.nl",
     "land": "Nederland",
     "medium": "nieuwsmedia",
-    "cluster": "ADR"
+    "cluster": "ADR",
+    "interval": 60
   },
   {
     "name": "dg",
@@ -133,7 +149,8 @@
     "url": "https://www.degelderlander.nl",
     "land": "Nederland",
     "medium": "nieuwsmedia",
-    "cluster": "ADR"
+    "cluster": "ADR",
+    "interval": 60
   },
   {
     "name": "st",
@@ -141,7 +158,8 @@
     "url": "https://www.destentor.nl",
     "land": "Nederland",
     "medium": "nieuwsmedia",
-    "cluster": "ADR"
+    "cluster": "ADR",
+    "interval": 60
   },
   {
     "name": "tt",
@@ -149,7 +167,8 @@
     "url": "https://www.tubantia.nl",
     "land": "Nederland",
     "medium": "nieuwsmedia",
-    "cluster": "ADR"
+    "cluster": "ADR",
+    "interval": 60
   },
   {
     "name": "vk",
@@ -157,7 +176,8 @@
     "url": "https://www.vk.nl",
     "land": "Nederland",
     "medium": "nieuwsmedia",
-    "cluster": "VTP"
+    "cluster": "VTP",
+    "interval": 60
   },
   {
     "name": "trouw",
@@ -165,7 +185,8 @@
     "url": "https://www.trouw.nl",
     "land": "Nederland",
     "medium": "nieuwsmedia",
-    "cluster": "VTP"
+    "cluster": "VTP",
+    "interval": 60
   },
   {
     "name": "parool",
@@ -173,7 +194,8 @@
     "url": "https://www.parool.nl",
     "land": "Nederland",
     "medium": "nieuwsmedia",
-    "cluster": "VTP"
+    "cluster": "VTP",
+    "interval": 60
   },
   {
     "name": "linda",
@@ -181,7 +203,8 @@
     "url": "https://www.linda.nl",
     "land": "Nederland",
     "medium": "Magazines",
-    "cluster": "Magazines"
+    "cluster": "Magazines",
+    "interval": 60
   },
   {
     "name": "libelle",
@@ -189,7 +212,8 @@
     "url": "https://www.libelle.nl",
     "land": "Nederland",
     "medium": "Magazines",
-    "cluster": "Magazines"
+    "cluster": "Magazines",
+    "interval": 60
   },
   {
     "name": "margriet",
@@ -197,7 +221,8 @@
     "url": "https://www.margriet.nl",
     "land": "Nederland",
     "medium": "Magazines",
-    "cluster": "Magazines"
+    "cluster": "Magazines",
+    "interval": 60
   },
   {
     "name": "flair",
@@ -205,7 +230,8 @@
     "url": "https://www.flair.nl",
     "land": "Nederland",
     "medium": "Magazines",
-    "cluster": "Magazines"
+    "cluster": "Magazines",
+    "interval": 60
   },
   {
     "name": "veronicasg",
@@ -213,7 +239,8 @@
     "url": "https://www.veronicasuperguide.nl",
     "land": "Nederland",
     "medium": "Magazines",
-    "cluster": "Magazines"
+    "cluster": "Magazines",
+    "interval": 60
   },
   {
     "name": "story",
@@ -221,6 +248,7 @@
     "url": "https://www.story.nl",
     "land": "Nederland",
     "medium": "Magazines",
-    "cluster": "Magazines"
+    "cluster": "Magazines",
+    "interval": 60
   }
 ]
