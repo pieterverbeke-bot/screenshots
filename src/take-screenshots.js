@@ -20,8 +20,8 @@ const CONFIG = {
   timeout: 60000,
   scrollDelay: 300,
   waitAfterScroll: 2000,
-  // WebP compressie (0-100), 80 is goede balans tussen kwaliteit en grootte
-  webpQuality: 80,
+  // WebP compressie (0-100), 60 is goede balans tussen kwaliteit en grootte
+  webpQuality: 60,
   // Tijdzone voor bestandsnamen
   timezone: 'Europe/Brussels',
   // Aantal sites die tegelijk verwerkt worden
