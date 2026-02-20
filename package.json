@@ -4,7 +4,8 @@
   "description": "Free website screenshot monitor using GitHub Actions with Cloudflare R2 upload",
   "type": "module",
   "scripts": {
-    "screenshots": "node src/take-screenshots.js"
+    "screenshots": "node src/take-screenshots.js",
+    "cleanup": "node src/cleanup-r2.js"
   },
   "keywords": [
     "screenshot",
