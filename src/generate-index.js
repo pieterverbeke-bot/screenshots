@@ -76,12 +76,12 @@ function loadWebsitesMeta() {
   const websites = JSON.parse(raw);
   const meta = {};
   for (const w of websites) {
-    meta[w.name] = { label: w.label, cluster: w.cluster };
+    meta[w.name] = { label: w.label, cluster: w.cluster, interval: w.interval || 60 };
   }
-  return meta;
+  return { meta, websites };
 }
 
-function generateHTML(structure, publicUrl, websitesMeta) {
+function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
   const websites = Object.keys(structure).sort();
   const baseUrl = publicUrl.replace(/\/$/, '');
 
@@ -379,6 +379,93 @@ function generateHTML(structure, publicUrl, websitesMeta) {
       font-size: 0.95rem;
     }
 
+    /* Schema tab */
+    .tab-schema {
+      margin-left: auto;
+      background: #f0ebf6;
+      border-color: #c9b8d9;
+      font-weight: 600;
+    }
+
+    .tab-schema.active {
+      background: #5a2d82;
+      border-color: #5a2d82;
+    }
+
+    .schema-intro {
+      margin-bottom: 1.5rem;
+      padding: 1rem 1.2rem;
+      background: #f0ebf6;
+      border-radius: 10px;
+      border-left: 4px solid #783c96;
+      font-size: 0.85rem;
+      color: #5a4a6a;
+      line-height: 1.6;
+    }
+
+    .schema-intro code {
+      background: #e4d9ee;
+      padding: 0.1em 0.4em;
+      border-radius: 4px;
+      font-size: 0.82rem;
+      font-family: 'SFMono-Regular', 'Consolas', monospace;
+      color: #783c96;
+    }
+
+    .schema-group { margin-bottom: 2rem; }
+
+    .schema-group-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #8a7a9a;
+      margin-bottom: 0.6rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 1px solid #ece8f0;
+    }
+
+    .schema-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.84rem;
+    }
+
+    .schema-table th {
+      text-align: left;
+      padding: 0.5rem 0.9rem;
+      font-weight: 600;
+      color: #5a4a6a;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      background: #f8f5fa;
+    }
+
+    .schema-table td {
+      padding: 0.55rem 0.9rem;
+      border-bottom: 1px solid #f5f2f8;
+      vertical-align: middle;
+    }
+
+    .schema-table tr:last-child td { border-bottom: none; }
+
+    .schema-table .site-label { font-weight: 600; color: #2d2d3a; }
+
+    .interval-badge {
+      display: inline-block;
+      padding: 0.22rem 0.65rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    .interval-30  { background: #dcfce7; color: #15803d; }
+    .interval-60  { background: #dbeafe; color: #1d4ed8; }
+    .interval-120 { background: #fef9c3; color: #a16207; }
+    .interval-180 { background: #ffedd5; color: #c2410c; }
+    .interval-240 { background: #fee2e2; color: #b91c1c; }
+
     @media (max-width: 700px) {
       header { padding: 1rem; }
       .header-inner { flex-direction: column; align-items: flex-start; gap: 0.2rem; }
@@ -386,6 +473,7 @@ function generateHTML(structure, publicUrl, websitesMeta) {
       .tabs { padding: 0.5rem 1rem; top: auto; position: relative; }
       .content { padding: 1rem; }
       .grid { grid-template-columns: 1fr; }
+      .schema-table th, .schema-table td { padding: 0.45rem 0.6rem; }
     }
   </style>
 </head>
@@ -416,6 +504,7 @@ function generateHTML(structure, publicUrl, websitesMeta) {
       const label = m ? m.label : w;
       return `<button class="tab${i === 0 ? ' active' : ''}" data-site="${w}" data-cluster="${m ? m.cluster : ''}">${label}</button>`;
     }).join('\n    ')}
+    <button class="tab tab-schema" data-site="__schema__" data-cluster="">Schema</button>
   </div>
 
   <div class="content">
@@ -445,6 +534,46 @@ function generateHTML(structure, publicUrl, websitesMeta) {
       </div>`).join('\n      ')}
     </div>`;
     }).join('\n    ')}
+  </div>
+
+  <div class="website-section" data-site="__schema__">
+    <div class="schema-intro">
+      Pas de frequentie per site aan via het <code>interval</code>-veld in <code>websites.json</code>.
+      Geldige waarden: <strong>30</strong> (2x/uur), <strong>60</strong> (1x/uur),
+      <strong>120</strong> (1x/2u), <strong>180</strong> (1x/3u), <strong>240</strong> (1x/4u) minuten.
+      Na aanpassen: commit &amp; push naar GitHub, de volgende run gebruikt direct de nieuwe instelling.
+    </div>
+    ${(() => {
+      const grouped = {};
+      for (const w of allWebsites) {
+        const cluster = w.cluster || 'Overig';
+        if (!grouped[cluster]) grouped[cluster] = [];
+        grouped[cluster].push(w);
+      }
+      return Object.entries(grouped).map(([cluster, sites]) => `
+    <div class="schema-group">
+      <div class="schema-group-title">${cluster}</div>
+      <table class="schema-table">
+        <thead><tr><th>Site</th><th>URL</th><th>Interval</th><th>Frequentie</th></tr></thead>
+        <tbody>
+          ${sites.map(w => {
+            const interval = w.interval || 60;
+            const freq = interval === 30 ? '2x per uur'
+              : interval === 60 ? '1x per uur'
+              : interval === 120 ? '1x per 2 uur'
+              : interval === 180 ? '1x per 3 uur'
+              : `1x per ${interval / 60} uur`;
+            return `<tr>
+              <td class="site-label">${w.label}</td>
+              <td style="color:#8a7a9a;font-size:0.78rem">${w.url}</td>
+              <td><span class="interval-badge interval-${interval}">${interval} min</span></td>
+              <td style="color:#6a5a7a">${freq}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`).join('');
+    })()}
   </div>
 
   <div class="lightbox" id="lightbox">
@@ -518,9 +647,10 @@ function generateHTML(structure, publicUrl, websitesMeta) {
 
       tabs.forEach(tab => {
         const cluster = tab.dataset.cluster;
-        const visible = !filterState.cluster || cluster === filterState.cluster;
+        const isSchema = tab.dataset.site === '__schema__';
+        const visible = isSchema || !filterState.cluster || cluster === filterState.cluster;
         tab.classList.toggle('hidden', !visible);
-        if (visible && !firstVisible) firstVisible = tab;
+        if (visible && !isSchema && !firstVisible) firstVisible = tab;
         if (visible && tab.classList.contains('active')) activeIsVisible = true;
       });
 
@@ -573,7 +703,10 @@ function generateHTML(structure, publicUrl, websitesMeta) {
       const section = document.querySelector('.website-section[data-site="' + tab.dataset.site + '"]');
       if (section) {
         section.classList.add('active');
-        loadSection();
+        // Verberg filterbar bij schema-tab, toon hem bij normale tabs
+        const filterBar = document.querySelector('.filter-bar');
+        if (filterBar) filterBar.style.display = tab.dataset.site === '__schema__' ? 'none' : '';
+        if (tab.dataset.site !== '__schema__') loadSection();
       }
     }
 
@@ -632,11 +765,11 @@ async function main() {
   console.log(`   Found ${objects.length} object(s)`);
 
   const structure = buildStructure(objects);
-  const websitesMeta = loadWebsitesMeta();
+  const { meta: websitesMeta, websites: allWebsites } = loadWebsitesMeta();
   const websiteCount = Object.keys(structure).length;
   console.log(`   ${websiteCount} website(s) with screenshots\n`);
 
-  const html = generateHTML(structure, publicUrl, websitesMeta);
+  const html = generateHTML(structure, publicUrl, websitesMeta, allWebsites);
 
   console.log('Uploading index.html...');
   await client.send(new PutObjectCommand({
