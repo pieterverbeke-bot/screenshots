@@ -39,6 +39,14 @@ jobs:
           R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
         run: node src/upload-to-r2.js
 
+      - name: Cleanup old screenshots (older than 15 days)
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+        run: node src/cleanup-r2.js
+
       - name: Update viewer page
         env:
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
