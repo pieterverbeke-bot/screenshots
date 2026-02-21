@@ -341,8 +341,8 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
     }
 
     /* Desktop neemt meer ruimte, mobiel is smaller */
-    .card-thumb.desktop { flex: 7; }
-    .card-thumb.mobile  { flex: 3; border-left: 2px solid #f0ecf3; }
+    .card-thumb.desktop { flex: 7; border-left: 2px solid #f0ecf3; }
+    .card-thumb.mobile  { flex: 3; }
     .card-thumb.solo    { flex: 1; }
 
     .card-thumb:hover { filter: brightness(0.97); }
@@ -584,26 +584,23 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
             const shouldLoad = i === 0 && date === dateKeys[0];
             const hasBoth = pair.desktop && pair.mobile;
 
-            // Desktop thumb
+            // Mobiel thumb (links)
             let thumbs = '';
+            if (pair.mobile) {
+              const url = baseUrl + '/' + pair.mobile.key;
+              const src = shouldLoad ? 'src="'+url+'"' : '';
+              const cls = hasBoth ? 'mobile' : 'solo';
+              thumbs += '<div class="card-thumb '+cls+'" data-url="'+url+'">'
+                + '<img '+src+' data-src="'+url+'" alt="Mobiel">'
+                + '<span class="device-badge mobile-badge">Mobiel</span></div>';
+            }
+            // Desktop thumb (rechts)
             if (pair.desktop) {
               const url = baseUrl + '/' + pair.desktop.key;
               const src = shouldLoad ? 'src="'+url+'"' : '';
               thumbs += '<div class="card-thumb desktop" data-url="'+url+'">'
                 + '<img '+src+' data-src="'+url+'" alt="Desktop">'
                 + '<span class="device-badge">Desktop</span></div>';
-            }
-            // Mobiel thumb
-            if (pair.mobile) {
-              const url = baseUrl + '/' + pair.mobile.key;
-              const src = shouldLoad ? 'src="'+url+'"' : '';
-              thumbs += '<div class="card-thumb mobile" data-url="'+url+'">'
-                + '<img '+src+' data-src="'+url+'" alt="Mobiel">'
-                + '<span class="device-badge mobile-badge">Mobiel</span></div>';
-            }
-            // Solo (alleen mobiel, geen desktop)
-            if (!pair.desktop && pair.mobile && !hasBoth) {
-              thumbs = thumbs.replace('class="card-thumb mobile"', 'class="card-thumb solo"');
             }
 
             return '<div class="card">'
