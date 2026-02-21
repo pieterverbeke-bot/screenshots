@@ -6,11 +6,12 @@ on:
 
 concurrency:
   group: screenshots
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   screenshot:
     runs-on: ubuntu-latest
+    timeout-minutes: 55
 
     steps:
       - name: Checkout repository
