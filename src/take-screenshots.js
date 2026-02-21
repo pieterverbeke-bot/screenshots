@@ -520,13 +520,17 @@ async function dismissPopups(page) {
   }
 }
 
-// Desktop: volledige flow met consent-afhandeling
-async function loadAndPrepare(page, website) {
+// Laad pagina en maak klaar voor screenshot (consent-afhandeling, overlays, scroll).
+// waitUntil: 'networkidle2' voor desktop (wacht op rustige netwerksituatie),
+//            'domcontentloaded' voor mobiel (homepages hebben constante achtergrond-requests
+//             van ads/trackers waardoor networkidle2 nooit bereikt wordt binnen 60s).
+//             autoScroll() en waitForImages() daarna laden de content alsnog correct.
+async function loadAndPrepare(page, website, waitUntil = 'networkidle2') {
   const { name, url } = website;
 
-  console.log(`📸 ${name}: Navigating to ${url}`);
+  console.log(`📸 ${name}: Navigating to ${url} (waitUntil: ${waitUntil})`);
   await page.goto(url, {
-    waitUntil: 'networkidle2',
+    waitUntil,
     timeout: CONFIG.timeout
   });
 
@@ -578,8 +582,12 @@ async function capturePage(browser, website, timestamp, mode) {
       await page.setViewport(CONFIG.desktopViewport);
     }
 
+    // Mobile: gebruik 'domcontentloaded' i.p.v. 'networkidle2' — zware homepages
+    // (veel ads/trackers) bereiken networkidle2 nooit binnen de timeout.
+    // autoScroll + waitForImages in loadAndPrepare laden de content daarna alsnog.
+    const waitUntil = isMobile ? 'domcontentloaded' : 'networkidle2';
     console.log(`${icon} ${name}: Loading page (${mode})...`);
-    await loadAndPrepare(page, website);
+    await loadAndPrepare(page, website, waitUntil);
 
     const suffix = isMobile ? '_mobile' : '';
     const filename = `${name}_${timestamp}${suffix}.webp`;
