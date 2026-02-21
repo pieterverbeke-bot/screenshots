@@ -20,8 +20,10 @@ const CONFIG = {
   mobileViewport: {
     width: 390,
     height: 844,
+    deviceScaleFactor: 3,
     isMobile: true,
-    hasTouch: true
+    hasTouch: true,
+    isLandscape: false
   },
   fullPage: true,
   timeout: 60000,
@@ -34,6 +36,9 @@ const CONFIG = {
   // Aantal sites die tegelijk verwerkt worden
   concurrency: 2
 };
+
+// Echte iPhone Safari User-Agent: sites detecteren dit om de mobiele versie te serveren
+const MOBILE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
 
 // Genereer timestamp in GMT+1 (België/Nederland)
 function getLocalTimestamp() {
@@ -554,20 +559,33 @@ async function loadAndPrepare(page, website) {
   await removeRemainingOverlays(page);
 }
 
-async function takeScreenshot(browser, website) {
-  const { name, url } = website;
-  const timestamp = getLocalTimestamp();
+// Neem één screenshot (desktop of mobiel) op een verse pagina.
+// De pagina wordt aangemaakt met de juiste viewport + UA VOOR de navigatie —
+// zo ziet de site van meet af aan het juiste apparaat en hoeven we nooit
+// van viewport te wisselen op een al geladen pagina (de bron van alle problemen).
+async function capturePage(browser, website, timestamp, mode) {
+  const { name } = website;
+  const isMobile = mode === 'mobile';
+  const icon = isMobile ? '📱' : '📸';
 
   const page = await browser.newPage();
   try {
-    // --- STAP 1: Desktop screenshot ---
-    await page.setViewport(CONFIG.desktopViewport);
+    // Stel viewport (en UA voor mobiel) in VOOR goto() — anders detecteert de site het verkeerd
+    if (isMobile) {
+      await page.setUserAgent(MOBILE_UA);
+      await page.setViewport(CONFIG.mobileViewport);
+    } else {
+      await page.setViewport(CONFIG.desktopViewport);
+    }
+
+    console.log(`${icon} ${name}: Loading page (${mode})...`);
     await loadAndPrepare(page, website);
 
-    const filename = `${name}_${timestamp}.webp`;
+    const suffix = isMobile ? '_mobile' : '';
+    const filename = `${name}_${timestamp}${suffix}.webp`;
     const filepath = join(SCREENSHOTS_DIR, filename);
 
-    console.log(`📸 ${name}: Taking desktop screenshot...`);
+    console.log(`${icon} ${name}: Taking ${mode} screenshot...`);
     await page.screenshot({
       path: filepath,
       fullPage: CONFIG.fullPage,
@@ -575,78 +593,36 @@ async function takeScreenshot(browser, website) {
       quality: CONFIG.webpQuality
     });
     console.log(`✅ ${name}: Saved ${filename}`);
-
-    // --- STAP 2: Mobiel screenshot ---
-    // Aparte try/catch zodat een fout in de mobile fase de desktop-screenshot niet ongedaan maakt.
-    let mobileFilename = null;
-    try {
-      console.log(`📱 ${name}: Switching to mobile viewport (${CONFIG.mobileViewport.width}x${CONFIG.mobileViewport.height})...`);
-      await page.setViewport(CONFIG.mobileViewport);
-
-      // Sommige sites reageren op de viewport-wissel via een resize-event en starten een navigatie
-      // (bv. redirect naar m.site.com of een mobiele homepagina). Wacht tot die navigatie klaar is
-      // zodat de execution context stabiel is voor de volgende page.evaluate()-aanroepen.
-      console.log(`📱 ${name}: Waiting for potential navigation after viewport switch...`);
-      await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 5000 }).catch(err => {
-        // Geen navigatie gedetecteerd binnen 5s — dat is normaal voor responsive sites
-        console.log(`📱 ${name}: No navigation detected (${err.name}), continuing`);
-      });
-
-      // Scroll terug naar top — in eigen try/catch: als de pagina halverwege een nieuwe navigatie
-      // begon, kan page.evaluate() de fout "Execution context was destroyed" gooien.
-      try {
-        await page.evaluate(() => window.scrollTo(0, 0));
-        console.log(`📱 ${name}: Scrolled to top`);
-      } catch (evalErr) {
-        console.log(`📱 ${name}: scrollTo(0,0) failed (${evalErr.message}), waiting for page to settle...`);
-        // Wacht extra op een eventuele navigatie die nog bezig is
-        await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 8000 }).catch(() => {});
-        try { await page.evaluate(() => window.scrollTo(0, 0)); } catch { /* negeer */ }
-      }
-
-      // Wacht op CSS media queries / JS om te re-layouten (breakpoints passen de weergave aan)
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Verwijder overlays en popups die door viewport-wissel kunnen verschijnen
-      // (sommige sites tonen een app-download banner of nieuw consent-venster op smalle schermen)
-      console.log(`📱 ${name}: Cleaning overlays and popups...`);
-      await removeRemainingOverlays(page);
-      await dismissPopups(page);
-
-      // Scroll voor lazy-loaded afbeeldingen in de mobiele layout
-      console.log(`📱 ${name}: Scrolling mobile layout...`);
-      await autoScroll(page);
-      await waitForImages(page);
-      await new Promise(resolve => setTimeout(resolve, CONFIG.waitAfterScroll));
-
-      // Laatste cleanup na scroll
-      await removeRemainingOverlays(page);
-      try { await page.evaluate(() => window.scrollTo(0, 0)); } catch { /* negeer */ }
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      mobileFilename = `${name}_${timestamp}_mobile.webp`;
-      const mobileFilepath = join(SCREENSHOTS_DIR, mobileFilename);
-
-      console.log(`📱 ${name}: Taking mobile screenshot...`);
-      await page.screenshot({
-        path: mobileFilepath,
-        fullPage: CONFIG.fullPage,
-        type: 'webp',
-        quality: CONFIG.webpQuality
-      });
-      console.log(`✅ ${name}: Saved ${mobileFilename}`);
-    } catch (mobileError) {
-      console.error(`📱 ${name}: Mobile screenshot failed — ${mobileError.message}`);
-      mobileFilename = null;
-    }
-
-    return { success: true, name, filename, mobileFilename };
-  } catch (error) {
-    console.error(`❌ ${name}: ${error.message}`);
-    return { success: false, name, error: error.message };
+    return filename;
   } finally {
     await page.close();
   }
+}
+
+async function takeScreenshot(browser, website) {
+  const { name } = website;
+  const timestamp = getLocalTimestamp();
+
+  // --- STAP 1: Desktop screenshot ---
+  let filename;
+  try {
+    filename = await capturePage(browser, website, timestamp, 'desktop');
+  } catch (error) {
+    console.error(`❌ ${name}: Desktop screenshot failed — ${error.message}`);
+    return { success: false, name, error: error.message };
+  }
+
+  // --- STAP 2: Mobiel screenshot op een verse pagina ---
+  // Aparte try/catch: een mislukt mobiel screenshot mag de desktop-uitkomst niet ongedaan maken.
+  let mobileFilename = null;
+  try {
+    mobileFilename = await capturePage(browser, website, timestamp, 'mobile');
+  } catch (mobileError) {
+    console.error(`📱 ${name}: Mobile screenshot failed — ${mobileError.message}`);
+    mobileFilename = null;
+  }
+
+  return { success: true, name, filename, mobileFilename };
 }
 
 // Verwerk websites in parallelle batches
