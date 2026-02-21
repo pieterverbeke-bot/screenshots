@@ -16,6 +16,13 @@ const CONFIG = {
     width: 1920,
     height: 1080
   },
+  // Mobiel viewport: iPhone 14/15 afmetingen (390x844), met touch-ondersteuning
+  mobileViewport: {
+    width: 390,
+    height: 844,
+    isMobile: true,
+    hasTouch: true
+  },
   fullPage: true,
   timeout: 60000,
   scrollDelay: 300,
@@ -553,22 +560,63 @@ async function takeScreenshot(browser, website) {
 
   const page = await browser.newPage();
   try {
+    // --- STAP 1: Desktop screenshot ---
     await page.setViewport(CONFIG.desktopViewport);
     await loadAndPrepare(page, website);
 
     const filename = `${name}_${timestamp}.webp`;
     const filepath = join(SCREENSHOTS_DIR, filename);
 
-    console.log(`📸 ${name}: Taking screenshot...`);
+    console.log(`📸 ${name}: Taking desktop screenshot...`);
     await page.screenshot({
       path: filepath,
       fullPage: CONFIG.fullPage,
       type: 'webp',
       quality: CONFIG.webpQuality
     });
-
     console.log(`✅ ${name}: Saved ${filename}`);
-    return { success: true, name, filename };
+
+    // --- STAP 2: Mobiel screenshot (zelfde pagina, alleen viewport aanpassen) ---
+    // Voordeel: consent cookies zijn al gezet, geen nieuwe popups mogelijk.
+    // Geen page reload: we vertrekken echt van dezelfde basis als de desktop screenshot.
+    console.log(`📱 ${name}: Switching to mobile viewport (${CONFIG.mobileViewport.width}x${CONFIG.mobileViewport.height})...`);
+    await page.setViewport(CONFIG.mobileViewport);
+
+    // Scroll terug naar top na viewport-wissel
+    await page.evaluate(() => window.scrollTo(0, 0));
+
+    // Wacht op CSS media queries om te re-layouten (breakpoints passen de weergave aan)
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Verwijder overlays die door viewport-wissel kunnen verschijnen
+    // (sommige sites tonen een app-download banner op smalle schermen)
+    await removeRemainingOverlays(page);
+    await dismissPopups(page);
+
+    // Scroll voor lazy-loaded afbeeldingen in mobiele layout
+    console.log(`📱 ${name}: Scrolling mobile layout...`);
+    await autoScroll(page);
+    await waitForImages(page);
+    await new Promise(resolve => setTimeout(resolve, CONFIG.waitAfterScroll));
+
+    // Laatste cleanup
+    await removeRemainingOverlays(page);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const mobileFilename = `${name}_${timestamp}_mobile.webp`;
+    const mobileFilepath = join(SCREENSHOTS_DIR, mobileFilename);
+
+    console.log(`📱 ${name}: Taking mobile screenshot...`);
+    await page.screenshot({
+      path: mobileFilepath,
+      fullPage: CONFIG.fullPage,
+      type: 'webp',
+      quality: CONFIG.webpQuality
+    });
+    console.log(`✅ ${name}: Saved ${mobileFilename}`);
+
+    return { success: true, name, filename, mobileFilename };
   } catch (error) {
     console.error(`❌ ${name}: ${error.message}`);
     return { success: false, name, error: error.message };
