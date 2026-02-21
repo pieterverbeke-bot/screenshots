@@ -1,40 +1,7 @@
-import { S3Client, ListObjectsV2Command, PutObjectCommand } from '@aws-sdk/client-s3';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { readFileSync } from 'fs';
-
-function createR2Client() {
-  const accountId = (process.env.R2_ACCOUNT_ID || '').trim();
-  const accessKeyId = (process.env.R2_ACCESS_KEY_ID || '').trim();
-  const secretAccessKey = (process.env.R2_SECRET_ACCESS_KEY || '').trim();
-
-  if (!accountId || !accessKeyId || !secretAccessKey) {
-    throw new Error('Missing R2 credentials.');
-  }
-
-  return new S3Client({
-    region: 'auto',
-    endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-    credentials: { accessKeyId, secretAccessKey },
-  });
-}
-
-async function listAllObjects(client, bucketName) {
-  const objects = [];
-  let continuationToken;
-
-  do {
-    const response = await client.send(new ListObjectsV2Command({
-      Bucket: bucketName,
-      ContinuationToken: continuationToken,
-    }));
-
-    if (response.Contents) {
-      objects.push(...response.Contents);
-    }
-    continuationToken = response.NextContinuationToken;
-  } while (continuationToken);
-
-  return objects;
-}
+import { gzipSync } from 'zlib';
+import { createR2Client, listAllObjects } from './r2-client.js';
 
 function buildStructure(objects) {
   // Structuur: { websiteName: { datum: [{ baseFilename, desktop, mobile }] } }
@@ -849,12 +816,17 @@ async function main() {
 
   const html = generateHTML(structure, publicUrl, websitesMeta, allWebsites);
 
-  console.log('Uploading index.html...');
+  // Gzip compressie: typisch 70-80% kleiner, snellere downloads
+  const compressed = gzipSync(html, { level: 9 });
+  const savings = Math.round((1 - compressed.length / Buffer.byteLength(html)) * 100);
+  console.log(`Uploading index.html (${Math.round(Buffer.byteLength(html) / 1024)} KB → ${Math.round(compressed.length / 1024)} KB gzipped, ${savings}% smaller)...`);
+
   await client.send(new PutObjectCommand({
     Bucket: bucketName,
     Key: 'index.html',
-    Body: html,
+    Body: compressed,
     ContentType: 'text/html; charset=utf-8',
+    ContentEncoding: 'gzip',
   }));
 
   console.log(`Viewer uploaded to: ${publicUrl}/index.html`);

@@ -17,24 +17,25 @@ const CONFIG = {
     height: 1080
   },
   // Mobiel viewport: iPhone 14/15 afmetingen (390x844), met touch-ondersteuning
+  // deviceScaleFactor 2 i.p.v. 3: ~44% kleinere bestanden, nauwelijks zichtbaar verschil voor monitoring
   mobileViewport: {
     width: 390,
     height: 844,
-    deviceScaleFactor: 3,
+    deviceScaleFactor: 2,
     isMobile: true,
     hasTouch: true,
     isLandscape: false
   },
   fullPage: true,
   timeout: 60000,
-  scrollDelay: 300,
-  waitAfterScroll: 2000,
-  // WebP compressie (0-100), 60 is goede balans tussen kwaliteit en grootte
-  webpQuality: 60,
+  scrollDelay: 200,
+  waitAfterScroll: 1500,
+  // WebP compressie (0-100), 55 is goede balans tussen kwaliteit en grootte voor monitoring
+  webpQuality: 55,
   // Tijdzone voor bestandsnamen
   timezone: 'Europe/Brussels',
-  // Aantal sites die tegelijk verwerkt worden
-  concurrency: 2
+  // Aantal sites die tegelijk verwerkt worden (3 is optimaal voor GitHub Actions 2-core runners)
+  concurrency: 3
 };
 
 // Echte iPhone Safari User-Agent: sites detecteren dit om de mobiele versie te serveren
@@ -618,23 +619,24 @@ async function takeScreenshot(browser, website) {
   const { name } = website;
   const timestamp = getLocalTimestamp();
 
-  // --- STAP 1: Desktop screenshot ---
-  let filename;
-  try {
-    filename = await capturePage(browser, website, timestamp, 'desktop');
-  } catch (error) {
-    console.error(`❌ ${name}: Desktop screenshot failed — ${error.message}`);
-    return { success: false, name, error: error.message };
+  // Desktop en mobiel parallel: elk op eigen page, halveert de tijd per site
+  const [desktopResult, mobileResult] = await Promise.allSettled([
+    capturePage(browser, website, timestamp, 'desktop'),
+    capturePage(browser, website, timestamp, 'mobile'),
+  ]);
+
+  const filename = desktopResult.status === 'fulfilled' ? desktopResult.value : null;
+  const mobileFilename = mobileResult.status === 'fulfilled' ? mobileResult.value : null;
+
+  if (!filename) {
+    console.error(`❌ ${name}: Desktop screenshot failed — ${desktopResult.reason?.message}`);
+  }
+  if (!mobileFilename) {
+    console.error(`📱 ${name}: Mobile screenshot failed — ${mobileResult.reason?.message}`);
   }
 
-  // --- STAP 2: Mobiel screenshot op een verse pagina ---
-  // Aparte try/catch: een mislukt mobiel screenshot mag de desktop-uitkomst niet ongedaan maken.
-  let mobileFilename = null;
-  try {
-    mobileFilename = await capturePage(browser, website, timestamp, 'mobile');
-  } catch (mobileError) {
-    console.error(`📱 ${name}: Mobile screenshot failed — ${mobileError.message}`);
-    mobileFilename = null;
+  if (!filename) {
+    return { success: false, name, error: desktopResult.reason?.message };
   }
 
   return { success: true, name, filename, mobileFilename };
