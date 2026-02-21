@@ -576,45 +576,69 @@ async function takeScreenshot(browser, website) {
     });
     console.log(`✅ ${name}: Saved ${filename}`);
 
-    // --- STAP 2: Mobiel screenshot (zelfde pagina, alleen viewport aanpassen) ---
-    // Voordeel: consent cookies zijn al gezet, geen nieuwe popups mogelijk.
-    // Geen page reload: we vertrekken echt van dezelfde basis als de desktop screenshot.
-    console.log(`📱 ${name}: Switching to mobile viewport (${CONFIG.mobileViewport.width}x${CONFIG.mobileViewport.height})...`);
-    await page.setViewport(CONFIG.mobileViewport);
+    // --- STAP 2: Mobiel screenshot ---
+    // Aparte try/catch zodat een fout in de mobile fase de desktop-screenshot niet ongedaan maakt.
+    let mobileFilename = null;
+    try {
+      console.log(`📱 ${name}: Switching to mobile viewport (${CONFIG.mobileViewport.width}x${CONFIG.mobileViewport.height})...`);
+      await page.setViewport(CONFIG.mobileViewport);
 
-    // Scroll terug naar top na viewport-wissel
-    await page.evaluate(() => window.scrollTo(0, 0));
+      // Sommige sites reageren op de viewport-wissel via een resize-event en starten een navigatie
+      // (bv. redirect naar m.site.com of een mobiele homepagina). Wacht tot die navigatie klaar is
+      // zodat de execution context stabiel is voor de volgende page.evaluate()-aanroepen.
+      console.log(`📱 ${name}: Waiting for potential navigation after viewport switch...`);
+      await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 5000 }).catch(err => {
+        // Geen navigatie gedetecteerd binnen 5s — dat is normaal voor responsive sites
+        console.log(`📱 ${name}: No navigation detected (${err.name}), continuing`);
+      });
 
-    // Wacht op CSS media queries om te re-layouten (breakpoints passen de weergave aan)
-    await new Promise(resolve => setTimeout(resolve, 2000));
+      // Scroll terug naar top — in eigen try/catch: als de pagina halverwege een nieuwe navigatie
+      // begon, kan page.evaluate() de fout "Execution context was destroyed" gooien.
+      try {
+        await page.evaluate(() => window.scrollTo(0, 0));
+        console.log(`📱 ${name}: Scrolled to top`);
+      } catch (evalErr) {
+        console.log(`📱 ${name}: scrollTo(0,0) failed (${evalErr.message}), waiting for page to settle...`);
+        // Wacht extra op een eventuele navigatie die nog bezig is
+        await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 8000 }).catch(() => {});
+        try { await page.evaluate(() => window.scrollTo(0, 0)); } catch { /* negeer */ }
+      }
 
-    // Verwijder overlays die door viewport-wissel kunnen verschijnen
-    // (sommige sites tonen een app-download banner op smalle schermen)
-    await removeRemainingOverlays(page);
-    await dismissPopups(page);
+      // Wacht op CSS media queries / JS om te re-layouten (breakpoints passen de weergave aan)
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
-    // Scroll voor lazy-loaded afbeeldingen in mobiele layout
-    console.log(`📱 ${name}: Scrolling mobile layout...`);
-    await autoScroll(page);
-    await waitForImages(page);
-    await new Promise(resolve => setTimeout(resolve, CONFIG.waitAfterScroll));
+      // Verwijder overlays en popups die door viewport-wissel kunnen verschijnen
+      // (sommige sites tonen een app-download banner of nieuw consent-venster op smalle schermen)
+      console.log(`📱 ${name}: Cleaning overlays and popups...`);
+      await removeRemainingOverlays(page);
+      await dismissPopups(page);
 
-    // Laatste cleanup
-    await removeRemainingOverlays(page);
-    await page.evaluate(() => window.scrollTo(0, 0));
-    await new Promise(resolve => setTimeout(resolve, 500));
+      // Scroll voor lazy-loaded afbeeldingen in de mobiele layout
+      console.log(`📱 ${name}: Scrolling mobile layout...`);
+      await autoScroll(page);
+      await waitForImages(page);
+      await new Promise(resolve => setTimeout(resolve, CONFIG.waitAfterScroll));
 
-    const mobileFilename = `${name}_${timestamp}_mobile.webp`;
-    const mobileFilepath = join(SCREENSHOTS_DIR, mobileFilename);
+      // Laatste cleanup na scroll
+      await removeRemainingOverlays(page);
+      try { await page.evaluate(() => window.scrollTo(0, 0)); } catch { /* negeer */ }
+      await new Promise(resolve => setTimeout(resolve, 500));
 
-    console.log(`📱 ${name}: Taking mobile screenshot...`);
-    await page.screenshot({
-      path: mobileFilepath,
-      fullPage: CONFIG.fullPage,
-      type: 'webp',
-      quality: CONFIG.webpQuality
-    });
-    console.log(`✅ ${name}: Saved ${mobileFilename}`);
+      mobileFilename = `${name}_${timestamp}_mobile.webp`;
+      const mobileFilepath = join(SCREENSHOTS_DIR, mobileFilename);
+
+      console.log(`📱 ${name}: Taking mobile screenshot...`);
+      await page.screenshot({
+        path: mobileFilepath,
+        fullPage: CONFIG.fullPage,
+        type: 'webp',
+        quality: CONFIG.webpQuality
+      });
+      console.log(`✅ ${name}: Saved ${mobileFilename}`);
+    } catch (mobileError) {
+      console.error(`📱 ${name}: Mobile screenshot failed — ${mobileError.message}`);
+      mobileFilename = null;
+    }
 
     return { success: true, name, filename, mobileFilename };
   } catch (error) {
