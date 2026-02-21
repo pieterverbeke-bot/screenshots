@@ -37,8 +37,9 @@ async function listAllObjects(client, bucketName) {
 }
 
 function buildStructure(objects) {
-  // Structuur: { websiteName: { datum: [bestanden] } }
-  const structure = {};
+  // Structuur: { websiteName: { datum: [{ baseFilename, desktop, mobile }] } }
+  // desktop en mobile zijn { key, filename, size } of null (als alleen een van de twee bestaat)
+  const pairs = {};
 
   for (const obj of objects) {
     const parts = obj.Key.split('/');
@@ -47,23 +48,40 @@ function buildStructure(objects) {
     if (!parts[2].endsWith('.webp') && !parts[2].endsWith('.jpg')) continue;
 
     const [website, date, filename] = parts;
+    const isMobile = /_mobile\.(webp|jpg)$/.test(filename);
 
-    if (!structure[website]) structure[website] = {};
-    if (!structure[website][date]) structure[website][date] = [];
+    // Basisnaam: verwijder _mobile suffix zodat desktop+mobiel gekoppeld worden
+    const baseFilename = isMobile
+      ? filename.replace(/_mobile(\.(webp|jpg))$/, '$1')
+      : filename;
 
-    structure[website][date].push({
-      key: obj.Key,
-      filename,
-      size: obj.Size,
-      lastModified: obj.LastModified,
-    });
+    const pairKey = `${website}/${date}/${baseFilename}`;
+    if (!pairs[pairKey]) {
+      pairs[pairKey] = { website, date, baseFilename, desktop: null, mobile: null };
+    }
+
+    const fileInfo = { key: obj.Key, filename, size: obj.Size };
+    if (isMobile) {
+      pairs[pairKey].mobile = fileInfo;
+    } else {
+      pairs[pairKey].desktop = fileInfo;
+    }
   }
 
-  // Sorteer datums nieuwste eerst, en bestanden binnen elke datum ook nieuwste eerst
+  // Groepeer koppels per website en datum
+  const structure = {};
+  for (const pair of Object.values(pairs)) {
+    const { website, date } = pair;
+    if (!structure[website]) structure[website] = {};
+    if (!structure[website][date]) structure[website][date] = [];
+    structure[website][date].push(pair);
+  }
+
+  // Sorteer datums nieuwste eerst, en koppels binnen een datum ook nieuwste eerst
   for (const website of Object.keys(structure)) {
     const sorted = {};
     for (const date of Object.keys(structure[website]).sort().reverse()) {
-      sorted[date] = structure[website][date].sort((a, b) => b.filename.localeCompare(a.filename));
+      sorted[date] = structure[website][date].sort((a, b) => b.baseFilename.localeCompare(a.baseFilename));
     }
     structure[website] = sorted;
   }
@@ -307,14 +325,51 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       border-color: #d9cde3;
     }
 
-    .card img {
-      width: 100%;
+    /* Desktop+mobiel naast elkaar in één kaart */
+    .card-screenshots {
+      display: flex;
+      align-items: stretch;
       height: 220px;
+    }
+
+    .card-thumb {
+      position: relative;
+      overflow: hidden;
+      cursor: zoom-in;
+      background: #f5f3f7;
+      flex: 1;
+    }
+
+    /* Desktop neemt meer ruimte, mobiel is smaller */
+    .card-thumb.desktop { flex: 7; border-left: 2px solid #f0ecf3; }
+    .card-thumb.mobile  { flex: 3; }
+    .card-thumb.solo    { flex: 1; }
+
+    .card-thumb:hover { filter: brightness(0.97); }
+
+    .card-thumb img {
+      width: 100%;
+      height: 100%;
       object-fit: cover;
       object-position: top;
       display: block;
-      background: #f5f3f7;
     }
+
+    .device-badge {
+      position: absolute;
+      bottom: 5px;
+      left: 5px;
+      background: rgba(45, 45, 58, 0.6);
+      color: #fff;
+      font-size: 0.6rem;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 3px;
+      pointer-events: none;
+      letter-spacing: 0.03em;
+    }
+
+    .device-badge.mobile-badge { background: rgba(120, 60, 150, 0.75); }
 
     .card-info {
       padding: 0.7rem 1rem;
@@ -513,22 +568,45 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       const dates = structure[website];
       const dateKeys = Object.keys(dates);
       return `<div class="website-section${i === 0 ? ' active' : ''}" data-site="${website}">
-      ${Object.entries(dates).map(([date, files]) => `<div class="date-group" data-date="${date}">
+      ${Object.entries(dates).map(([date, pairs]) => `<div class="date-group" data-date="${date}">
         <div class="date-header">${date}</div>
         <div class="grid">
-          ${files.map(f => {
-            const tIdx = f.filename.indexOf('T');
-            const timePart = tIdx > -1 ? f.filename.slice(tIdx+1, tIdx+9) : '';
+          ${pairs.map(pair => {
+            const refFile = pair.desktop || pair.mobile;
+            const tIdx = refFile.filename.indexOf('T');
+            const timePart = tIdx > -1 ? refFile.filename.slice(tIdx+1, tIdx+9) : '';
             const timeStr = timePart.length === 8 ? timePart.replace(/-/g, ':') : '';
-            const sizeKB = Math.round((f.size || 0) / 1024);
-            const imgUrl = baseUrl+'/'+f.key;
-            // Alleen images van eerste sectie + eerste datum laden, rest via data-src
+            const desktopKB = pair.desktop ? Math.round((pair.desktop.size || 0) / 1024) : 0;
+            const mobileKB  = pair.mobile  ? Math.round((pair.mobile.size  || 0) / 1024) : 0;
+            const sizeStr = pair.mobile
+              ? desktopKB + ' KB + ' + mobileKB + ' KB'
+              : desktopKB + ' KB';
             const shouldLoad = i === 0 && date === dateKeys[0];
-            const srcAttr = shouldLoad ? 'src="'+imgUrl+'"' : '';
-            return '<div class="card" data-url="'+imgUrl+'">'
-            +'<img '+srcAttr+' data-src="'+imgUrl+'" loading="lazy" alt="'+f.filename+'">'
-            +'<div class="card-info"><span>'+timeStr+'</span><span>'+sizeKB+' KB</span></div>'
-            +'</div>';
+            const hasBoth = pair.desktop && pair.mobile;
+
+            // Mobiel thumb (links)
+            let thumbs = '';
+            if (pair.mobile) {
+              const url = baseUrl + '/' + pair.mobile.key;
+              const src = shouldLoad ? 'src="'+url+'"' : '';
+              const cls = hasBoth ? 'mobile' : 'solo';
+              thumbs += '<div class="card-thumb '+cls+'" data-url="'+url+'">'
+                + '<img '+src+' data-src="'+url+'" alt="Mobiel">'
+                + '<span class="device-badge mobile-badge">Mobiel</span></div>';
+            }
+            // Desktop thumb (rechts)
+            if (pair.desktop) {
+              const url = baseUrl + '/' + pair.desktop.key;
+              const src = shouldLoad ? 'src="'+url+'"' : '';
+              thumbs += '<div class="card-thumb desktop" data-url="'+url+'">'
+                + '<img '+src+' data-src="'+url+'" alt="Desktop">'
+                + '<span class="device-badge">Desktop</span></div>';
+            }
+
+            return '<div class="card">'
+              + '<div class="card-screenshots">' + thumbs + '</div>'
+              + '<div class="card-info"><span>' + timeStr + '</span><span>' + sizeStr + '</span></div>'
+              + '</div>';
           }).join('\n          ')}
         </div>
       </div>`).join('\n      ')}
@@ -676,14 +754,13 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
         // Laad/ontlaad images op basis van datum-zichtbaarheid
         group.querySelectorAll('.card').forEach(card => {
           card.style.display = dateVisible ? '' : 'none';
-          const img = card.querySelector('img');
-          if (img) {
+          card.querySelectorAll('.card-thumb img').forEach(img => {
             if (dateVisible && !img.src && img.dataset.src) {
               img.src = img.dataset.src;
             } else if (!dateVisible && img.src) {
               img.removeAttribute('src');
             }
-          }
+          });
         });
       });
     }
@@ -697,7 +774,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       document.querySelectorAll('.website-section').forEach(s => {
         s.classList.remove('active');
         // Ontlaad images van verborgen secties om geheugen te besparen
-        s.querySelectorAll('.card img[src]').forEach(img => img.removeAttribute('src'));
+        s.querySelectorAll('.card-thumb img[src]').forEach(img => img.removeAttribute('src'));
       });
       tab.classList.add('active');
       const section = document.querySelector('.website-section[data-site="' + tab.dataset.site + '"]');
@@ -714,13 +791,14 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       tab.addEventListener('click', () => activateTab(tab));
     });
 
-    // Lightbox
+    // Lightbox: klik op desktop- of mobielthumb om te vergroten
     const lightbox = document.getElementById('lightbox');
     const lightboxImg = lightbox.querySelector('img');
 
-    document.querySelectorAll('.card').forEach(card => {
-      card.addEventListener('click', () => {
-        lightboxImg.src = card.dataset.url;
+    document.querySelectorAll('.card-thumb').forEach(thumb => {
+      thumb.addEventListener('click', (e) => {
+        e.stopPropagation();
+        lightboxImg.src = thumb.dataset.url;
         lightbox.classList.add('open');
       });
     });
