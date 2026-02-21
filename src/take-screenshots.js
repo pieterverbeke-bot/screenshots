@@ -534,6 +534,13 @@ async function loadAndPrepare(page, website, waitUntil = 'networkidle2') {
     timeout: CONFIG.timeout
   });
 
+  // Bij domcontentloaded (mobiel) een korte wacht inlassen zodat JavaScript-rendered
+  // consent popups en cookie-banners tijd hebben om in de DOM te verschijnen voordat
+  // we ze proberen weg te klikken. networkidle2 (desktop) wacht al lang genoeg.
+  if (waitUntil === 'domcontentloaded') {
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  }
+
   // Cloudflare "Verify you are human" challenge afhandelen
   await handleCloudflareChallenge(page);
 
@@ -732,7 +739,10 @@ async function main() {
   console.log('\n' + '='.repeat(50));
   const successful = results.filter(r => r.success).length;
   const failed = results.filter(r => !r.success).length;
-  console.log(`📊 Done: ${successful} successful, ${failed} failed`);
+  const mobileSuccess = results.filter(r => r.success && r.mobileFilename).length;
+  const mobileFailed = results.filter(r => r.success && !r.mobileFilename).length;
+  console.log(`📊 Done: ${successful} desktop successful, ${failed} desktop failed`);
+  console.log(`📱 Mobile: ${mobileSuccess} successful, ${mobileFailed} failed`);
 
   // Niet falen als minstens 1 screenshot is gelukt (zodat upload doorgaat)
   if (successful === 0) {
