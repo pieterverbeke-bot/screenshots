@@ -16,12 +16,12 @@ const CONFIG = {
     width: 1366,
     height: 768
   },
-  fullPage: false,
+  fullPage: true,
   timeout: 60000,
   scrollDelay: 200,
   waitAfterScroll: 1500,
-  // WebP compressie (0-100), 50 geeft goede kwaliteit bij kleinere viewport (target: <300KB)
-  webpQuality: 50,
+  // WebP compressie (0-100), 40 geeft goede kwaliteit voor full-page screenshots (grotere bestanden dan viewport-only)
+  webpQuality: 40,
   // Tijdzone voor bestandsnamen
   timezone: 'Europe/Brussels',
   // Aantal sites die tegelijk verwerkt worden (3 is optimaal voor GitHub Actions 2-core runners)
