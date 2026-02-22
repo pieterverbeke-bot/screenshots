@@ -82,6 +82,52 @@ async function autoScroll(page) {
   }
 }
 
+// Forceer laden van lazy-loaded afbeeldingen (voor sites als VRT die custom lazy loading gebruiken)
+async function forceLoadLazyImages(page) {
+  try {
+    const forced = await page.evaluate(() => {
+      let count = 0;
+      // data-src → src
+      document.querySelectorAll('img[data-src]').forEach(img => {
+        if (!img.src || img.src === '' || img.src === window.location.href || img.src.endsWith('/')) {
+          img.src = img.dataset.src;
+          count++;
+        }
+      });
+      // data-srcset → srcset
+      document.querySelectorAll('img[data-srcset]').forEach(img => {
+        if (!img.srcset) { img.srcset = img.dataset.srcset; count++; }
+      });
+      document.querySelectorAll('source[data-srcset]').forEach(source => {
+        if (!source.srcset) { source.srcset = source.dataset.srcset; count++; }
+      });
+      // Verwijder loading="lazy" om native lazy loading uit te schakelen
+      document.querySelectorAll('img[loading="lazy"]').forEach(img => {
+        img.loading = 'eager';
+        count++;
+      });
+      // VRT-specifiek: ze gebruiken vaak noscript/picture met verborgen bronnen
+      document.querySelectorAll('noscript').forEach(ns => {
+        const tmp = document.createElement('div');
+        tmp.innerHTML = ns.textContent;
+        const imgs = tmp.querySelectorAll('img');
+        imgs.forEach(img => {
+          if (img.src && !document.querySelector('img[src="' + img.src + '"]')) {
+            const parent = ns.parentElement;
+            if (parent) { parent.appendChild(img); count++; }
+          }
+        });
+      });
+      return count;
+    });
+    if (forced > 0) {
+      console.log(`🖼️  Force-loaded ${forced} lazy image(s)`);
+    }
+  } catch (error) {
+    console.log(`⚠️  Force-load lazy images error: ${error.message}`);
+  }
+}
+
 // Wacht tot alle afbeeldingen geladen zijn
 async function waitForImages(page) {
   try {
@@ -392,10 +438,20 @@ async function dismissPopups(page) {
     '[class*="notification-prompt"] button[class*="close"]',
     '[class*="newsletter"] button[class*="close"]',
     '[class*="subscribe"] button[class*="close"]',
+    // Nieuwsblad/DPG specifieke popups (notificaties, nieuwsbrief, abonnement)
+    '[class*="banner--cookie"]',
+    '[class*="banner--notification"]',
+    '[class*="cmp-modal"] button',
+    'button[data-testid="button-close"]',
+    'button[class*="modal__close"]',
+    '[class*="message-component"] button[class*="close"]',
+    '[class*="piano-"] button[class*="close"]',
+    '[id*="piano"] button[class*="close"]',
     // Generieke sluiten/weigeren knoppen voor popups
     '[aria-label="Sluiten"]',
     '[aria-label="Close"]',
     '[aria-label="close"]',
+    '[aria-label="Sluit"]',
     'button[class*="dismiss"]',
     // Generieke selectors op tekst en class/id patronen
     'button[id*="accept" i]',
@@ -474,8 +530,13 @@ async function dismissPopups(page) {
             /^niet nu$/i,
             /^later$/i,
             /^sluiten$/i,
+            /^sluit$/i,
             /^no,? thanks$/i,
             /^overslaan$/i,
+            /^misschien later$/i,
+            /^nu niet$/i,
+            /^ik wil geen meldingen$/i,
+            /^weigeren$/i,
           ];
 
           const buttons = [...document.querySelectorAll('button, a[role="button"], [class*="button"]')];
@@ -537,6 +598,10 @@ async function loadAndPrepare(page, website, waitUntil = 'networkidle2') {
   console.log(`📸 ${name}: Scrolling to load all images...`);
   await autoScroll(page);
 
+  // Forceer laden van lazy-loaded afbeeldingen (VRT, Nieuwsblad, etc.)
+  console.log(`📸 ${name}: Force-loading lazy images...`);
+  await forceLoadLazyImages(page);
+
   console.log(`📸 ${name}: Waiting for images to load...`);
   await waitForImages(page);
 
@@ -544,6 +609,7 @@ async function loadAndPrepare(page, website, waitUntil = 'networkidle2') {
   await new Promise(resolve => setTimeout(resolve, CONFIG.waitAfterScroll));
 
   // Laatste cleanup: scrollen kan nieuwe popups triggeren (notificatie-prompts, etc.)
+  await dismissPopups(page);
   await removeRemainingOverlays(page);
 }
 
