@@ -469,25 +469,6 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
 
     .hero-peek.hidden { visibility: hidden; pointer-events: none; }
 
-    /* Nu-knop */
-    .btn-nu {
-      padding: 0.2rem 0.55rem;
-      border: 1px solid #d23278;
-      border-radius: 999px;
-      background: #fff0f5;
-      color: #d23278;
-      cursor: pointer;
-      font-family: inherit;
-      font-size: 0.62rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      transition: all 0.15s ease;
-      line-height: 1.3;
-      white-space: nowrap;
-    }
-
-    .btn-nu:hover { background: #d23278; color: #fff; }
 
     .hero-placeholder {
       position: absolute;
@@ -723,7 +704,6 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
             <option value="">Spring naar...</option>
           </select>
         </div>
-        <button class="btn-nu" id="btn-nu" title="Spring naar meest recente screenshot">Nu</button>
       </div>
       <div class="toolbar-divider"></div>
       <div class="tabs-scroll" id="tabs">
@@ -883,6 +863,10 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
     // Datum-select: navigeren naar die datum in de actieve filmstrip
     (function buildDateSelect() {
       const select = document.getElementById('filter-date');
+      const vandaagOption = document.createElement('option');
+      vandaagOption.value = '__vandaag__';
+      vandaagOption.textContent = 'Vandaag';
+      select.appendChild(vandaagOption);
       allDates.forEach(date => {
         const option = document.createElement('option');
         option.value = date;
@@ -890,7 +874,19 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
         select.appendChild(option);
       });
       select.addEventListener('change', () => {
-        if (select.value) {
+        if (select.value === '__vandaag__') {
+          const activeSection = document.querySelector('.website-section.active');
+          if (activeSection && activeSection.dataset.site !== '__schema__') {
+            const thumbs = [...activeSection.querySelectorAll('.fs-thumb')];
+            const lastThumb = thumbs[thumbs.length - 1];
+            if (lastThumb) {
+              activateThumb(lastThumb);
+              const filmstrip = activeSection.querySelector('.filmstrip');
+              if (filmstrip) filmstrip.scrollTo({ left: filmstrip.scrollWidth, behavior: 'smooth' });
+            }
+          }
+          setTimeout(() => { select.value = ''; }, 600);
+        } else if (select.value) {
           scrollFilmstripToDate(select.value);
           // Reset naar placeholder na navigatie
           setTimeout(() => { select.value = ''; }, 600);
@@ -1069,19 +1065,6 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       const firstSection = document.querySelector('.website-section.active');
       if (firstSection) initSectionHero(firstSection, true);
     })();
-
-    // Nu-knop: spring naar meest recente screenshot
-    document.getElementById('btn-nu').addEventListener('click', () => {
-      const activeSection = document.querySelector('.website-section.active');
-      if (!activeSection || activeSection.dataset.site === '__schema__') return;
-      const thumbs = [...activeSection.querySelectorAll('.fs-thumb')];
-      const lastThumb = thumbs[thumbs.length - 1];
-      if (lastThumb) {
-        activateThumb(lastThumb);
-        const filmstrip = activeSection.querySelector('.filmstrip');
-        if (filmstrip) filmstrip.scrollTo({ left: filmstrip.scrollWidth, behavior: 'smooth' });
-      }
-    });
 
     // Klik op peek-afbeeldingen om te navigeren
     document.querySelectorAll('.hero-peek-left').forEach(peek => {
