@@ -4,9 +4,8 @@ import { gzipSync } from 'zlib';
 import { createR2Client, listAllObjects } from './r2-client.js';
 
 function buildStructure(objects) {
-  // Structuur: { websiteName: { datum: [{ baseFilename, desktop, mobile }] } }
-  // desktop en mobile zijn { key, filename, size } of null (als alleen een van de twee bestaat)
-  const pairs = {};
+  // Structuur: { websiteName: { datum: [{ filename, key, size }] } }
+  const structure = {};
 
   for (const obj of objects) {
     const parts = obj.Key.split('/');
@@ -15,40 +14,20 @@ function buildStructure(objects) {
     if (!parts[2].endsWith('.webp') && !parts[2].endsWith('.jpg')) continue;
 
     const [website, date, filename] = parts;
-    const isMobile = /_mobile\.(webp|jpg)$/.test(filename);
 
-    // Basisnaam: verwijder _mobile suffix zodat desktop+mobiel gekoppeld worden
-    const baseFilename = isMobile
-      ? filename.replace(/_mobile(\.(webp|jpg))$/, '$1')
-      : filename;
+    // Sla legacy mobiele screenshots over
+    if (/_mobile\.(webp|jpg)$/.test(filename)) continue;
 
-    const pairKey = `${website}/${date}/${baseFilename}`;
-    if (!pairs[pairKey]) {
-      pairs[pairKey] = { website, date, baseFilename, desktop: null, mobile: null };
-    }
-
-    const fileInfo = { key: obj.Key, filename, size: obj.Size };
-    if (isMobile) {
-      pairs[pairKey].mobile = fileInfo;
-    } else {
-      pairs[pairKey].desktop = fileInfo;
-    }
-  }
-
-  // Groepeer koppels per website en datum
-  const structure = {};
-  for (const pair of Object.values(pairs)) {
-    const { website, date } = pair;
     if (!structure[website]) structure[website] = {};
     if (!structure[website][date]) structure[website][date] = [];
-    structure[website][date].push(pair);
+    structure[website][date].push({ filename, key: obj.Key, size: obj.Size });
   }
 
-  // Sorteer datums nieuwste eerst, en koppels binnen een datum ook nieuwste eerst
+  // Sorteer datums nieuwste eerst, en screenshots binnen een datum ook nieuwste eerst
   for (const website of Object.keys(structure)) {
     const sorted = {};
     for (const date of Object.keys(structure[website]).sort().reverse()) {
-      sorted[date] = structure[website][date].sort((a, b) => b.baseFilename.localeCompare(a.baseFilename));
+      sorted[date] = structure[website][date].sort((a, b) => b.filename.localeCompare(a.filename));
     }
     structure[website] = sorted;
   }
@@ -270,13 +249,25 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       flex-shrink: 0;
     }
 
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-      gap: 1.2rem;
+    /* Horizontale tijdlijn per datum */
+    .timeline-strip {
+      display: flex;
+      flex-direction: row;
+      gap: 0.8rem;
+      overflow-x: auto;
+      padding-bottom: 1rem;
+      scroll-behavior: smooth;
+      scrollbar-width: thin;
+      scrollbar-color: #c9b8d9 #f0ebf6;
     }
 
+    .timeline-strip::-webkit-scrollbar { height: 5px; }
+    .timeline-strip::-webkit-scrollbar-track { background: #f0ebf6; border-radius: 3px; }
+    .timeline-strip::-webkit-scrollbar-thumb { background: #c9b8d9; border-radius: 3px; }
+
     .card {
+      flex: 0 0 260px;
+      width: 260px;
       background: #fff;
       border-radius: 12px;
       overflow: hidden;
@@ -288,15 +279,14 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
 
     .card:hover {
       transform: translateY(-3px);
-      box-shadow: 0 12px 24px rgba(120, 60, 150, 0.12), 0 4px 8px rgba(0,0,0,0.06);
+      box-shadow: 0 8px 20px rgba(120, 60, 150, 0.12), 0 4px 8px rgba(0,0,0,0.06);
       border-color: #d9cde3;
     }
 
-    /* Desktop+mobiel naast elkaar in één kaart */
     .card-screenshots {
       display: flex;
       align-items: stretch;
-      height: 220px;
+      height: 180px;
     }
 
     .card-thumb {
@@ -306,11 +296,6 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       background: #f5f3f7;
       flex: 1;
     }
-
-    /* Desktop neemt meer ruimte, mobiel is smaller */
-    .card-thumb.desktop { flex: 7; border-left: 2px solid #f0ecf3; }
-    .card-thumb.mobile  { flex: 3; }
-    .card-thumb.solo    { flex: 1; }
 
     .card-thumb:hover { filter: brightness(0.97); }
 
@@ -322,24 +307,8 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       display: block;
     }
 
-    .device-badge {
-      position: absolute;
-      bottom: 5px;
-      left: 5px;
-      background: rgba(45, 45, 58, 0.6);
-      color: #fff;
-      font-size: 0.6rem;
-      font-weight: 600;
-      padding: 2px 7px;
-      border-radius: 3px;
-      pointer-events: none;
-      letter-spacing: 0.03em;
-    }
-
-    .device-badge.mobile-badge { background: rgba(120, 60, 150, 0.75); }
-
     .card-info {
-      padding: 0.7rem 1rem;
+      padding: 0.55rem 0.8rem;
       font-size: 0.75rem;
       color: #8a7a9a;
       display: flex;
@@ -359,7 +328,6 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
       z-index: 1000;
-      cursor: zoom-out;
       overflow: auto;
     }
 
@@ -371,6 +339,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       display: block;
       border-radius: 8px;
       box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      cursor: default;
     }
 
     .lightbox-close {
@@ -393,6 +362,45 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
     }
 
     .lightbox-close:hover { background: rgba(255,255,255,0.2); }
+
+    .lightbox-nav {
+      position: fixed;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #fff;
+      font-size: 2.2rem;
+      cursor: pointer;
+      z-index: 1001;
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.12);
+      transition: background 0.2s;
+      user-select: none;
+    }
+
+    .lightbox-nav:hover { background: rgba(255,255,255,0.25); }
+    .lightbox-nav.prev { left: 1rem; }
+    .lightbox-nav.next { right: 1rem; }
+    .lightbox-nav.disabled { opacity: 0.2; cursor: default; pointer-events: none; }
+
+    .lightbox-counter {
+      position: fixed;
+      bottom: 1.2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255,255,255,0.7);
+      font-size: 0.8rem;
+      font-weight: 500;
+      background: rgba(0,0,0,0.3);
+      padding: 0.3rem 0.8rem;
+      border-radius: 999px;
+      z-index: 1001;
+      pointer-events: none;
+    }
 
     .empty {
       text-align: center;
@@ -494,7 +502,10 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       .filter-bar { padding: 0.6rem 1rem; top: 56px; }
       .tabs { padding: 0.5rem 1rem; top: auto; position: relative; }
       .content { padding: 1rem; }
-      .grid { grid-template-columns: 1fr; }
+      .card { flex: 0 0 200px; width: 200px; }
+      .lightbox-nav { width: 36px; height: 36px; font-size: 1.6rem; }
+      .lightbox-nav.prev { left: 0.3rem; }
+      .lightbox-nav.next { right: 0.3rem; }
       .schema-table th, .schema-table td { padding: 0.45rem 0.6rem; }
     }
   </style>
@@ -537,41 +548,22 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       return `<div class="website-section${i === 0 ? ' active' : ''}" data-site="${website}">
       ${Object.entries(dates).map(([date, pairs]) => `<div class="date-group" data-date="${date}">
         <div class="date-header">${date}</div>
-        <div class="grid">
-          ${pairs.map(pair => {
-            const refFile = pair.desktop || pair.mobile;
-            const tIdx = refFile.filename.indexOf('T');
-            const timePart = tIdx > -1 ? refFile.filename.slice(tIdx+1, tIdx+9) : '';
+        <div class="timeline-strip">
+          ${pairs.map(item => {
+            const tIdx = item.filename.indexOf('T');
+            const timePart = tIdx > -1 ? item.filename.slice(tIdx+1, tIdx+9) : '';
             const timeStr = timePart.length === 8 ? timePart.replace(/-/g, ':') : '';
-            const desktopKB = pair.desktop ? Math.round((pair.desktop.size || 0) / 1024) : 0;
-            const mobileKB  = pair.mobile  ? Math.round((pair.mobile.size  || 0) / 1024) : 0;
-            const sizeStr = pair.mobile
-              ? desktopKB + ' KB + ' + mobileKB + ' KB'
-              : desktopKB + ' KB';
+            const sizeStr = Math.round((item.size || 0) / 1024) + ' KB';
             const shouldLoad = i === 0 && date === dateKeys[0];
-            const hasBoth = pair.desktop && pair.mobile;
-
-            // Mobiel thumb (links)
-            let thumbs = '';
-            if (pair.mobile) {
-              const url = baseUrl + '/' + pair.mobile.key;
-              const src = shouldLoad ? 'src="'+url+'"' : '';
-              const cls = hasBoth ? 'mobile' : 'solo';
-              thumbs += '<div class="card-thumb '+cls+'" data-url="'+url+'">'
-                + '<img '+src+' data-src="'+url+'" alt="Mobiel">'
-                + '<span class="device-badge mobile-badge">Mobiel</span></div>';
-            }
-            // Desktop thumb (rechts)
-            if (pair.desktop) {
-              const url = baseUrl + '/' + pair.desktop.key;
-              const src = shouldLoad ? 'src="'+url+'"' : '';
-              thumbs += '<div class="card-thumb desktop" data-url="'+url+'">'
-                + '<img '+src+' data-src="'+url+'" alt="Desktop">'
-                + '<span class="device-badge">Desktop</span></div>';
-            }
+            const url = baseUrl + '/' + item.key;
+            const src = shouldLoad ? 'src="'+url+'"' : '';
 
             return '<div class="card">'
-              + '<div class="card-screenshots">' + thumbs + '</div>'
+              + '<div class="card-screenshots">'
+              + '<div class="card-thumb" data-url="'+url+'">'
+              + '<img '+src+' data-src="'+url+'" alt="Desktop">'
+              + '</div>'
+              + '</div>'
               + '<div class="card-info"><span>' + timeStr + '</span><span>' + sizeStr + '</span></div>'
               + '</div>';
           }).join('\n          ')}
@@ -622,8 +614,11 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
   </div>
 
   <div class="lightbox" id="lightbox">
-    <span class="lightbox-close">&times;</span>
-    <img src="" alt="Screenshot">
+    <span class="lightbox-close" id="lightbox-close">&times;</span>
+    <span class="lightbox-nav prev" id="lightbox-prev">&#8249;</span>
+    <span class="lightbox-nav next" id="lightbox-next">&#8250;</span>
+    <span class="lightbox-counter" id="lightbox-counter"></span>
+    <img src="" alt="Screenshot" id="lightbox-img">
   </div>
 
   <script>
@@ -712,42 +707,39 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       const activeSection = document.querySelector('.website-section.active');
       if (!activeSection) return;
 
-      // Filter date-groups op datum
+      // Toon/verberg date-groups op basis van datumfilter
       activeSection.querySelectorAll('.date-group').forEach(group => {
-        const date = group.dataset.date;
-        const dateVisible = !filterState.date || date === filterState.date;
+        const dateVisible = !filterState.date || group.dataset.date === filterState.date;
         group.style.display = dateVisible ? '' : 'none';
-
-        // Laad/ontlaad images op basis van datum-zichtbaarheid
-        group.querySelectorAll('.card').forEach(card => {
-          card.style.display = dateVisible ? '' : 'none';
-          card.querySelectorAll('.card-thumb img').forEach(img => {
-            if (dateVisible && !img.src && img.dataset.src) {
-              img.src = img.dataset.src;
-            } else if (!dateVisible && img.src) {
-              img.removeAttribute('src');
-            }
-          });
-        });
       });
     }
 
     // Pas initieel filter toe
     applyFilters();
 
+    // Lazy loading via IntersectionObserver (werkt voor zowel horizontaal als verticaal scrollen)
+    const imageObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const img = entry.target;
+          if (img.dataset.src && !img.getAttribute('src')) {
+            img.src = img.dataset.src;
+          }
+          imageObserver.unobserve(img);
+        }
+      });
+    }, { rootMargin: '300px' });
+
+    document.querySelectorAll('.card-thumb img[data-src]').forEach(img => imageObserver.observe(img));
+
     // Tabs
     function activateTab(tab) {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.website-section').forEach(s => {
-        s.classList.remove('active');
-        // Ontlaad images van verborgen secties om geheugen te besparen
-        s.querySelectorAll('.card-thumb img[src]').forEach(img => img.removeAttribute('src'));
-      });
+      document.querySelectorAll('.website-section').forEach(s => s.classList.remove('active'));
       tab.classList.add('active');
       const section = document.querySelector('.website-section[data-site="' + tab.dataset.site + '"]');
       if (section) {
         section.classList.add('active');
-        // Verberg filterbar bij schema-tab, toon hem bij normale tabs
         const filterBar = document.querySelector('.filter-bar');
         if (filterBar) filterBar.style.display = tab.dataset.site === '__schema__' ? 'none' : '';
         if (tab.dataset.site !== '__schema__') loadSection();
@@ -758,28 +750,74 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       tab.addEventListener('click', () => activateTab(tab));
     });
 
-    // Lightbox: klik op desktop- of mobielthumb om te vergroten
+    // Lightbox met prev/next navigatie
     const lightbox = document.getElementById('lightbox');
-    const lightboxImg = lightbox.querySelector('img');
+    const lightboxImg = document.getElementById('lightbox-img');
+    const lightboxCounter = document.getElementById('lightbox-counter');
+    const lightboxPrev = document.getElementById('lightbox-prev');
+    const lightboxNext = document.getElementById('lightbox-next');
+
+    let lightboxThumbs = [];
+    let lightboxIndex = 0;
+
+    function getVisibleThumbs() {
+      const activeSection = document.querySelector('.website-section.active');
+      if (!activeSection) return [];
+      return [...activeSection.querySelectorAll('.date-group:not([style*="display: none"]) .card-thumb')];
+    }
+
+    function openLightbox(thumb) {
+      lightboxThumbs = getVisibleThumbs();
+      lightboxIndex = lightboxThumbs.indexOf(thumb);
+      showLightboxAt(lightboxIndex);
+      lightbox.classList.add('open');
+    }
+
+    function showLightboxAt(idx) {
+      const thumb = lightboxThumbs[idx];
+      if (!thumb) return;
+      const url = thumb.dataset.url;
+      lightboxImg.src = url;
+      // Zorg dat het originele img-element ook geladen is
+      const cardImg = thumb.querySelector('img');
+      if (cardImg && cardImg.dataset.src && !cardImg.getAttribute('src')) {
+        cardImg.src = cardImg.dataset.src;
+      }
+      lightboxCounter.textContent = (idx + 1) + ' / ' + lightboxThumbs.length;
+      lightboxPrev.classList.toggle('disabled', idx === 0);
+      lightboxNext.classList.toggle('disabled', idx === lightboxThumbs.length - 1);
+    }
+
+    function closeLightbox() {
+      lightbox.classList.remove('open');
+      lightboxImg.src = '';
+    }
 
     document.querySelectorAll('.card-thumb').forEach(thumb => {
       thumb.addEventListener('click', (e) => {
         e.stopPropagation();
-        lightboxImg.src = thumb.dataset.url;
-        lightbox.classList.add('open');
+        openLightbox(thumb);
       });
     });
 
-    lightbox.addEventListener('click', () => {
-      lightbox.classList.remove('open');
-      lightboxImg.src = '';
+    lightboxPrev.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (lightboxIndex > 0) showLightboxAt(--lightboxIndex);
     });
 
+    lightboxNext.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (lightboxIndex < lightboxThumbs.length - 1) showLightboxAt(++lightboxIndex);
+    });
+
+    lightbox.addEventListener('click', closeLightbox);
+    lightboxImg.addEventListener('click', (e) => e.stopPropagation());
+
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        lightbox.classList.remove('open');
-        lightboxImg.src = '';
-      }
+      if (!lightbox.classList.contains('open')) return;
+      if (e.key === 'Escape') closeLightbox();
+      if (e.key === 'ArrowLeft'  && lightboxIndex > 0) showLightboxAt(--lightboxIndex);
+      if (e.key === 'ArrowRight' && lightboxIndex < lightboxThumbs.length - 1) showLightboxAt(++lightboxIndex);
     });
   </script>
 </body>
