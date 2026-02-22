@@ -153,6 +153,24 @@
     "interval": 60
   },
   {
+    "name": "ad-rotterdam",
+    "label": "AD Rotterdam",
+    "url": "https://www.ad.nl/rotterdam",
+    "land": "Nederland",
+    "medium": "nieuwsmedia",
+    "cluster": "AD Regiosites",
+    "interval": 180
+  },
+  {
+    "name": "ad-den-haag",
+    "label": "AD Den Haag",
+    "url": "https://www.ad.nl/den-haag",
+    "land": "Nederland",
+    "medium": "nieuwsmedia",
+    "cluster": "AD Regiosites",
+    "interval": 180
+  },
+  {
     "name": "vk",
     "label": "VK",
     "url": "https://www.vk.nl",

@@ -47,10 +47,7 @@ function loadWebsitesMeta() {
 }
 
 function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
-  const websites = Object.keys(structure).sort().filter(w => {
-    const m = websitesMeta[w];
-    return !m || m.cluster !== 'AD Regiosites';
-  });
+  const websites = Object.keys(structure).sort();
   const baseUrl = publicUrl.replace(/\/$/, '');
 
   // Bouw metadata JSON voor client-side filtering
@@ -816,7 +813,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
     }
 
     const clusterSelect = document.getElementById('filter-cluster');
-    getUniqueValues('cluster').filter(v => v !== 'AD Regiosites').forEach(val => {
+    getUniqueValues('cluster').forEach(val => {
       const option = document.createElement('option');
       option.value = val;
       option.textContent = val;
