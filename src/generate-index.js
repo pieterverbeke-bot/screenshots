@@ -23,11 +23,12 @@ function buildStructure(objects) {
     structure[website][date].push({ filename, key: obj.Key, size: obj.Size });
   }
 
-  // Sorteer datums nieuwste eerst, en screenshots binnen een datum ook nieuwste eerst
+  // Sorteer datums oudste eerst, screenshots binnen een datum ook oudste eerst
+  // (tijdlijn loopt van links/oud naar rechts/nieuw)
   for (const website of Object.keys(structure)) {
     const sorted = {};
-    for (const date of Object.keys(structure[website]).sort().reverse()) {
-      sorted[date] = structure[website][date].sort((a, b) => b.filename.localeCompare(a.filename));
+    for (const date of Object.keys(structure[website]).sort()) {
+      sorted[date] = structure[website][date].sort((a, b) => a.filename.localeCompare(b.filename));
     }
     structure[website] = sorted;
   }
@@ -46,7 +47,10 @@ function loadWebsitesMeta() {
 }
 
 function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
-  const websites = Object.keys(structure).sort();
+  const websites = Object.keys(structure).sort().filter(w => {
+    const m = websitesMeta[w];
+    return !m || m.cluster !== 'AD Regiosites';
+  });
   const baseUrl = publicUrl.replace(/\/$/, '');
 
   // Bouw metadata JSON voor client-side filtering
@@ -158,38 +162,24 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       white-space: nowrap;
     }
 
-    .filter-chips {
-      display: flex;
-      gap: 0.2rem;
-      flex-wrap: nowrap;
-    }
-
-    .filter-chip {
-      padding: 0.2rem 0.55rem;
+    .cluster-select {
+      appearance: none;
+      -webkit-appearance: none;
+      padding: 0.2rem 1.4rem 0.2rem 0.5rem;
       border: 1px solid #e0dae6;
       border-radius: 999px;
-      background: #f8f5fa;
+      background: #f8f5fa url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236a5a7a' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 0.45rem center;
       color: #6a5a7a;
       cursor: pointer;
       font-family: inherit;
       font-size: 0.65rem;
       font-weight: 500;
-      white-space: nowrap;
       transition: all 0.15s ease;
       line-height: 1.3;
     }
 
-    .filter-chip:hover {
-      background: #ebe4f0;
-      border-color: #c0b0d0;
-    }
-
-    .filter-chip.active {
-      background: #783c96;
-      color: #fff;
-      border-color: #783c96;
-      box-shadow: 0 1px 4px rgba(120, 60, 150, 0.25);
-    }
+    .cluster-select:hover { background-color: #ebe4f0; border-color: #c0b0d0; }
+    .cluster-select:focus { outline: none; border-color: #783c96; box-shadow: 0 0 0 2px rgba(120,60,150,0.12); }
 
     /* Date dropdown instead of chips row */
     .date-select-wrap {
@@ -445,10 +435,12 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       width: 100%;
       height: auto;
       display: block;
-      transition: opacity 0.18s ease;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      will-change: transform;
     }
 
     .hero-img.loading { opacity: 0.4; }
+    .hero-img.swiping { transition: none !important; }
 
     .hero-placeholder {
       position: absolute;
@@ -669,7 +661,11 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
     <div class="toolbar-inner">
       <div class="toolbar-section">
         <span class="toolbar-label">Cluster</span>
-        <div class="filter-chips" id="filter-cluster"></div>
+        <div class="date-select-wrap">
+          <select class="cluster-select" id="filter-cluster">
+            <option value="">Alle clusters</option>
+          </select>
+        </div>
       </div>
       <div class="toolbar-divider"></div>
       <div class="toolbar-section">
@@ -697,20 +693,21 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
     ${websites.map((website, i) => {
       const dates = structure[website];
       const dateKeys = Object.keys(dates);
-      // Bepaal de URL van de allereerste (meest recente) screenshot voor eager loading
-      const firstDatePairs = dates[dateKeys[0]] || [];
-      const firstItem = firstDatePairs[0];
-      const firstUrl = firstItem ? (baseUrl + '/' + firstItem.key) : '';
-      const firstTIdx = firstItem ? firstItem.filename.indexOf('T') : -1;
-      const firstTimePart = firstTIdx > -1 ? firstItem.filename.slice(firstTIdx+1, firstTIdx+9) : '';
-      const firstTimeStr = firstTimePart.length === 8 ? firstTimePart.replace(/-/g, ':') : '';
+      // Bepaal de URL van de meest recente (laatste) screenshot voor eager loading
+      const lastDateKey = dateKeys[dateKeys.length - 1];
+      const lastDatePairs = dates[lastDateKey] || [];
+      const newestItem = lastDatePairs[lastDatePairs.length - 1];
+      const newestUrl = newestItem ? (baseUrl + '/' + newestItem.key) : '';
+      const newestTIdx = newestItem ? newestItem.filename.indexOf('T') : -1;
+      const newestTimePart = newestTIdx > -1 ? newestItem.filename.slice(newestTIdx+1, newestTIdx+9) : '';
+      const newestTimeStr = newestTimePart.length === 8 ? newestTimePart.replace(/-/g, ':') : '';
 
       return `<div class="website-section${i === 0 ? ' active' : ''}" data-site="${website}">
       <!-- Filmstrip tijdlijn: boven de hero voor snelle navigatie -->
       <div class="filmstrip-wrap">
         <div class="filmstrip-header">
           <span class="filmstrip-title">Tijdlijn</span>
-          <span class="filmstrip-scroll-hint">nieuwste ← scroll → oudste</span>
+          <span class="filmstrip-scroll-hint">oudste ← scroll → nieuwste</span>
         </div>
         <div class="filmstrip" id="filmstrip-${website}">
           ${Object.entries(dates).map(([date, pairs]) => {
@@ -722,10 +719,10 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
                 const timePart = tIdx > -1 ? item.filename.slice(tIdx+1, tIdx+9) : '';
                 const timeStr = timePart.length === 8 ? timePart.replace(/-/g, ':') : '';
                 const url = baseUrl + '/' + item.key;
-                const isFirstThumb = i === 0 && date === dateKeys[0] && pairIdx === 0;
-                // Eager load enkel eerste thumb van eerste website
-                const src = isFirstThumb ? 'src="'+url+'"' : '';
-                return '<div class="fs-thumb'+(isFirstThumb ? ' active' : '')+'" data-url="'+url+'" data-date="'+date+'" data-time="'+timeStr+'">'
+                const isNewestThumb = i === 0 && date === lastDateKey && pairIdx === pairs.length - 1;
+                // Eager load enkel nieuwste thumb van eerste website
+                const src = isNewestThumb ? 'src="'+url+'"' : '';
+                return '<div class="fs-thumb'+(isNewestThumb ? ' active' : '')+'" data-url="'+url+'" data-date="'+date+'" data-time="'+timeStr+'">'
                   + '<img '+src+' data-src="'+url+'" alt="'+timeStr+'">'
                   + '<span class="fs-time">'+timeStr+'</span>'
                   + '</div>';
@@ -740,17 +737,17 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       <div class="hero-wrap">
         <div class="hero-meta">
           <div class="hero-badge">
-            <span class="hero-date" id="hero-date-${website}">${i === 0 ? dateKeys[0] : ''}</span>
-            <span class="hero-sep">${i === 0 && firstTimeStr ? '·' : ''}</span>
-            <span class="hero-time" id="hero-time-${website}">${i === 0 ? firstTimeStr : ''}</span>
+            <span class="hero-date" id="hero-date-${website}">${i === 0 ? lastDateKey : ''}</span>
+            <span class="hero-sep">${i === 0 && newestTimeStr ? '·' : ''}</span>
+            <span class="hero-time" id="hero-time-${website}">${i === 0 ? newestTimeStr : ''}</span>
           </div>
           <span class="hero-hint">klik om te vergroten</span>
         </div>
         <div class="hero-stage" id="hero-stage-${website}">
           <img class="hero-img" id="hero-img-${website}"
-            ${i === 0 && firstUrl ? 'src="'+firstUrl+'"' : ''}
+            ${i === 0 && newestUrl ? 'src="'+newestUrl+'"' : ''}
             alt="Screenshot">
-          <div class="hero-placeholder" id="hero-placeholder-${website}"${i === 0 && firstUrl ? ' style="display:none"' : ''}>Selecteer een screenshot in de tijdlijn hierboven</div>
+          <div class="hero-placeholder" id="hero-placeholder-${website}"${i === 0 && newestUrl ? ' style="display:none"' : ''}>Selecteer een screenshot in de tijdlijn hierboven</div>
         </div>
       </div>
     </div>`;
@@ -818,24 +815,16 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       return [...vals].sort();
     }
 
-    const clusterContainer = document.getElementById('filter-cluster');
-    getUniqueValues('cluster').forEach(val => {
-      const chip = document.createElement('button');
-      chip.className = 'filter-chip';
-      chip.textContent = val;
-      chip.dataset.value = val;
-      chip.addEventListener('click', () => {
-        if (filterState.cluster === val) {
-          filterState.cluster = null;
-          chip.classList.remove('active');
-        } else {
-          clusterContainer.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
-          filterState.cluster = val;
-          chip.classList.add('active');
-        }
-        applyClusterFilter();
-      });
-      clusterContainer.appendChild(chip);
+    const clusterSelect = document.getElementById('filter-cluster');
+    getUniqueValues('cluster').filter(v => v !== 'AD Regiosites').forEach(val => {
+      const option = document.createElement('option');
+      option.value = val;
+      option.textContent = val;
+      clusterSelect.appendChild(option);
+    });
+    clusterSelect.addEventListener('change', () => {
+      filterState.cluster = clusterSelect.value || null;
+      applyClusterFilter();
     });
 
     // Datum-select: navigeren naar die datum in de actieve filmstrip
@@ -943,10 +932,22 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       }
     }
 
-    function initSectionHero(section) {
-      const firstThumb = section.querySelector('.fs-thumb');
-      if (firstThumb && !section.querySelector('.fs-thumb.active')) {
-        activateThumb(firstThumb);
+    function initSectionHero(section, instant) {
+      const thumbs = [...section.querySelectorAll('.fs-thumb')];
+      const lastThumb = thumbs[thumbs.length - 1];
+      if (lastThumb && !section.querySelector('.fs-thumb.active')) {
+        activateThumb(lastThumb);
+      }
+      // Scroll filmstrip naar het einde (nieuwste rechts)
+      const filmstrip = section.querySelector('.filmstrip');
+      if (filmstrip) {
+        if (instant) {
+          filmstrip.style.scrollBehavior = 'auto';
+          filmstrip.scrollLeft = filmstrip.scrollWidth;
+          filmstrip.style.scrollBehavior = '';
+        } else {
+          filmstrip.scrollLeft = filmstrip.scrollWidth;
+        }
       }
     }
 
@@ -975,10 +976,10 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       tab.addEventListener('click', () => activateTab(tab));
     });
 
-    // Initialiseer de hero van de eerste sectie
+    // Initialiseer de hero van de eerste sectie (instant scroll naar nieuwste)
     (function() {
       const firstSection = document.querySelector('.website-section.active');
-      if (firstSection) initSectionHero(firstSection);
+      if (firstSection) initSectionHero(firstSection, true);
     })();
 
     // Lightbox: openen via klik op hero-afbeelding
@@ -1026,49 +1027,102 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       lightboxImg.src = '';
     }
 
-    // Hero klikken opent lightbox
+    // Hero klikken opent lightbox + Tinder-achtige swipe navigatie
     document.querySelectorAll('.hero-stage').forEach(stage => {
+      let preventClick = false;
+      let touchState = { startX: 0, startY: 0, isDragging: false, decided: false };
+
       stage.addEventListener('click', (e) => {
+        if (preventClick) { preventClick = false; return; }
         const heroImg = stage.querySelector('.hero-img');
         if (heroImg && heroImg.src && !heroImg.src.endsWith('/')) {
           e.stopPropagation();
           openLightbox();
         }
       });
-    });
-
-    // Swipe navigatie op hero (links = terug in de tijd, rechts = vooruit)
-    document.querySelectorAll('.hero-stage').forEach(stage => {
-      let touchStartX = 0;
-      let touchStartY = 0;
 
       stage.addEventListener('touchstart', (e) => {
-        touchStartX = e.touches[0].clientX;
-        touchStartY = e.touches[0].clientY;
+        touchState = { startX: e.touches[0].clientX, startY: e.touches[0].clientY, isDragging: false, decided: false };
+      }, { passive: true });
+
+      stage.addEventListener('touchmove', (e) => {
+        const x = e.touches[0].clientX;
+        const y = e.touches[0].clientY;
+        const dx = x - touchState.startX;
+        const dy = y - touchState.startY;
+
+        if (!touchState.decided) {
+          if (Math.abs(dx) > 12 || Math.abs(dy) > 12) {
+            touchState.decided = true;
+            touchState.isDragging = Math.abs(dx) > Math.abs(dy);
+          }
+          return;
+        }
+        if (!touchState.isDragging) return;
+
+        touchState.lastX = x;
+        const heroImg = stage.querySelector('.hero-img');
+        if (!heroImg) return;
+        const rotation = dx * 0.03;
+        const opacity = Math.max(0.4, 1 - Math.abs(dx) / 300);
+        heroImg.classList.add('swiping');
+        heroImg.style.transform = 'translateX(' + dx + 'px) rotate(' + rotation + 'deg)';
+        heroImg.style.opacity = opacity;
       }, { passive: true });
 
       stage.addEventListener('touchend', (e) => {
-        const deltaX = e.changedTouches[0].clientX - touchStartX;
-        const deltaY = e.changedTouches[0].clientY - touchStartY;
+        if (!touchState.isDragging) return;
+        preventClick = true;
+        const dx = e.changedTouches[0].clientX - touchState.startX;
+        const heroImg = stage.querySelector('.hero-img');
+        if (!heroImg) return;
+        heroImg.classList.remove('swiping');
 
-        // Alleen horizontal swipe als horizontale beweging duidelijk groter is
-        if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
-          const section = stage.closest('.website-section');
-          if (!section) return;
-          const thumbs = [...section.querySelectorAll('.fs-thumb')];
-          const activeThumb = section.querySelector('.fs-thumb.active');
-          const idx = activeThumb ? thumbs.indexOf(activeThumb) : 0;
+        const section = stage.closest('.website-section');
+        if (!section) { resetHeroTransform(heroImg); return; }
+        const thumbs = [...section.querySelectorAll('.fs-thumb')];
+        const activeThumb = section.querySelector('.fs-thumb.active');
+        const idx = activeThumb ? thumbs.indexOf(activeThumb) : -1;
 
-          if (deltaX < 0 && idx < thumbs.length - 1) {
-            // Swipe links = ouder screenshot
-            activateThumb(thumbs[idx + 1]);
-          } else if (deltaX > 0 && idx > 0) {
-            // Swipe rechts = nieuwer screenshot
-            activateThumb(thumbs[idx - 1]);
-          }
+        // Swipe rechts (dx>0) = ouder (lager index), swipe links (dx<0) = nieuwer (hoger index)
+        let newIdx = idx;
+        if (dx > 0 && idx > 0) newIdx = idx - 1;
+        else if (dx < 0 && idx < thumbs.length - 1) newIdx = idx + 1;
+
+        if (Math.abs(dx) > 70 && newIdx !== idx && thumbs[newIdx]) {
+          // Fly out
+          const flyX = dx > 0 ? window.innerWidth : -window.innerWidth;
+          const flyRot = dx > 0 ? 12 : -12;
+          heroImg.style.transition = 'transform 0.28s ease, opacity 0.28s ease';
+          heroImg.style.transform = 'translateX(' + flyX + 'px) rotate(' + flyRot + 'deg)';
+          heroImg.style.opacity = '0';
+
+          setTimeout(() => {
+            // Positie voor entry vanuit de andere kant
+            heroImg.style.transition = 'none';
+            heroImg.style.transform = 'translateX(' + (dx > 0 ? '-50%' : '50%') + ')';
+            heroImg.style.opacity = '0';
+            activateThumb(thumbs[newIdx]);
+            requestAnimationFrame(() => { requestAnimationFrame(() => {
+              heroImg.style.transition = 'transform 0.3s cubic-bezier(0.25,0.1,0.25,1), opacity 0.3s ease';
+              heroImg.style.transform = '';
+              heroImg.style.opacity = '1';
+              setTimeout(() => { heroImg.style.transition = ''; }, 350);
+            }); });
+          }, 220);
+        } else {
+          resetHeroTransform(heroImg);
         }
+        touchState.isDragging = false;
       }, { passive: true });
     });
+
+    function resetHeroTransform(heroImg) {
+      heroImg.style.transition = 'transform 0.3s cubic-bezier(0.25,0.1,0.25,1), opacity 0.3s ease';
+      heroImg.style.transform = '';
+      heroImg.style.opacity = '1';
+      setTimeout(() => { heroImg.style.transition = ''; }, 350);
+    }
 
     lightboxPrev.addEventListener('click', (e) => {
       e.stopPropagation();
