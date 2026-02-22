@@ -1018,6 +1018,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       // Preload nog een stap verder voor sneller swipen
       if (idx > 1) { var p = new Image(); p.src = thumbs[idx - 2].dataset.url; }
       if (idx < thumbs.length - 2) { var p2 = new Image(); p2.src = thumbs[idx + 2].dataset.url; }
+    }
 
     function initSectionHero(section, instant) {
       const thumbs = [...section.querySelectorAll('.fs-thumb')];
