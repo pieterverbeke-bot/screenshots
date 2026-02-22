@@ -232,21 +232,24 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
     .hero-stage {
       background: #16101f;
       border-radius: 10px;
-      overflow: hidden;
+      overflow-y: auto;
+      overflow-x: hidden;
       position: relative;
+      height: 72vh;
       min-height: 180px;
-      display: flex;
-      align-items: flex-start;
-      justify-content: center;
       cursor: zoom-in;
+      touch-action: pan-y;
+      scrollbar-width: thin;
+      scrollbar-color: #6a5a7a #16101f;
     }
+
+    .hero-stage::-webkit-scrollbar { width: 5px; }
+    .hero-stage::-webkit-scrollbar-track { background: #16101f; }
+    .hero-stage::-webkit-scrollbar-thumb { background: #6a5a7a; border-radius: 3px; }
 
     .hero-img {
       width: 100%;
       height: auto;
-      max-height: 72vh;
-      object-fit: contain;
-      object-position: top;
       display: block;
       transition: opacity 0.18s ease;
     }
@@ -600,7 +603,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       .filter-bar { padding: 0.6rem 1rem; top: 56px; }
       .tabs { padding: 0.5rem 1rem; top: auto; position: relative; }
       .content { padding: 0.75rem 1rem 2rem; }
-      .hero-img { max-height: 55vw; }
+      .hero-stage { height: 60vh; }
       .fs-thumb { flex: 0 0 76px; width: 76px; }
       .fs-thumb img { height: 50px; }
       .lightbox-nav { width: 36px; height: 36px; font-size: 1.6rem; }
@@ -668,7 +671,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
             <span class="hero-sep">${i === 0 && firstTimeStr ? '·' : ''}</span>
             <span class="hero-time" id="hero-time-${website}">${i === 0 ? firstTimeStr : ''}</span>
           </div>
-          <span class="hero-hint">klik op de afbeelding om te vergroten</span>
+          <span class="hero-hint">swipe ← ouder · swipe → nieuwer · klik om te vergroten</span>
         </div>
       </div>
 
@@ -871,6 +874,9 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       const heroPlaceholder = document.getElementById('hero-placeholder-' + siteKey);
       const heroSep = section.querySelector('.hero-sep');
 
+      const heroStage = document.getElementById('hero-stage-' + siteKey);
+      if (heroStage) heroStage.scrollTop = 0;
+
       if (heroImg) {
         heroImg.classList.add('loading');
         heroImg.onload = () => heroImg.classList.remove('loading');
@@ -981,6 +987,39 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
           openLightbox();
         }
       });
+    });
+
+    // Swipe navigatie op hero (links = terug in de tijd, rechts = vooruit)
+    document.querySelectorAll('.hero-stage').forEach(stage => {
+      let touchStartX = 0;
+      let touchStartY = 0;
+
+      stage.addEventListener('touchstart', (e) => {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+      }, { passive: true });
+
+      stage.addEventListener('touchend', (e) => {
+        const deltaX = e.changedTouches[0].clientX - touchStartX;
+        const deltaY = e.changedTouches[0].clientY - touchStartY;
+
+        // Alleen horizontal swipe als horizontale beweging duidelijk groter is
+        if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
+          const section = stage.closest('.website-section');
+          if (!section) return;
+          const thumbs = [...section.querySelectorAll('.fs-thumb')];
+          const activeThumb = section.querySelector('.fs-thumb.active');
+          const idx = activeThumb ? thumbs.indexOf(activeThumb) : 0;
+
+          if (deltaX < 0 && idx < thumbs.length - 1) {
+            // Swipe links = ouder screenshot
+            activateThumb(thumbs[idx + 1]);
+          } else if (deltaX > 0 && idx > 0) {
+            // Swipe rechts = nieuwer screenshot
+            activateThumb(thumbs[idx - 1]);
+          }
+        }
+      }, { passive: true });
     });
 
     lightboxPrev.addEventListener('click', (e) => {
