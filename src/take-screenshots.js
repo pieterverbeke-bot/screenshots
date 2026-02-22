@@ -13,15 +13,15 @@ const WEBSITES_FILE = join(ROOT_DIR, 'websites.json');
 // Configuratie
 const CONFIG = {
   desktopViewport: {
-    width: 1920,
-    height: 1080
+    width: 1366,
+    height: 768
   },
-  fullPage: true,
+  fullPage: false,
   timeout: 60000,
   scrollDelay: 200,
   waitAfterScroll: 1500,
-  // WebP compressie (0-100), 55 is goede balans tussen kwaliteit en grootte voor monitoring
-  webpQuality: 55,
+  // WebP compressie (0-100), 50 geeft goede kwaliteit bij kleinere viewport (target: <300KB)
+  webpQuality: 50,
   // Tijdzone voor bestandsnamen
   timezone: 'Europe/Brussels',
   // Aantal sites die tegelijk verwerkt worden (3 is optimaal voor GitHub Actions 2-core runners)
