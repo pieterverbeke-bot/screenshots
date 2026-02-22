@@ -16,16 +16,6 @@ const CONFIG = {
     width: 1920,
     height: 1080
   },
-  // Mobiel viewport: iPhone 14/15 afmetingen (390x844), met touch-ondersteuning
-  // deviceScaleFactor 2 i.p.v. 3: ~44% kleinere bestanden, nauwelijks zichtbaar verschil voor monitoring
-  mobileViewport: {
-    width: 390,
-    height: 844,
-    deviceScaleFactor: 2,
-    isMobile: true,
-    hasTouch: true,
-    isLandscape: false
-  },
   fullPage: true,
   timeout: 60000,
   scrollDelay: 200,
@@ -37,9 +27,6 @@ const CONFIG = {
   // Aantal sites die tegelijk verwerkt worden (3 is optimaal voor GitHub Actions 2-core runners)
   concurrency: 3
 };
-
-// Echte iPhone Safari User-Agent: sites detecteren dit om de mobiele versie te serveren
-const MOBILE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
 
 // Genereer timestamp in GMT+1 (België/Nederland)
 function getLocalTimestamp() {
@@ -522,10 +509,6 @@ async function dismissPopups(page) {
 }
 
 // Laad pagina en maak klaar voor screenshot (consent-afhandeling, overlays, scroll).
-// waitUntil: 'networkidle2' voor desktop (wacht op rustige netwerksituatie),
-//            'domcontentloaded' voor mobiel (homepages hebben constante achtergrond-requests
-//             van ads/trackers waardoor networkidle2 nooit bereikt wordt binnen 60s).
-//             autoScroll() en waitForImages() daarna laden de content alsnog correct.
 async function loadAndPrepare(page, website, waitUntil = 'networkidle2') {
   const { name, url } = website;
 
@@ -534,13 +517,6 @@ async function loadAndPrepare(page, website, waitUntil = 'networkidle2') {
     waitUntil,
     timeout: CONFIG.timeout
   });
-
-  // Bij domcontentloaded (mobiel) een korte wacht inlassen zodat JavaScript-rendered
-  // consent popups en cookie-banners tijd hebben om in de DOM te verschijnen voordat
-  // we ze proberen weg te klikken. networkidle2 (desktop) wacht al lang genoeg.
-  if (waitUntil === 'domcontentloaded') {
-    await new Promise(resolve => setTimeout(resolve, 2000));
-  }
 
   // Cloudflare "Verify you are human" challenge afhandelen
   await handleCloudflareChallenge(page);
@@ -571,37 +547,21 @@ async function loadAndPrepare(page, website, waitUntil = 'networkidle2') {
   await removeRemainingOverlays(page);
 }
 
-// Neem één screenshot (desktop of mobiel) op een verse pagina.
-// De pagina wordt aangemaakt met de juiste viewport + UA VOOR de navigatie —
-// zo ziet de site van meet af aan het juiste apparaat en hoeven we nooit
-// van viewport te wisselen op een al geladen pagina (de bron van alle problemen).
-async function capturePage(browser, website, timestamp, mode) {
+// Neem een desktopscreenshot op een verse pagina.
+async function capturePage(browser, website, timestamp) {
   const { name } = website;
-  const isMobile = mode === 'mobile';
-  const icon = isMobile ? '📱' : '📸';
 
   const page = await browser.newPage();
   try {
-    // Stel viewport (en UA voor mobiel) in VOOR goto() — anders detecteert de site het verkeerd
-    if (isMobile) {
-      await page.setUserAgent(MOBILE_UA);
-      await page.setViewport(CONFIG.mobileViewport);
-    } else {
-      await page.setViewport(CONFIG.desktopViewport);
-    }
+    await page.setViewport(CONFIG.desktopViewport);
 
-    // Mobile: gebruik 'domcontentloaded' i.p.v. 'networkidle2' — zware homepages
-    // (veel ads/trackers) bereiken networkidle2 nooit binnen de timeout.
-    // autoScroll + waitForImages in loadAndPrepare laden de content daarna alsnog.
-    const waitUntil = isMobile ? 'domcontentloaded' : 'networkidle2';
-    console.log(`${icon} ${name}: Loading page (${mode})...`);
-    await loadAndPrepare(page, website, waitUntil);
+    console.log(`📸 ${name}: Loading page...`);
+    await loadAndPrepare(page, website, 'networkidle2');
 
-    const suffix = isMobile ? '_mobile' : '';
-    const filename = `${name}_${timestamp}${suffix}.webp`;
+    const filename = `${name}_${timestamp}.webp`;
     const filepath = join(SCREENSHOTS_DIR, filename);
 
-    console.log(`${icon} ${name}: Taking ${mode} screenshot...`);
+    console.log(`📸 ${name}: Taking screenshot...`);
     await page.screenshot({
       path: filepath,
       fullPage: CONFIG.fullPage,
@@ -619,27 +579,13 @@ async function takeScreenshot(browser, website) {
   const { name } = website;
   const timestamp = getLocalTimestamp();
 
-  // Desktop en mobiel parallel: elk op eigen page, halveert de tijd per site
-  const [desktopResult, mobileResult] = await Promise.allSettled([
-    capturePage(browser, website, timestamp, 'desktop'),
-    capturePage(browser, website, timestamp, 'mobile'),
-  ]);
-
-  const filename = desktopResult.status === 'fulfilled' ? desktopResult.value : null;
-  const mobileFilename = mobileResult.status === 'fulfilled' ? mobileResult.value : null;
-
-  if (!filename) {
-    console.error(`❌ ${name}: Desktop screenshot failed — ${desktopResult.reason?.message}`);
+  try {
+    const filename = await capturePage(browser, website, timestamp);
+    return { success: true, name, filename };
+  } catch (error) {
+    console.error(`❌ ${name}: Screenshot failed — ${error?.message}`);
+    return { success: false, name, error: error?.message };
   }
-  if (!mobileFilename) {
-    console.error(`📱 ${name}: Mobile screenshot failed — ${mobileResult.reason?.message}`);
-  }
-
-  if (!filename) {
-    return { success: false, name, error: desktopResult.reason?.message };
-  }
-
-  return { success: true, name, filename, mobileFilename };
 }
 
 // Verwerk websites in parallelle batches
@@ -741,10 +687,7 @@ async function main() {
   console.log('\n' + '='.repeat(50));
   const successful = results.filter(r => r.success).length;
   const failed = results.filter(r => !r.success).length;
-  const mobileSuccess = results.filter(r => r.success && r.mobileFilename).length;
-  const mobileFailed = results.filter(r => r.success && !r.mobileFilename).length;
-  console.log(`📊 Done: ${successful} desktop successful, ${failed} desktop failed`);
-  console.log(`📱 Mobile: ${mobileSuccess} successful, ${mobileFailed} failed`);
+  console.log(`📊 Done: ${successful} successful, ${failed} failed`);
 
   // Niet falen als minstens 1 screenshot is gelukt (zodat upload doorgaat)
   if (successful === 0) {
