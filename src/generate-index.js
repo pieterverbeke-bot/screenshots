@@ -76,19 +76,20 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
 
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #faf9fb;
+      background: #f5f3f7;
       color: #2d2d3a;
       min-height: 100vh;
     }
 
+    /* Modern compact header */
     header {
       background: linear-gradient(135deg, #783c96 0%, #d23278 50%, #e6463c 80%, #fabb22 100%);
       color: #fff;
-      padding: 1.5rem 2rem;
+      padding: 0.7rem 2rem;
       position: sticky;
       top: 0;
       z-index: 100;
-      box-shadow: 0 4px 20px rgba(120, 60, 150, 0.3);
+      box-shadow: 0 2px 16px rgba(120, 60, 150, 0.25);
     }
 
     .header-inner {
@@ -100,134 +101,327 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
     }
 
     header h1 {
-      font-size: 1.4rem;
+      font-size: 1rem;
       font-weight: 700;
       letter-spacing: -0.02em;
     }
 
     header p {
-      font-size: 0.78rem;
-      opacity: 0.85;
+      font-size: 0.7rem;
+      opacity: 0.8;
       font-weight: 400;
     }
 
-    /* Filter bar */
-    .filter-bar {
-      background: #fff;
-      border-bottom: 1px solid #ece8f0;
-      padding: 0.8rem 2rem;
+    /* Compact unified toolbar: filters + tabs in one bar */
+    .toolbar {
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(120,60,150,0.08);
+      padding: 0.4rem 2rem;
       position: sticky;
-      top: 68px;
+      top: 38px;
       z-index: 99;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      box-shadow: 0 1px 8px rgba(0,0,0,0.04);
     }
 
-    .filter-bar-inner {
+    .toolbar-inner {
       max-width: 1400px;
       margin: 0 auto;
       display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-
-    .filter-row {
-      display: flex;
       align-items: center;
       gap: 0.5rem;
-      flex-wrap: wrap;
     }
 
-    .filter-label {
-      font-size: 0.72rem;
-      font-weight: 600;
-      color: #8a7a9a;
+    .toolbar-section {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      flex-shrink: 0;
+    }
+
+    .toolbar-divider {
+      width: 1px;
+      height: 20px;
+      background: #ddd4e4;
+      margin: 0 0.35rem;
+      flex-shrink: 0;
+    }
+
+    .toolbar-label {
+      font-size: 0.62rem;
+      font-weight: 700;
+      color: #9a8aaa;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
-      min-width: 58px;
+      letter-spacing: 0.06em;
+      margin-right: 0.2rem;
+      white-space: nowrap;
     }
 
     .filter-chips {
       display: flex;
-      gap: 0.3rem;
-      flex-wrap: wrap;
+      gap: 0.2rem;
+      flex-wrap: nowrap;
     }
 
     .filter-chip {
-      padding: 0.3rem 0.8rem;
-      border: 1.5px solid #e0dae6;
-      border-radius: 2rem;
+      padding: 0.2rem 0.55rem;
+      border: 1px solid #e0dae6;
+      border-radius: 999px;
       background: #f8f5fa;
-      color: #5a4a6a;
+      color: #6a5a7a;
       cursor: pointer;
       font-family: inherit;
-      font-size: 0.75rem;
+      font-size: 0.65rem;
       font-weight: 500;
       white-space: nowrap;
       transition: all 0.15s ease;
+      line-height: 1.3;
     }
 
     .filter-chip:hover {
       background: #ebe4f0;
-      border-color: #c9b8d9;
+      border-color: #c0b0d0;
     }
 
     .filter-chip.active {
       background: #783c96;
       color: #fff;
       border-color: #783c96;
-      box-shadow: 0 2px 6px rgba(120, 60, 150, 0.2);
+      box-shadow: 0 1px 4px rgba(120, 60, 150, 0.25);
     }
 
-    /* Website tabs */
-    .tabs {
+    /* Date dropdown instead of chips row */
+    .date-select-wrap {
+      position: relative;
       display: flex;
-      gap: 0.35rem;
-      padding: 0.6rem 2rem;
-      background: #f8f5fa;
-      border-bottom: 1px solid #ece8f0;
-      overflow-x: auto;
-      position: sticky;
-      top: 130px;
-      z-index: 98;
+      align-items: center;
     }
 
-    .tabs::-webkit-scrollbar { height: 0; }
-
-    .tab {
-      padding: 0.4rem 0.9rem;
-      border: 1.5px solid transparent;
-      border-radius: 2rem;
-      background: #fff;
-      color: #5a4a6a;
+    .date-select {
+      appearance: none;
+      -webkit-appearance: none;
+      padding: 0.2rem 1.4rem 0.2rem 0.5rem;
+      border: 1px solid #e0dae6;
+      border-radius: 999px;
+      background: #f8f5fa url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236a5a7a' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 0.45rem center;
+      color: #6a5a7a;
       cursor: pointer;
       font-family: inherit;
-      font-size: 0.78rem;
+      font-size: 0.65rem;
+      font-weight: 500;
+      transition: all 0.15s ease;
+      line-height: 1.3;
+    }
+
+    .date-select:hover { background-color: #ebe4f0; border-color: #c0b0d0; }
+    .date-select:focus { outline: none; border-color: #783c96; box-shadow: 0 0 0 2px rgba(120,60,150,0.12); }
+
+    /* Website tabs - inline in toolbar */
+    .tabs-scroll {
+      display: flex;
+      gap: 0.2rem;
+      overflow-x: auto;
+      scrollbar-width: none;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .tabs-scroll::-webkit-scrollbar { height: 0; }
+
+    .tab {
+      padding: 0.22rem 0.65rem;
+      border: none;
+      border-radius: 999px;
+      background: transparent;
+      color: #7a6a8a;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.68rem;
       font-weight: 500;
       white-space: nowrap;
-      transition: all 0.2s ease;
+      transition: all 0.18s ease;
+      line-height: 1.3;
     }
 
     .tab:hover {
-      background: #ebe4f0;
-      border-color: #c9b8d9;
+      background: rgba(120,60,150,0.08);
+      color: #5a3a7a;
     }
 
     .tab.active {
       background: #783c96;
       color: #fff;
-      border-color: #783c96;
-      box-shadow: 0 2px 8px rgba(120, 60, 150, 0.25);
+      box-shadow: 0 1px 6px rgba(120, 60, 150, 0.3);
     }
 
     .tab.hidden { display: none; }
 
-    .content { max-width: 1400px; margin: 0 auto; padding: 1rem 2rem 3rem; }
+    .content { max-width: 1400px; margin: 0 auto; padding: 0.75rem 2rem 3rem; }
 
     .website-section { display: none; }
     .website-section.active { display: block; }
 
-    /* Hero: grote weergave van het geselecteerde screenshot */
+    /* Filmstrip tijdlijn - NOW ABOVE the hero */
+    .filmstrip-wrap {
+      margin-bottom: 0.5rem;
+    }
+
+    .filmstrip-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.35rem;
+    }
+
+    .filmstrip-title {
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: #9a8aaa;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .filmstrip-scroll-hint {
+      font-size: 0.62rem;
+      color: #b0a0c0;
+    }
+
+    .filmstrip {
+      display: flex;
+      flex-direction: row;
+      gap: 0;
+      overflow-x: auto;
+      scroll-behavior: smooth;
+      scrollbar-width: thin;
+      scrollbar-color: #c9b8d9 transparent;
+      padding-bottom: 0.35rem;
+      align-items: stretch;
+    }
+
+    .filmstrip::-webkit-scrollbar { height: 4px; }
+    .filmstrip::-webkit-scrollbar-track { background: transparent; border-radius: 3px; }
+    .filmstrip::-webkit-scrollbar-thumb { background: #c9b8d9; border-radius: 3px; }
+
+    .fs-date-group {
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+      flex-shrink: 0;
+      border-right: 1.5px solid #e8e0f0;
+      padding-right: 0.5rem;
+      margin-right: 0.5rem;
+    }
+
+    .fs-date-group:last-child {
+      border-right: none;
+      padding-right: 0;
+      margin-right: 0;
+    }
+
+    .fs-date-sep {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      transform: rotate(180deg);
+      font-size: 0.58rem;
+      font-weight: 700;
+      color: #783c96;
+      padding: 0.2rem 0.25rem;
+      background: linear-gradient(180deg, #f0ebf6 0%, #e8e0f0 100%);
+      border-radius: 5px 0 0 5px;
+      margin-right: 0.3rem;
+      flex-shrink: 0;
+      min-width: 18px;
+      letter-spacing: 0.03em;
+      user-select: none;
+    }
+
+    .fs-thumbs {
+      display: flex;
+      flex-direction: row;
+      gap: 0.25rem;
+      align-items: flex-start;
+    }
+
+    .fs-thumb {
+      flex: 0 0 80px;
+      width: 80px;
+      cursor: pointer;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 2px solid transparent;
+      transition: all 0.18s ease;
+      background: #f0ecf5;
+    }
+
+    .fs-thumb:hover {
+      border-color: #c9b8d9;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 6px rgba(120, 60, 150, 0.12);
+    }
+
+    .fs-thumb.active {
+      border-color: #783c96;
+      box-shadow: 0 2px 10px rgba(120, 60, 150, 0.35);
+      transform: translateY(-1px);
+    }
+
+    .fs-thumb img {
+      width: 100%;
+      height: 52px;
+      object-fit: cover;
+      object-position: top;
+      display: block;
+    }
+
+    .fs-time {
+      display: block;
+      text-align: center;
+      font-size: 0.58rem;
+      font-weight: 500;
+      color: #6a5a7a;
+      padding: 0.12rem 0;
+      background: #fff;
+      border-top: 1px solid #f0ecf3;
+      white-space: nowrap;
+    }
+
+    .fs-thumb.active .fs-time {
+      background: #f0ebf6;
+      color: #783c96;
+      font-weight: 700;
+    }
+
+    /* Hero: grote weergave van het geselecteerde screenshot - NOW BELOW filmstrip */
     .hero-wrap { margin-bottom: 0.75rem; }
+
+    .hero-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.3rem 0.15rem 0.35rem;
+    }
+
+    .hero-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.75rem;
+      color: #5a4a6a;
+    }
+
+    .hero-date { font-weight: 700; color: #783c96; }
+    .hero-sep { color: #c9b8d9; }
+    .hero-time { font-weight: 500; }
+
+    .hero-hint {
+      font-size: 0.65rem;
+      color: #b0a0c0;
+      font-style: italic;
+    }
 
     .hero-stage {
       background: #16101f;
@@ -266,160 +460,6 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       font-size: 0.85rem;
     }
 
-    .hero-meta {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0.45rem 0.25rem 0.6rem;
-    }
-
-    .hero-badge {
-      display: flex;
-      align-items: center;
-      gap: 0.45rem;
-      font-size: 0.83rem;
-      color: #5a4a6a;
-    }
-
-    .hero-date { font-weight: 700; color: #783c96; }
-    .hero-sep { color: #c9b8d9; }
-    .hero-time { font-weight: 500; }
-
-    .hero-hint {
-      font-size: 0.72rem;
-      color: #a898b8;
-      font-style: italic;
-    }
-
-    /* Filmstrip tijdlijn */
-    .filmstrip-wrap {
-      border-top: 1px solid #ece8f0;
-      padding-top: 0.7rem;
-    }
-
-    .filmstrip-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 0.5rem;
-    }
-
-    .filmstrip-title {
-      font-size: 0.72rem;
-      font-weight: 600;
-      color: #8a7a9a;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .filmstrip-scroll-hint {
-      font-size: 0.7rem;
-      color: #b0a0c0;
-    }
-
-    .filmstrip {
-      display: flex;
-      flex-direction: row;
-      gap: 0;
-      overflow-x: auto;
-      scroll-behavior: smooth;
-      scrollbar-width: thin;
-      scrollbar-color: #c9b8d9 #f0ebf6;
-      padding-bottom: 0.5rem;
-      align-items: stretch;
-    }
-
-    .filmstrip::-webkit-scrollbar { height: 5px; }
-    .filmstrip::-webkit-scrollbar-track { background: #f0ebf6; border-radius: 3px; }
-    .filmstrip::-webkit-scrollbar-thumb { background: #c9b8d9; border-radius: 3px; }
-
-    .fs-date-group {
-      display: flex;
-      flex-direction: row;
-      align-items: stretch;
-      flex-shrink: 0;
-      border-right: 2px solid #e8e0f0;
-      padding-right: 0.6rem;
-      margin-right: 0.6rem;
-    }
-
-    .fs-date-group:last-child {
-      border-right: none;
-      padding-right: 0;
-      margin-right: 0;
-    }
-
-    .fs-date-sep {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      writing-mode: vertical-rl;
-      text-orientation: mixed;
-      transform: rotate(180deg);
-      font-size: 0.65rem;
-      font-weight: 700;
-      color: #783c96;
-      padding: 0.3rem 0.35rem;
-      background: #f0ebf6;
-      border-radius: 6px 0 0 6px;
-      margin-right: 0.35rem;
-      flex-shrink: 0;
-      min-width: 22px;
-      letter-spacing: 0.04em;
-      user-select: none;
-    }
-
-    .fs-thumbs {
-      display: flex;
-      flex-direction: row;
-      gap: 0.3rem;
-      align-items: flex-start;
-    }
-
-    .fs-thumb {
-      flex: 0 0 96px;
-      width: 96px;
-      cursor: pointer;
-      border-radius: 6px;
-      overflow: hidden;
-      border: 2px solid transparent;
-      transition: border-color 0.15s ease, box-shadow 0.15s ease;
-      background: #f0ecf5;
-    }
-
-    .fs-thumb:hover { border-color: #c9b8d9; }
-
-    .fs-thumb.active {
-      border-color: #783c96;
-      box-shadow: 0 2px 8px rgba(120, 60, 150, 0.3);
-    }
-
-    .fs-thumb img {
-      width: 100%;
-      height: 62px;
-      object-fit: cover;
-      object-position: top;
-      display: block;
-    }
-
-    .fs-time {
-      display: block;
-      text-align: center;
-      font-size: 0.63rem;
-      font-weight: 500;
-      color: #5a4a6a;
-      padding: 0.18rem 0;
-      background: #fff;
-      border-top: 1px solid #f0ecf3;
-      white-space: nowrap;
-    }
-
-    .fs-thumb.active .fs-time {
-      background: #f0ebf6;
-      color: #783c96;
-      font-weight: 700;
-    }
-
     .empty {
       text-align: center;
       color: #a898b8;
@@ -432,9 +472,9 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(30, 20, 40, 0.92);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
+      background: rgba(22, 16, 31, 0.94);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
       z-index: 1000;
       overflow: auto;
     }
@@ -455,45 +495,47 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       top: 1rem;
       right: 1.5rem;
       color: #fff;
-      font-size: 2rem;
+      font-size: 1.6rem;
       cursor: pointer;
       z-index: 1001;
       line-height: 1;
-      width: 40px;
-      height: 40px;
+      width: 36px;
+      height: 36px;
       display: flex;
       align-items: center;
       justify-content: center;
       border-radius: 50%;
       background: rgba(255,255,255,0.1);
-      transition: background 0.2s;
+      backdrop-filter: blur(4px);
+      transition: all 0.2s;
     }
 
-    .lightbox-close:hover { background: rgba(255,255,255,0.2); }
+    .lightbox-close:hover { background: rgba(255,255,255,0.22); transform: scale(1.1); }
 
     .lightbox-nav {
       position: fixed;
       top: 50%;
       transform: translateY(-50%);
       color: #fff;
-      font-size: 2.2rem;
+      font-size: 1.8rem;
       cursor: pointer;
       z-index: 1001;
-      width: 48px;
-      height: 48px;
+      width: 44px;
+      height: 44px;
       display: flex;
       align-items: center;
       justify-content: center;
       border-radius: 50%;
-      background: rgba(255,255,255,0.12);
-      transition: background 0.2s;
+      background: rgba(255,255,255,0.1);
+      backdrop-filter: blur(4px);
+      transition: all 0.2s;
       user-select: none;
     }
 
-    .lightbox-nav:hover { background: rgba(255,255,255,0.25); }
+    .lightbox-nav:hover { background: rgba(255,255,255,0.22); transform: translateY(-50%) scale(1.1); }
     .lightbox-nav.prev { left: 1rem; }
     .lightbox-nav.next { right: 1rem; }
-    .lightbox-nav.disabled { opacity: 0.2; cursor: default; pointer-events: none; }
+    .lightbox-nav.disabled { opacity: 0.15; cursor: default; pointer-events: none; }
 
     .lightbox-counter {
       position: fixed;
@@ -501,10 +543,11 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       left: 50%;
       transform: translateX(-50%);
       color: rgba(255,255,255,0.7);
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       font-weight: 500;
-      background: rgba(0,0,0,0.3);
-      padding: 0.3rem 0.8rem;
+      background: rgba(0,0,0,0.35);
+      backdrop-filter: blur(4px);
+      padding: 0.25rem 0.75rem;
       border-radius: 999px;
       z-index: 1001;
       pointer-events: none;
@@ -513,14 +556,12 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
     /* Schema tab */
     .tab-schema {
       margin-left: auto;
-      background: #f0ebf6;
-      border-color: #c9b8d9;
+      background: rgba(120,60,150,0.06);
       font-weight: 600;
     }
 
     .tab-schema.active {
       background: #5a2d82;
-      border-color: #5a2d82;
     }
 
     .schema-intro {
@@ -598,15 +639,18 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
     .interval-240 { background: #fee2e2; color: #b91c1c; }
 
     @media (max-width: 700px) {
-      header { padding: 1rem; }
-      .header-inner { flex-direction: column; align-items: flex-start; gap: 0.2rem; }
-      .filter-bar { padding: 0.6rem 1rem; top: 56px; }
-      .tabs { padding: 0.5rem 1rem; top: auto; position: relative; }
-      .content { padding: 0.75rem 1rem 2rem; }
-      .hero-stage { height: 60vh; }
-      .fs-thumb { flex: 0 0 76px; width: 76px; }
-      .fs-thumb img { height: 50px; }
-      .lightbox-nav { width: 36px; height: 36px; font-size: 1.6rem; }
+      header { padding: 0.5rem 1rem; }
+      .header-inner { flex-direction: column; align-items: flex-start; gap: 0.1rem; }
+      header h1 { font-size: 0.9rem; }
+      .toolbar { padding: 0.35rem 0.75rem; top: 32px; }
+      .toolbar-inner { flex-wrap: wrap; gap: 0.3rem; }
+      .toolbar-divider { display: none; }
+      .tabs-scroll { order: 10; flex-basis: 100%; }
+      .content { padding: 0.5rem 0.75rem 2rem; }
+      .hero-stage { height: 55vh; }
+      .fs-thumb { flex: 0 0 64px; width: 64px; }
+      .fs-thumb img { height: 42px; }
+      .lightbox-nav { width: 36px; height: 36px; font-size: 1.4rem; }
       .lightbox-nav.prev { left: 0.3rem; }
       .lightbox-nav.next { right: 0.3rem; }
       .schema-table th, .schema-table td { padding: 0.45rem 0.6rem; }
@@ -621,26 +665,31 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
     </div>
   </header>
 
-  <div class="filter-bar">
-    <div class="filter-bar-inner">
-      <div class="filter-row" data-filter="cluster">
-        <span class="filter-label">Cluster</span>
+  <div class="toolbar" id="toolbar">
+    <div class="toolbar-inner">
+      <div class="toolbar-section">
+        <span class="toolbar-label">Cluster</span>
         <div class="filter-chips" id="filter-cluster"></div>
       </div>
-      <div class="filter-row" data-filter="date">
-        <span class="filter-label">Ga naar</span>
-        <div class="filter-chips" id="filter-date"></div>
+      <div class="toolbar-divider"></div>
+      <div class="toolbar-section">
+        <span class="toolbar-label">Datum</span>
+        <div class="date-select-wrap">
+          <select class="date-select" id="filter-date">
+            <option value="">Spring naar...</option>
+          </select>
+        </div>
+      </div>
+      <div class="toolbar-divider"></div>
+      <div class="tabs-scroll" id="tabs">
+        ${websites.map((w, i) => {
+          const m = websitesMeta[w];
+          const label = m ? m.label : w;
+          return `<button class="tab${i === 0 ? ' active' : ''}" data-site="${w}" data-cluster="${m ? m.cluster : ''}">${label}</button>`;
+        }).join('\n        ')}
+        <button class="tab tab-schema" data-site="__schema__" data-cluster="">Schema</button>
       </div>
     </div>
-  </div>
-
-  <div class="tabs" id="tabs">
-    ${websites.map((w, i) => {
-      const m = websitesMeta[w];
-      const label = m ? m.label : w;
-      return `<button class="tab${i === 0 ? ' active' : ''}" data-site="${w}" data-cluster="${m ? m.cluster : ''}">${label}</button>`;
-    }).join('\n    ')}
-    <button class="tab tab-schema" data-site="__schema__" data-cluster="">Schema</button>
   </div>
 
   <div class="content">
@@ -657,25 +706,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       const firstTimeStr = firstTimePart.length === 8 ? firstTimePart.replace(/-/g, ':') : '';
 
       return `<div class="website-section${i === 0 ? ' active' : ''}" data-site="${website}">
-      <!-- Hero: grote weergave van het geselecteerde screenshot -->
-      <div class="hero-wrap">
-        <div class="hero-stage" id="hero-stage-${website}">
-          <img class="hero-img" id="hero-img-${website}"
-            ${i === 0 && firstUrl ? 'src="'+firstUrl+'"' : ''}
-            alt="Screenshot">
-          <div class="hero-placeholder" id="hero-placeholder-${website}"${i === 0 && firstUrl ? ' style="display:none"' : ''}>Selecteer een screenshot in de tijdlijn hieronder</div>
-        </div>
-        <div class="hero-meta">
-          <div class="hero-badge">
-            <span class="hero-date" id="hero-date-${website}">${i === 0 ? dateKeys[0] : ''}</span>
-            <span class="hero-sep">${i === 0 && firstTimeStr ? '·' : ''}</span>
-            <span class="hero-time" id="hero-time-${website}">${i === 0 ? firstTimeStr : ''}</span>
-          </div>
-          <span class="hero-hint">swipe ← ouder · swipe → nieuwer · klik om te vergroten</span>
-        </div>
-      </div>
-
-      <!-- Filmstrip tijdlijn: scroll naar rechts voor oudere screenshots -->
+      <!-- Filmstrip tijdlijn: boven de hero voor snelle navigatie -->
       <div class="filmstrip-wrap">
         <div class="filmstrip-header">
           <span class="filmstrip-title">Tijdlijn</span>
@@ -702,6 +733,24 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
               + '</div>'
               + '</div>';
           }).join('\n          ')}
+        </div>
+      </div>
+
+      <!-- Hero: grote weergave van het geselecteerde screenshot -->
+      <div class="hero-wrap">
+        <div class="hero-meta">
+          <div class="hero-badge">
+            <span class="hero-date" id="hero-date-${website}">${i === 0 ? dateKeys[0] : ''}</span>
+            <span class="hero-sep">${i === 0 && firstTimeStr ? '·' : ''}</span>
+            <span class="hero-time" id="hero-time-${website}">${i === 0 ? firstTimeStr : ''}</span>
+          </div>
+          <span class="hero-hint">klik om te vergroten</span>
+        </div>
+        <div class="hero-stage" id="hero-stage-${website}">
+          <img class="hero-img" id="hero-img-${website}"
+            ${i === 0 && firstUrl ? 'src="'+firstUrl+'"' : ''}
+            alt="Screenshot">
+          <div class="hero-placeholder" id="hero-placeholder-${website}"${i === 0 && firstUrl ? ' style="display:none"' : ''}>Selecteer een screenshot in de tijdlijn hierboven</div>
         </div>
       </div>
     </div>`;
@@ -789,22 +838,21 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       clusterContainer.appendChild(chip);
     });
 
-    // Datum-chips: navigeren naar die datum in de actieve filmstrip
-    (function buildDateChips() {
-      const container = document.getElementById('filter-date');
-      allDates.forEach((date, i) => {
-        const chip = document.createElement('button');
-        chip.className = 'filter-chip';
-        chip.textContent = date;
-        chip.dataset.date = date;
-        chip.addEventListener('click', () => {
-          container.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
-          chip.classList.add('active');
-          scrollFilmstripToDate(date);
-          // Chip na korte tijd deactiveren (het is een navigatieactie, geen filter)
-          setTimeout(() => chip.classList.remove('active'), 800);
-        });
-        container.appendChild(chip);
+    // Datum-select: navigeren naar die datum in de actieve filmstrip
+    (function buildDateSelect() {
+      const select = document.getElementById('filter-date');
+      allDates.forEach(date => {
+        const option = document.createElement('option');
+        option.value = date;
+        option.textContent = date;
+        select.appendChild(option);
+      });
+      select.addEventListener('change', () => {
+        if (select.value) {
+          scrollFilmstripToDate(select.value);
+          // Reset naar placeholder na navigatie
+          setTimeout(() => { select.value = ''; }, 600);
+        }
       });
     })();
 
@@ -915,8 +963,8 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       const section = document.querySelector('.website-section[data-site="' + tab.dataset.site + '"]');
       if (section) {
         section.classList.add('active');
-        const filterBar = document.querySelector('.filter-bar');
-        if (filterBar) filterBar.style.display = tab.dataset.site === '__schema__' ? 'none' : '';
+        const toolbar = document.getElementById('toolbar');
+        if (toolbar) toolbar.style.display = tab.dataset.site === '__schema__' ? 'none' : '';
         if (tab.dataset.site !== '__schema__') {
           initSectionHero(section);
         }
