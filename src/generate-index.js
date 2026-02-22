@@ -187,7 +187,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       border-bottom: 1px solid #ece8f0;
       overflow-x: auto;
       position: sticky;
-      top: 176px;
+      top: 130px;
       z-index: 98;
     }
 
@@ -221,103 +221,208 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
 
     .tab.hidden { display: none; }
 
-    .content { max-width: 1400px; margin: 0 auto; padding: 1.5rem 2rem 3rem; }
+    .content { max-width: 1400px; margin: 0 auto; padding: 1rem 2rem 3rem; }
 
     .website-section { display: none; }
     .website-section.active { display: block; }
 
-    .date-group { margin-bottom: 2.5rem; }
+    /* Hero: grote weergave van het geselecteerde screenshot */
+    .hero-wrap { margin-bottom: 0.75rem; }
 
-    .date-header {
-      font-size: 0.95rem;
-      font-weight: 600;
-      color: #783c96;
-      margin-bottom: 1rem;
-      padding-bottom: 0.5rem;
-      border-bottom: 2px solid #ece8f0;
+    .hero-stage {
+      background: #16101f;
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+      min-height: 180px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      cursor: zoom-in;
+    }
+
+    .hero-img {
+      width: 100%;
+      height: auto;
+      max-height: 72vh;
+      object-fit: contain;
+      object-position: top;
+      display: block;
+      transition: opacity 0.18s ease;
+    }
+
+    .hero-img.loading { opacity: 0.4; }
+
+    .hero-placeholder {
+      position: absolute;
+      inset: 0;
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      justify-content: center;
+      color: #6a5a7a;
+      font-size: 0.85rem;
     }
 
-    .date-header::before {
-      content: '';
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #d23278, #e6463c);
-      flex-shrink: 0;
+    .hero-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.45rem 0.25rem 0.6rem;
     }
 
-    /* Horizontale tijdlijn per datum */
-    .timeline-strip {
+    .hero-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.83rem;
+      color: #5a4a6a;
+    }
+
+    .hero-date { font-weight: 700; color: #783c96; }
+    .hero-sep { color: #c9b8d9; }
+    .hero-time { font-weight: 500; }
+
+    .hero-hint {
+      font-size: 0.72rem;
+      color: #a898b8;
+      font-style: italic;
+    }
+
+    /* Filmstrip tijdlijn */
+    .filmstrip-wrap {
+      border-top: 1px solid #ece8f0;
+      padding-top: 0.7rem;
+    }
+
+    .filmstrip-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+    }
+
+    .filmstrip-title {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: #8a7a9a;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .filmstrip-scroll-hint {
+      font-size: 0.7rem;
+      color: #b0a0c0;
+    }
+
+    .filmstrip {
       display: flex;
       flex-direction: row;
-      gap: 0.8rem;
+      gap: 0;
       overflow-x: auto;
-      padding-bottom: 1rem;
       scroll-behavior: smooth;
       scrollbar-width: thin;
       scrollbar-color: #c9b8d9 #f0ebf6;
-    }
-
-    .timeline-strip::-webkit-scrollbar { height: 5px; }
-    .timeline-strip::-webkit-scrollbar-track { background: #f0ebf6; border-radius: 3px; }
-    .timeline-strip::-webkit-scrollbar-thumb { background: #c9b8d9; border-radius: 3px; }
-
-    .card {
-      flex: 0 0 260px;
-      width: 260px;
-      background: #fff;
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-      cursor: pointer;
-      transition: all 0.2s ease;
-      border: 1px solid #f0ecf3;
-    }
-
-    .card:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 8px 20px rgba(120, 60, 150, 0.12), 0 4px 8px rgba(0,0,0,0.06);
-      border-color: #d9cde3;
-    }
-
-    .card-screenshots {
-      display: flex;
+      padding-bottom: 0.5rem;
       align-items: stretch;
-      height: 180px;
     }
 
-    .card-thumb {
-      position: relative;
+    .filmstrip::-webkit-scrollbar { height: 5px; }
+    .filmstrip::-webkit-scrollbar-track { background: #f0ebf6; border-radius: 3px; }
+    .filmstrip::-webkit-scrollbar-thumb { background: #c9b8d9; border-radius: 3px; }
+
+    .fs-date-group {
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+      flex-shrink: 0;
+      border-right: 2px solid #e8e0f0;
+      padding-right: 0.6rem;
+      margin-right: 0.6rem;
+    }
+
+    .fs-date-group:last-child {
+      border-right: none;
+      padding-right: 0;
+      margin-right: 0;
+    }
+
+    .fs-date-sep {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      transform: rotate(180deg);
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: #783c96;
+      padding: 0.3rem 0.35rem;
+      background: #f0ebf6;
+      border-radius: 6px 0 0 6px;
+      margin-right: 0.35rem;
+      flex-shrink: 0;
+      min-width: 22px;
+      letter-spacing: 0.04em;
+      user-select: none;
+    }
+
+    .fs-thumbs {
+      display: flex;
+      flex-direction: row;
+      gap: 0.3rem;
+      align-items: flex-start;
+    }
+
+    .fs-thumb {
+      flex: 0 0 96px;
+      width: 96px;
+      cursor: pointer;
+      border-radius: 6px;
       overflow: hidden;
-      cursor: zoom-in;
-      background: #f5f3f7;
-      flex: 1;
+      border: 2px solid transparent;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      background: #f0ecf5;
     }
 
-    .card-thumb:hover { filter: brightness(0.97); }
+    .fs-thumb:hover { border-color: #c9b8d9; }
 
-    .card-thumb img {
+    .fs-thumb.active {
+      border-color: #783c96;
+      box-shadow: 0 2px 8px rgba(120, 60, 150, 0.3);
+    }
+
+    .fs-thumb img {
       width: 100%;
-      height: 100%;
+      height: 62px;
       object-fit: cover;
       object-position: top;
       display: block;
     }
 
-    .card-info {
-      padding: 0.55rem 0.8rem;
-      font-size: 0.75rem;
-      color: #8a7a9a;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-top: 1px solid #f5f2f8;
+    .fs-time {
+      display: block;
+      text-align: center;
+      font-size: 0.63rem;
+      font-weight: 500;
+      color: #5a4a6a;
+      padding: 0.18rem 0;
+      background: #fff;
+      border-top: 1px solid #f0ecf3;
+      white-space: nowrap;
     }
 
-    .card-info span:first-child { font-weight: 500; color: #5a4a6a; }
+    .fs-thumb.active .fs-time {
+      background: #f0ebf6;
+      color: #783c96;
+      font-weight: 700;
+    }
+
+    .empty {
+      text-align: center;
+      color: #a898b8;
+      padding: 4rem 2rem;
+      font-size: 0.95rem;
+    }
 
     /* Lightbox */
     .lightbox {
@@ -400,13 +505,6 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       border-radius: 999px;
       z-index: 1001;
       pointer-events: none;
-    }
-
-    .empty {
-      text-align: center;
-      color: #a898b8;
-      padding: 4rem 2rem;
-      font-size: 0.95rem;
     }
 
     /* Schema tab */
@@ -501,8 +599,10 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       .header-inner { flex-direction: column; align-items: flex-start; gap: 0.2rem; }
       .filter-bar { padding: 0.6rem 1rem; top: 56px; }
       .tabs { padding: 0.5rem 1rem; top: auto; position: relative; }
-      .content { padding: 1rem; }
-      .card { flex: 0 0 200px; width: 200px; }
+      .content { padding: 0.75rem 1rem 2rem; }
+      .hero-img { max-height: 55vw; }
+      .fs-thumb { flex: 0 0 76px; width: 76px; }
+      .fs-thumb img { height: 50px; }
       .lightbox-nav { width: 36px; height: 36px; font-size: 1.6rem; }
       .lightbox-nav.prev { left: 0.3rem; }
       .lightbox-nav.next { right: 0.3rem; }
@@ -520,13 +620,13 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
 
   <div class="filter-bar">
     <div class="filter-bar-inner">
-      <div class="filter-row" data-filter="date">
-        <span class="filter-label">Datum</span>
-        <div class="filter-chips" id="filter-date"></div>
-      </div>
       <div class="filter-row" data-filter="cluster">
         <span class="filter-label">Cluster</span>
         <div class="filter-chips" id="filter-cluster"></div>
+      </div>
+      <div class="filter-row" data-filter="date">
+        <span class="filter-label">Ga naar</span>
+        <div class="filter-chips" id="filter-date"></div>
       </div>
     </div>
   </div>
@@ -545,30 +645,62 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
     ${websites.map((website, i) => {
       const dates = structure[website];
       const dateKeys = Object.keys(dates);
-      return `<div class="website-section${i === 0 ? ' active' : ''}" data-site="${website}">
-      ${Object.entries(dates).map(([date, pairs]) => `<div class="date-group" data-date="${date}">
-        <div class="date-header">${date}</div>
-        <div class="timeline-strip">
-          ${pairs.map(item => {
-            const tIdx = item.filename.indexOf('T');
-            const timePart = tIdx > -1 ? item.filename.slice(tIdx+1, tIdx+9) : '';
-            const timeStr = timePart.length === 8 ? timePart.replace(/-/g, ':') : '';
-            const sizeStr = Math.round((item.size || 0) / 1024) + ' KB';
-            const shouldLoad = i === 0 && date === dateKeys[0];
-            const url = baseUrl + '/' + item.key;
-            const src = shouldLoad ? 'src="'+url+'"' : '';
+      // Bepaal de URL van de allereerste (meest recente) screenshot voor eager loading
+      const firstDatePairs = dates[dateKeys[0]] || [];
+      const firstItem = firstDatePairs[0];
+      const firstUrl = firstItem ? (baseUrl + '/' + firstItem.key) : '';
+      const firstTIdx = firstItem ? firstItem.filename.indexOf('T') : -1;
+      const firstTimePart = firstTIdx > -1 ? firstItem.filename.slice(firstTIdx+1, firstTIdx+9) : '';
+      const firstTimeStr = firstTimePart.length === 8 ? firstTimePart.replace(/-/g, ':') : '';
 
-            return '<div class="card">'
-              + '<div class="card-screenshots">'
-              + '<div class="card-thumb" data-url="'+url+'">'
-              + '<img '+src+' data-src="'+url+'" alt="Desktop">'
+      return `<div class="website-section${i === 0 ? ' active' : ''}" data-site="${website}">
+      <!-- Hero: grote weergave van het geselecteerde screenshot -->
+      <div class="hero-wrap">
+        <div class="hero-stage" id="hero-stage-${website}">
+          <img class="hero-img" id="hero-img-${website}"
+            ${i === 0 && firstUrl ? 'src="'+firstUrl+'"' : ''}
+            alt="Screenshot">
+          <div class="hero-placeholder" id="hero-placeholder-${website}"${i === 0 && firstUrl ? ' style="display:none"' : ''}>Selecteer een screenshot in de tijdlijn hieronder</div>
+        </div>
+        <div class="hero-meta">
+          <div class="hero-badge">
+            <span class="hero-date" id="hero-date-${website}">${i === 0 ? dateKeys[0] : ''}</span>
+            <span class="hero-sep">${i === 0 && firstTimeStr ? '·' : ''}</span>
+            <span class="hero-time" id="hero-time-${website}">${i === 0 ? firstTimeStr : ''}</span>
+          </div>
+          <span class="hero-hint">klik op de afbeelding om te vergroten</span>
+        </div>
+      </div>
+
+      <!-- Filmstrip tijdlijn: scroll naar rechts voor oudere screenshots -->
+      <div class="filmstrip-wrap">
+        <div class="filmstrip-header">
+          <span class="filmstrip-title">Tijdlijn</span>
+          <span class="filmstrip-scroll-hint">nieuwste ← scroll → oudste</span>
+        </div>
+        <div class="filmstrip" id="filmstrip-${website}">
+          ${Object.entries(dates).map(([date, pairs]) => {
+            return '<div class="fs-date-group" data-date="'+date+'">'
+              + '<div class="fs-date-sep">'+date+'</div>'
+              + '<div class="fs-thumbs">'
+              + pairs.map((item, pairIdx) => {
+                const tIdx = item.filename.indexOf('T');
+                const timePart = tIdx > -1 ? item.filename.slice(tIdx+1, tIdx+9) : '';
+                const timeStr = timePart.length === 8 ? timePart.replace(/-/g, ':') : '';
+                const url = baseUrl + '/' + item.key;
+                const isFirstThumb = i === 0 && date === dateKeys[0] && pairIdx === 0;
+                // Eager load enkel eerste thumb van eerste website
+                const src = isFirstThumb ? 'src="'+url+'"' : '';
+                return '<div class="fs-thumb'+(isFirstThumb ? ' active' : '')+'" data-url="'+url+'" data-date="'+date+'" data-time="'+timeStr+'">'
+                  + '<img '+src+' data-src="'+url+'" alt="'+timeStr+'">'
+                  + '<span class="fs-time">'+timeStr+'</span>'
+                  + '</div>';
+              }).join('')
               + '</div>'
-              + '</div>'
-              + '<div class="card-info"><span>' + timeStr + '</span><span>' + sizeStr + '</span></div>'
               + '</div>';
           }).join('\n          ')}
         </div>
-      </div>`).join('\n      ')}
+      </div>
     </div>`;
     }).join('\n    ')}
   </div>
@@ -625,62 +757,68 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
     const meta = ${metaJSON};
     const allDates = ${datesJSON};
 
-    // Standaard de meest recente datum selecteren
-    const filterState = { cluster: null, date: allDates[0] || null };
+    const filterState = { cluster: null };
 
     // Bouw cluster-chips dynamisch uit metadata
-    const filterKeys = ['cluster'];
-
     function getUniqueValues(key) {
       const vals = new Set();
       Object.values(meta).forEach(m => { if (m[key]) vals.add(m[key]); });
       return [...vals].sort();
     }
 
-    filterKeys.forEach(key => {
-      const container = document.getElementById('filter-' + key);
-      getUniqueValues(key).forEach(val => {
-        const chip = document.createElement('button');
-        chip.className = 'filter-chip';
-        chip.textContent = val;
-        chip.dataset.value = val;
-        chip.addEventListener('click', () => toggleFilter(key, val, chip));
-        container.appendChild(chip);
+    const clusterContainer = document.getElementById('filter-cluster');
+    getUniqueValues('cluster').forEach(val => {
+      const chip = document.createElement('button');
+      chip.className = 'filter-chip';
+      chip.textContent = val;
+      chip.dataset.value = val;
+      chip.addEventListener('click', () => {
+        if (filterState.cluster === val) {
+          filterState.cluster = null;
+          chip.classList.remove('active');
+        } else {
+          clusterContainer.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+          filterState.cluster = val;
+          chip.classList.add('active');
+        }
+        applyClusterFilter();
       });
+      clusterContainer.appendChild(chip);
     });
 
-    // Bouw datum-chips (nieuwste eerst, standaard meest recente actief)
+    // Datum-chips: navigeren naar die datum in de actieve filmstrip
     (function buildDateChips() {
       const container = document.getElementById('filter-date');
       allDates.forEach((date, i) => {
         const chip = document.createElement('button');
-        chip.className = 'filter-chip' + (i === 0 ? ' active' : '');
+        chip.className = 'filter-chip';
         chip.textContent = date;
-        chip.dataset.value = date;
+        chip.dataset.date = date;
         chip.addEventListener('click', () => {
           container.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
           chip.classList.add('active');
-          filterState.date = date;
-          applyFilters();
+          scrollFilmstripToDate(date);
+          // Chip na korte tijd deactiveren (het is een navigatieactie, geen filter)
+          setTimeout(() => chip.classList.remove('active'), 800);
         });
         container.appendChild(chip);
       });
     })();
 
-    function toggleFilter(key, val, chip) {
-      if (filterState[key] === val) {
-        filterState[key] = null;
-        chip.classList.remove('active');
-      } else {
-        chip.parentElement.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
-        filterState[key] = val;
-        chip.classList.add('active');
+    function scrollFilmstripToDate(date) {
+      const activeSection = document.querySelector('.website-section.active');
+      if (!activeSection) return;
+      const filmstrip = activeSection.querySelector('.filmstrip');
+      const dateGroup = activeSection.querySelector('.fs-date-group[data-date="' + date + '"]');
+      if (filmstrip && dateGroup) {
+        filmstrip.scrollTo({ left: dateGroup.offsetLeft - filmstrip.offsetLeft, behavior: 'smooth' });
+        // Activeer de eerste thumb van die datum
+        const firstThumb = dateGroup.querySelector('.fs-thumb');
+        if (firstThumb) activateThumb(firstThumb);
       }
-      applyFilters();
     }
 
-    function applyFilters() {
-      // Filter tabs op cluster
+    function applyClusterFilter() {
       const tabs = document.querySelectorAll('.tab');
       let firstVisible = null;
       let activeIsVisible = false;
@@ -696,28 +834,10 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
 
       if (!activeIsVisible && firstVisible) {
         activateTab(firstVisible);
-        return; // activateTab roept applyFilters indirect aan via loadSection
       }
-
-      // Filter date-groups en cards in de actieve sectie
-      loadSection();
     }
 
-    function loadSection() {
-      const activeSection = document.querySelector('.website-section.active');
-      if (!activeSection) return;
-
-      // Toon/verberg date-groups op basis van datumfilter
-      activeSection.querySelectorAll('.date-group').forEach(group => {
-        const dateVisible = !filterState.date || group.dataset.date === filterState.date;
-        group.style.display = dateVisible ? '' : 'none';
-      });
-    }
-
-    // Pas initieel filter toe
-    applyFilters();
-
-    // Lazy loading via IntersectionObserver (werkt voor zowel horizontaal als verticaal scrollen)
+    // Lazy loading via IntersectionObserver (horizontaal scrollen in filmstrip)
     const imageObserver = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
@@ -728,9 +848,58 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
           imageObserver.unobserve(img);
         }
       });
-    }, { rootMargin: '300px' });
+    }, { rootMargin: '400px' });
 
-    document.querySelectorAll('.card-thumb img[data-src]').forEach(img => imageObserver.observe(img));
+    document.querySelectorAll('.fs-thumb img[data-src]').forEach(img => imageObserver.observe(img));
+
+    // Hero: activeer een filmstrip-thumbnail en update de grote weergave
+    function activateThumb(thumb) {
+      const section = thumb.closest('.website-section');
+      if (!section) return;
+
+      section.querySelectorAll('.fs-thumb').forEach(t => t.classList.remove('active'));
+      thumb.classList.add('active');
+
+      const url = thumb.dataset.url;
+      const date = thumb.dataset.date;
+      const time = thumb.dataset.time;
+      const siteKey = section.dataset.site;
+
+      const heroImg = document.getElementById('hero-img-' + siteKey);
+      const heroDate = document.getElementById('hero-date-' + siteKey);
+      const heroTime = document.getElementById('hero-time-' + siteKey);
+      const heroPlaceholder = document.getElementById('hero-placeholder-' + siteKey);
+      const heroSep = section.querySelector('.hero-sep');
+
+      if (heroImg) {
+        heroImg.classList.add('loading');
+        heroImg.onload = () => heroImg.classList.remove('loading');
+        heroImg.src = url;
+      }
+      if (heroPlaceholder) heroPlaceholder.style.display = 'none';
+      if (heroDate) heroDate.textContent = date;
+      if (heroTime) heroTime.textContent = time;
+      if (heroSep) heroSep.textContent = time ? '·' : '';
+
+      // Laad ook de miniatuur als die nog niet geladen is
+      const thumbImg = thumb.querySelector('img');
+      if (thumbImg && thumbImg.dataset.src && !thumbImg.getAttribute('src')) {
+        thumbImg.src = thumbImg.dataset.src;
+        imageObserver.unobserve(thumbImg);
+      }
+    }
+
+    function initSectionHero(section) {
+      const firstThumb = section.querySelector('.fs-thumb');
+      if (firstThumb && !section.querySelector('.fs-thumb.active')) {
+        activateThumb(firstThumb);
+      }
+    }
+
+    // Filmstrip thumbnail klikken
+    document.querySelectorAll('.fs-thumb').forEach(thumb => {
+      thumb.addEventListener('click', () => activateThumb(thumb));
+    });
 
     // Tabs
     function activateTab(tab) {
@@ -742,7 +911,9 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
         section.classList.add('active');
         const filterBar = document.querySelector('.filter-bar');
         if (filterBar) filterBar.style.display = tab.dataset.site === '__schema__' ? 'none' : '';
-        if (tab.dataset.site !== '__schema__') loadSection();
+        if (tab.dataset.site !== '__schema__') {
+          initSectionHero(section);
+        }
       }
     }
 
@@ -750,7 +921,13 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       tab.addEventListener('click', () => activateTab(tab));
     });
 
-    // Lightbox met prev/next navigatie
+    // Initialiseer de hero van de eerste sectie
+    (function() {
+      const firstSection = document.querySelector('.website-section.active');
+      if (firstSection) initSectionHero(firstSection);
+    })();
+
+    // Lightbox: openen via klik op hero-afbeelding
     const lightbox = document.getElementById('lightbox');
     const lightboxImg = document.getElementById('lightbox-img');
     const lightboxCounter = document.getElementById('lightbox-counter');
@@ -763,12 +940,15 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
     function getVisibleThumbs() {
       const activeSection = document.querySelector('.website-section.active');
       if (!activeSection) return [];
-      return [...activeSection.querySelectorAll('.date-group:not([style*="display: none"]) .card-thumb')];
+      return [...activeSection.querySelectorAll('.fs-thumb')];
     }
 
-    function openLightbox(thumb) {
+    function openLightbox() {
+      const activeSection = document.querySelector('.website-section.active');
+      if (!activeSection) return;
       lightboxThumbs = getVisibleThumbs();
-      lightboxIndex = lightboxThumbs.indexOf(thumb);
+      const activeThumb = activeSection.querySelector('.fs-thumb.active');
+      lightboxIndex = activeThumb ? lightboxThumbs.indexOf(activeThumb) : 0;
       showLightboxAt(lightboxIndex);
       lightbox.classList.add('open');
     }
@@ -778,10 +958,9 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       if (!thumb) return;
       const url = thumb.dataset.url;
       lightboxImg.src = url;
-      // Zorg dat het originele img-element ook geladen is
-      const cardImg = thumb.querySelector('img');
-      if (cardImg && cardImg.dataset.src && !cardImg.getAttribute('src')) {
-        cardImg.src = cardImg.dataset.src;
+      const thumbImg = thumb.querySelector('img');
+      if (thumbImg && thumbImg.dataset.src && !thumbImg.getAttribute('src')) {
+        thumbImg.src = thumbImg.dataset.src;
       }
       lightboxCounter.textContent = (idx + 1) + ' / ' + lightboxThumbs.length;
       lightboxPrev.classList.toggle('disabled', idx === 0);
@@ -793,21 +972,33 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       lightboxImg.src = '';
     }
 
-    document.querySelectorAll('.card-thumb').forEach(thumb => {
-      thumb.addEventListener('click', (e) => {
-        e.stopPropagation();
-        openLightbox(thumb);
+    // Hero klikken opent lightbox
+    document.querySelectorAll('.hero-stage').forEach(stage => {
+      stage.addEventListener('click', (e) => {
+        const heroImg = stage.querySelector('.hero-img');
+        if (heroImg && heroImg.src && !heroImg.src.endsWith('/')) {
+          e.stopPropagation();
+          openLightbox();
+        }
       });
     });
 
     lightboxPrev.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (lightboxIndex > 0) showLightboxAt(--lightboxIndex);
+      if (lightboxIndex > 0) {
+        showLightboxAt(--lightboxIndex);
+        // Sync met filmstrip
+        if (lightboxThumbs[lightboxIndex]) activateThumb(lightboxThumbs[lightboxIndex]);
+      }
     });
 
     lightboxNext.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (lightboxIndex < lightboxThumbs.length - 1) showLightboxAt(++lightboxIndex);
+      if (lightboxIndex < lightboxThumbs.length - 1) {
+        showLightboxAt(++lightboxIndex);
+        // Sync met filmstrip
+        if (lightboxThumbs[lightboxIndex]) activateThumb(lightboxThumbs[lightboxIndex]);
+      }
     });
 
     lightbox.addEventListener('click', closeLightbox);
@@ -816,8 +1007,14 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
     document.addEventListener('keydown', (e) => {
       if (!lightbox.classList.contains('open')) return;
       if (e.key === 'Escape') closeLightbox();
-      if (e.key === 'ArrowLeft'  && lightboxIndex > 0) showLightboxAt(--lightboxIndex);
-      if (e.key === 'ArrowRight' && lightboxIndex < lightboxThumbs.length - 1) showLightboxAt(++lightboxIndex);
+      if (e.key === 'ArrowLeft' && lightboxIndex > 0) {
+        showLightboxAt(--lightboxIndex);
+        if (lightboxThumbs[lightboxIndex]) activateThumb(lightboxThumbs[lightboxIndex]);
+      }
+      if (e.key === 'ArrowRight' && lightboxIndex < lightboxThumbs.length - 1) {
+        showLightboxAt(++lightboxIndex);
+        if (lightboxThumbs[lightboxIndex]) activateThumb(lightboxThumbs[lightboxIndex]);
+      }
     });
   </script>
 </body>
