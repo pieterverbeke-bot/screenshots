@@ -439,6 +439,56 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
     .hero-img.loading { opacity: 0.4; }
     .hero-img.swiping { transition: none !important; }
 
+    /* Carousel wrapper met peek-afbeeldingen links/rechts */
+    .hero-carousel {
+      display: flex;
+      align-items: stretch;
+      gap: 4px;
+    }
+
+    .hero-peek {
+      width: 28px;
+      flex-shrink: 0;
+      overflow: hidden;
+      border-radius: 10px;
+      background: #16101f;
+      opacity: 0.45;
+      transition: opacity 0.2s ease;
+      cursor: pointer;
+    }
+
+    .hero-peek:hover { opacity: 0.7; }
+
+    .hero-peek img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: top;
+      display: block;
+    }
+
+    .hero-peek.hidden { visibility: hidden; pointer-events: none; }
+
+    /* Nu-knop */
+    .btn-nu {
+      padding: 0.2rem 0.55rem;
+      border: 1px solid #d23278;
+      border-radius: 999px;
+      background: #fff0f5;
+      color: #d23278;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.62rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      transition: all 0.15s ease;
+      line-height: 1.3;
+      white-space: nowrap;
+    }
+
+    .btn-nu:hover { background: #d23278; color: #fff; }
+
     .hero-placeholder {
       position: absolute;
       inset: 0;
@@ -639,6 +689,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       .hero-stage { height: 55vh; }
       .fs-thumb { flex: 0 0 64px; width: 64px; }
       .fs-thumb img { height: 42px; }
+      .hero-peek { width: 20px; }
       .lightbox-nav { width: 36px; height: 36px; font-size: 1.4rem; }
       .lightbox-nav.prev { left: 0.3rem; }
       .lightbox-nav.next { right: 0.3rem; }
@@ -672,6 +723,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
             <option value="">Spring naar...</option>
           </select>
         </div>
+        <button class="btn-nu" id="btn-nu" title="Spring naar meest recente screenshot">Nu</button>
       </div>
       <div class="toolbar-divider"></div>
       <div class="tabs-scroll" id="tabs">
@@ -738,13 +790,17 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
             <span class="hero-sep">${i === 0 && newestTimeStr ? '·' : ''}</span>
             <span class="hero-time" id="hero-time-${website}">${i === 0 ? newestTimeStr : ''}</span>
           </div>
-          <span class="hero-hint">klik om te vergroten</span>
+          <span class="hero-hint">klik om te vergroten · swipe ← →</span>
         </div>
-        <div class="hero-stage" id="hero-stage-${website}">
-          <img class="hero-img" id="hero-img-${website}"
-            ${i === 0 && newestUrl ? 'src="'+newestUrl+'"' : ''}
-            alt="Screenshot">
-          <div class="hero-placeholder" id="hero-placeholder-${website}"${i === 0 && newestUrl ? ' style="display:none"' : ''}>Selecteer een screenshot in de tijdlijn hierboven</div>
+        <div class="hero-carousel">
+          <div class="hero-peek hero-peek-left hidden" id="peek-left-${website}"><img alt=""></div>
+          <div class="hero-stage" id="hero-stage-${website}">
+            <img class="hero-img" id="hero-img-${website}"
+              ${i === 0 && newestUrl ? 'src="'+newestUrl+'"' : ''}
+              alt="Screenshot">
+            <div class="hero-placeholder" id="hero-placeholder-${website}"${i === 0 && newestUrl ? ' style="display:none"' : ''}>Selecteer een screenshot in de tijdlijn hierboven</div>
+          </div>
+          <div class="hero-peek hero-peek-right hidden" id="peek-right-${website}"><img alt=""></div>
         </div>
       </div>
     </div>`;
@@ -927,7 +983,41 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
         thumbImg.src = thumbImg.dataset.src;
         imageObserver.unobserve(thumbImg);
       }
+
+      // Update peek-afbeeldingen en preload aangrenzende hero images
+      updatePeeks(section);
     }
+
+    function updatePeeks(section) {
+      const siteKey = section.dataset.site;
+      const thumbs = [...section.querySelectorAll('.fs-thumb')];
+      const activeThumb = section.querySelector('.fs-thumb.active');
+      const idx = activeThumb ? thumbs.indexOf(activeThumb) : -1;
+
+      const peekLeft = document.getElementById('peek-left-' + siteKey);
+      const peekRight = document.getElementById('peek-right-' + siteKey);
+
+      if (peekLeft) {
+        if (idx > 0) {
+          peekLeft.classList.remove('hidden');
+          peekLeft.querySelector('img').src = thumbs[idx - 1].dataset.url;
+        } else {
+          peekLeft.classList.add('hidden');
+        }
+      }
+
+      if (peekRight) {
+        if (idx >= 0 && idx < thumbs.length - 1) {
+          peekRight.classList.remove('hidden');
+          peekRight.querySelector('img').src = thumbs[idx + 1].dataset.url;
+        } else {
+          peekRight.classList.add('hidden');
+        }
+      }
+
+      // Preload nog een stap verder voor sneller swipen
+      if (idx > 1) { var p = new Image(); p.src = thumbs[idx - 2].dataset.url; }
+      if (idx < thumbs.length - 2) { var p2 = new Image(); p2.src = thumbs[idx + 2].dataset.url; }
 
     function initSectionHero(section, instant) {
       const thumbs = [...section.querySelectorAll('.fs-thumb')];
@@ -978,6 +1068,42 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       const firstSection = document.querySelector('.website-section.active');
       if (firstSection) initSectionHero(firstSection, true);
     })();
+
+    // Nu-knop: spring naar meest recente screenshot
+    document.getElementById('btn-nu').addEventListener('click', () => {
+      const activeSection = document.querySelector('.website-section.active');
+      if (!activeSection || activeSection.dataset.site === '__schema__') return;
+      const thumbs = [...activeSection.querySelectorAll('.fs-thumb')];
+      const lastThumb = thumbs[thumbs.length - 1];
+      if (lastThumb) {
+        activateThumb(lastThumb);
+        const filmstrip = activeSection.querySelector('.filmstrip');
+        if (filmstrip) filmstrip.scrollTo({ left: filmstrip.scrollWidth, behavior: 'smooth' });
+      }
+    });
+
+    // Klik op peek-afbeeldingen om te navigeren
+    document.querySelectorAll('.hero-peek-left').forEach(peek => {
+      peek.addEventListener('click', () => {
+        const section = peek.closest('.website-section');
+        if (!section) return;
+        const thumbs = [...section.querySelectorAll('.fs-thumb')];
+        const activeThumb = section.querySelector('.fs-thumb.active');
+        const idx = activeThumb ? thumbs.indexOf(activeThumb) : -1;
+        if (idx > 0) activateThumb(thumbs[idx - 1]);
+      });
+    });
+
+    document.querySelectorAll('.hero-peek-right').forEach(peek => {
+      peek.addEventListener('click', () => {
+        const section = peek.closest('.website-section');
+        if (!section) return;
+        const thumbs = [...section.querySelectorAll('.fs-thumb')];
+        const activeThumb = section.querySelector('.fs-thumb.active');
+        const idx = activeThumb ? thumbs.indexOf(activeThumb) : -1;
+        if (idx < thumbs.length - 1) activateThumb(thumbs[idx + 1]);
+      });
+    });
 
     // Lightbox: openen via klik op hero-afbeelding
     const lightbox = document.getElementById('lightbox');
@@ -1060,7 +1186,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
         touchState.lastX = x;
         const heroImg = stage.querySelector('.hero-img');
         if (!heroImg) return;
-        const rotation = dx * 0.03;
+        const rotation = dx * 0.015;
         const opacity = Math.max(0.4, 1 - Math.abs(dx) / 300);
         heroImg.classList.add('swiping');
         heroImg.style.transform = 'translateX(' + dx + 'px) rotate(' + rotation + 'deg)';
@@ -1087,26 +1213,26 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
         else if (dx < 0 && idx < thumbs.length - 1) newIdx = idx + 1;
 
         if (Math.abs(dx) > 70 && newIdx !== idx && thumbs[newIdx]) {
-          // Fly out
+          // Snelle fly-out (afbeeldingen zijn al gepreload via peeks)
           const flyX = dx > 0 ? window.innerWidth : -window.innerWidth;
-          const flyRot = dx > 0 ? 12 : -12;
-          heroImg.style.transition = 'transform 0.28s ease, opacity 0.28s ease';
+          const flyRot = dx > 0 ? 8 : -8;
+          heroImg.style.transition = 'transform 0.15s ease-out, opacity 0.15s ease-out';
           heroImg.style.transform = 'translateX(' + flyX + 'px) rotate(' + flyRot + 'deg)';
           heroImg.style.opacity = '0';
 
           setTimeout(() => {
             // Positie voor entry vanuit de andere kant
             heroImg.style.transition = 'none';
-            heroImg.style.transform = 'translateX(' + (dx > 0 ? '-50%' : '50%') + ')';
+            heroImg.style.transform = 'translateX(' + (dx > 0 ? '-40%' : '40%') + ')';
             heroImg.style.opacity = '0';
             activateThumb(thumbs[newIdx]);
             requestAnimationFrame(() => { requestAnimationFrame(() => {
-              heroImg.style.transition = 'transform 0.3s cubic-bezier(0.25,0.1,0.25,1), opacity 0.3s ease';
+              heroImg.style.transition = 'transform 0.18s cubic-bezier(0.25,0.1,0.25,1), opacity 0.18s ease';
               heroImg.style.transform = '';
               heroImg.style.opacity = '1';
-              setTimeout(() => { heroImg.style.transition = ''; }, 350);
+              setTimeout(() => { heroImg.style.transition = ''; }, 220);
             }); });
-          }, 220);
+          }, 120);
         } else {
           resetHeroTransform(heroImg);
         }
