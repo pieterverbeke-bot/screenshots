@@ -174,6 +174,38 @@ async function forceLoadLazyImages(page) {
         }
       });
 
+      // React/Next.js blur-up patronen: vervang kleine placeholder-afbeeldingen door de echte
+      // Sommige React image components gebruiken een tiny base64 placeholder in src
+      // en de echte URL in een data-attribuut of sibling element
+      document.querySelectorAll('img').forEach(img => {
+        const src = img.getAttribute('src') || '';
+        // Detecteer base64 placeholder die kleiner is dan ~200 bytes (typisch voor LQIP)
+        if (src.startsWith('data:image/') && src.length < 300) {
+          // Zoek een echte URL in data-attributen
+          for (const attr of img.attributes) {
+            if (attr.name !== 'src' && attr.value && attr.value.startsWith('http') && attr.value.match(/\.(jpg|jpeg|png|webp|avif)/i)) {
+              img.src = attr.value;
+              count++;
+              break;
+            }
+          }
+        }
+      });
+
+      // Picture/source elementen: zorg dat alle source elementen een srcset hebben
+      document.querySelectorAll('picture > source').forEach(source => {
+        if (!source.srcset || source.srcset === '') {
+          // Check data-attributen voor de echte srcset
+          for (const attr of source.attributes) {
+            if (attr.name !== 'srcset' && attr.name.includes('src') && attr.value && !attr.value.startsWith('data:')) {
+              source.srcset = attr.value;
+              count++;
+              break;
+            }
+          }
+        }
+      });
+
       return count;
     });
     if (forced > 0) {
@@ -203,6 +235,87 @@ async function waitForImages(page) {
     });
   } catch {
     // Pagina kan al genavigeerd zijn
+  }
+}
+
+// Verwijder CSS blur/filter effecten die overblijven van LQIP (Low Quality Image Placeholder) lazy loading.
+// Sites als VRT NWS gebruiken een blur-up patroon: een klein, wazig beeld wordt getoond terwijl
+// het volledige beeld laadt. Soms blijft de CSS filter hangen, zelfs als het beeld geladen is.
+async function removeBlurEffects(page) {
+  try {
+    const removed = await page.evaluate(() => {
+      let count = 0;
+
+      // 1. Verwijder filter:blur() van alle elementen (img, picture, div containers, etc.)
+      const allElements = document.querySelectorAll('img, picture, figure, [class*="image"], [class*="lazy"], [class*="blur"], [class*="placeholder"], [class*="progressive"], [class*="lqip"]');
+      allElements.forEach(el => {
+        const style = window.getComputedStyle(el);
+        if (style.filter && style.filter.includes('blur')) {
+          el.style.filter = 'none';
+          count++;
+        }
+        // Check ook inline styles
+        if (el.style.filter && el.style.filter.includes('blur')) {
+          el.style.filter = 'none';
+          count++;
+        }
+      });
+
+      // 2. Verwijder blur van alle elementen met hoge z-index of position (overlay placeholders)
+      document.querySelectorAll('*').forEach(el => {
+        const style = window.getComputedStyle(el);
+        if (style.filter && style.filter.includes('blur')) {
+          el.style.filter = 'none';
+          count++;
+        }
+      });
+
+      // 3. Verwijder opacity:0 van img elementen (sommige lazy loaders verstoppen de echte afbeelding)
+      document.querySelectorAll('img').forEach(img => {
+        const style = window.getComputedStyle(img);
+        if (img.complete && img.naturalWidth > 0 && parseFloat(style.opacity) < 0.1) {
+          img.style.opacity = '1';
+          count++;
+        }
+      });
+
+      // 4. Verwijder CSS classes die blur toepassen (veelvoorkomende patronen)
+      const blurClassPatterns = ['blur', 'blurred', 'is-blurred', 'lazy-blur', 'lqip', 'placeholder'];
+      document.querySelectorAll('img, picture, figure, [class*="image"]').forEach(el => {
+        blurClassPatterns.forEach(pattern => {
+          el.classList.forEach(cls => {
+            if (cls.toLowerCase().includes(pattern)) {
+              el.classList.remove(cls);
+              count++;
+            }
+          });
+        });
+      });
+
+      return count;
+    });
+
+    if (removed > 0) {
+      console.log(`🔮 Removed ${removed} blur/filter effect(s)`);
+    }
+
+    // 5. Voeg een CSS override toe als vangnet: verwijder alle blur filters en transitions op afbeeldingen
+    await page.addStyleTag({
+      content: `
+        img, picture, picture > source, figure, [class*="image"], [class*="lazy"], [class*="blur"],
+        [class*="placeholder"], [class*="progressive"], [class*="lqip"] {
+          filter: none !important;
+          -webkit-filter: none !important;
+        }
+        img {
+          opacity: 1 !important;
+          transition: none !important;
+          animation: none !important;
+        }
+      `
+    });
+  } catch (error) {
+    console.log(`⚠️  Remove blur effects error: ${error.message}`);
   }
 }
 
@@ -702,6 +815,10 @@ async function loadAndPrepare(page, website, waitUntil = 'networkidle2') {
   await forceLoadLazyImages(page);
   await waitForImages(page);
 
+  // Verwijder CSS blur/filter effecten van LQIP lazy loading (VRT NWS, React blur-up, etc.)
+  console.log(`📸 ${name}: Removing blur/placeholder effects...`);
+  await removeBlurEffects(page);
+
   // Extra wachttijd voor eventuele animaties
   await new Promise(resolve => setTimeout(resolve, CONFIG.waitAfterScroll));
 
@@ -717,6 +834,42 @@ async function capturePage(browser, website, timestamp) {
   const page = await browser.newPage();
   try {
     await page.setViewport(CONFIG.desktopViewport);
+
+    // Override IntersectionObserver zodat alle lazy-loaded elementen (vooral React-gebaseerde
+    // image components zoals bij VRT NWS) meteen als zichtbaar worden beschouwd.
+    // Dit voorkomt dat afbeeldingen als blurred placeholders blijven hangen.
+    await page.evaluateOnNewDocument(() => {
+      // Bewaar de originele IntersectionObserver als fallback
+      const OriginalIO = window.IntersectionObserver;
+
+      window.IntersectionObserver = function(callback, options) {
+        // Wrap de callback zodat alle entries als zichtbaar worden gemeld
+        const wrappedCallback = (entries, observer) => {
+          const modified = entries.map(entry => {
+            if (!entry.isIntersecting) {
+              // Maak een nieuw object met isIntersecting=true
+              // We gebruiken Object.defineProperties omdat IntersectionObserverEntry readonly is
+              const fake = {};
+              for (const key of ['boundingClientRect', 'intersectionRect', 'rootBounds', 'target', 'time']) {
+                fake[key] = entry[key];
+              }
+              fake.isIntersecting = true;
+              fake.intersectionRatio = 1;
+              return fake;
+            }
+            return entry;
+          });
+          callback(modified, observer);
+        };
+
+        // Maak een echte IntersectionObserver met de gewrapte callback
+        const instance = new OriginalIO(wrappedCallback, options);
+        return instance;
+      };
+
+      // Kopieer prototype en statische properties van de originele IO
+      window.IntersectionObserver.prototype = OriginalIO.prototype;
+    });
 
     console.log(`📸 ${name}: Loading page...`);
     await loadAndPrepare(page, website, 'networkidle2');
