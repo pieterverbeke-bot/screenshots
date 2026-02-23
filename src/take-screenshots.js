@@ -19,7 +19,7 @@ const CONFIG = {
   },
   fullPage: true,
   timeout: 60000,
-  scrollDelay: 200,
+  scrollDelay: 350,
   waitAfterScroll: 1500,
   // WebP compressie (0-100), 30 geeft goede balans tussen kwaliteit en bestandsgrootte
   webpQuality: 30,
@@ -63,7 +63,7 @@ async function autoScroll(page) {
     await page.evaluate(async (scrollDelay, step) => {
       await new Promise((resolve) => {
         let totalHeight = 0;
-        const maxScrolls = 50;
+        const maxScrolls = 60;
         let scrollCount = 0;
 
         const timer = setInterval(() => {
@@ -74,9 +74,12 @@ async function autoScroll(page) {
 
           if (totalHeight >= scrollHeight || scrollCount >= maxScrolls) {
             clearInterval(timer);
-            // Scroll terug naar boven
-            window.scrollTo(0, 0);
-            resolve();
+            // Wacht 3 seconden onderaan zodat IntersectionObservers tijd hebben om te vuren
+            // en afbeeldingen onderaan de pagina beginnen laden
+            setTimeout(() => {
+              window.scrollTo(0, 0);
+              resolve();
+            }, 3000);
           }
         }, scrollDelay);
       });
@@ -92,37 +95,85 @@ async function forceLoadLazyImages(page) {
   try {
     const forced = await page.evaluate(() => {
       let count = 0;
-      // data-src → src
+
+      // Helper: check of een src een placeholder is (base64 pixel, lege string, etc.)
+      function isPlaceholder(src) {
+        if (!src || src === '' || src === window.location.href || src.endsWith('/')) return true;
+        if (src.startsWith('data:image/svg') || src.startsWith('data:image/gif') || src.startsWith('data:image/png')) return true;
+        if (src.includes('placeholder') || src.includes('blank.') || src.includes('pixel.') || src.includes('spacer.')) return true;
+        return false;
+      }
+
+      // data-src → src (inclusief gevallen waar src een placeholder is)
       document.querySelectorAll('img[data-src]').forEach(img => {
-        if (!img.src || img.src === '' || img.src === window.location.href || img.src.endsWith('/')) {
+        if (isPlaceholder(img.getAttribute('src'))) {
           img.src = img.dataset.src;
           count++;
         }
       });
-      // data-srcset → srcset
+
+      // Extra lazy-load attributen: data-lazy-src, data-original, data-image
+      ['data-lazy-src', 'data-original', 'data-image', 'data-hi-res-src'].forEach(attr => {
+        document.querySelectorAll(`img[${attr}]`).forEach(img => {
+          if (isPlaceholder(img.getAttribute('src'))) {
+            img.src = img.getAttribute(attr);
+            count++;
+          }
+        });
+      });
+
+      // data-srcset → srcset (voor img en source elementen)
       document.querySelectorAll('img[data-srcset]').forEach(img => {
         if (!img.srcset) { img.srcset = img.dataset.srcset; count++; }
       });
       document.querySelectorAll('source[data-srcset]').forEach(source => {
         if (!source.srcset) { source.srcset = source.dataset.srcset; count++; }
       });
+      document.querySelectorAll('img[data-lazy-srcset]').forEach(img => {
+        if (!img.srcset) { img.srcset = img.getAttribute('data-lazy-srcset'); count++; }
+      });
+      document.querySelectorAll('source[data-lazy-srcset]').forEach(source => {
+        if (!source.srcset) { source.srcset = source.getAttribute('data-lazy-srcset'); count++; }
+      });
+
       // Verwijder loading="lazy" om native lazy loading uit te schakelen
       document.querySelectorAll('img[loading="lazy"]').forEach(img => {
         img.loading = 'eager';
         count++;
       });
+
+      // Verwijder decoding="async" om directe decodering te forceren
+      document.querySelectorAll('img[decoding="async"]').forEach(img => {
+        img.decoding = 'sync';
+      });
+
       // VRT-specifiek: ze gebruiken vaak noscript/picture met verborgen bronnen
       document.querySelectorAll('noscript').forEach(ns => {
         const tmp = document.createElement('div');
         tmp.innerHTML = ns.textContent;
         const imgs = tmp.querySelectorAll('img');
         imgs.forEach(img => {
-          if (img.src && !document.querySelector('img[src="' + img.src + '"]')) {
+          if (img.src && !document.querySelector(`img[src="${CSS.escape(img.src)}"]`)) {
             const parent = ns.parentElement;
             if (parent) { parent.appendChild(img); count++; }
           }
         });
       });
+
+      // Data-background / data-bg voor elementen met lazy CSS background-image
+      document.querySelectorAll('[data-bg]').forEach(el => {
+        if (!el.style.backgroundImage || el.style.backgroundImage === 'none') {
+          el.style.backgroundImage = `url('${el.getAttribute('data-bg')}')`;
+          count++;
+        }
+      });
+      document.querySelectorAll('[data-background-image]').forEach(el => {
+        if (!el.style.backgroundImage || el.style.backgroundImage === 'none') {
+          el.style.backgroundImage = `url('${el.getAttribute('data-background-image')}')`;
+          count++;
+        }
+      });
+
       return count;
     });
     if (forced > 0) {
@@ -152,6 +203,38 @@ async function waitForImages(page) {
     });
   } catch {
     // Pagina kan al genavigeerd zijn
+  }
+}
+
+// Scroll elke nog niet geladen afbeelding individueel in beeld om IntersectionObserver te triggeren
+async function scrollImagesToLoad(page) {
+  try {
+    const unloadedCount = await page.evaluate(() => {
+      return document.querySelectorAll('img:not([complete])').length +
+        Array.from(document.querySelectorAll('img')).filter(img =>
+          !img.complete || img.naturalHeight === 0
+        ).length;
+    });
+
+    if (unloadedCount === 0) return;
+
+    await page.evaluate(async () => {
+      const images = Array.from(document.querySelectorAll('img'));
+      const unloaded = images.filter(img => !img.complete || img.naturalHeight === 0);
+
+      for (const img of unloaded) {
+        img.scrollIntoView({ behavior: 'instant', block: 'center' });
+        // Korte pauze zodat IntersectionObserver kan vuren
+        await new Promise(r => setTimeout(r, 150));
+      }
+
+      // Scroll terug naar boven
+      window.scrollTo(0, 0);
+    });
+
+    console.log(`🔍 Scrolled ${unloadedCount} unloaded image(s) into view`);
+  } catch (error) {
+    console.log(`⚠️  scrollImagesToLoad error: ${error.message}`);
   }
 }
 
@@ -608,6 +691,15 @@ async function loadAndPrepare(page, website, waitUntil = 'networkidle2') {
   await forceLoadLazyImages(page);
 
   console.log(`📸 ${name}: Waiting for images to load...`);
+  await waitForImages(page);
+
+  // Tweede pass: scroll niet-geladen afbeeldingen individueel in beeld
+  // Dit vangt IntersectionObserver-gebaseerde lazy loading die de eerste scroll gemist heeft
+  console.log(`📸 ${name}: Scrolling unloaded images into view...`);
+  await scrollImagesToLoad(page);
+
+  // Na individueel scrollen opnieuw force-loaden en wachten
+  await forceLoadLazyImages(page);
   await waitForImages(page);
 
   // Extra wachttijd voor eventuele animaties
