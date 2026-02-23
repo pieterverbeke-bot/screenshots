@@ -770,7 +770,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
             <span class="hero-sep">${i === 0 && newestTimeStr ? '·' : ''}</span>
             <span class="hero-time" id="hero-time-${website}">${i === 0 ? newestTimeStr : ''}</span>
           </div>
-          <span class="hero-hint">klik om te vergroten · swipe ← →</span>
+          <span class="hero-hint">klik om te vergroten · pijltjestoetsen ← → · swipe</span>
         </div>
         <div class="hero-carousel">
           <div class="hero-peek hero-peek-left hidden" id="peek-left-${website}"><img alt=""></div>
@@ -1252,16 +1252,58 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
     lightbox.addEventListener('click', closeLightbox);
     lightboxImg.addEventListener('click', (e) => e.stopPropagation());
 
-    document.addEventListener('keydown', (e) => {
-      if (!lightbox.classList.contains('open')) return;
-      if (e.key === 'Escape') closeLightbox();
-      if (e.key === 'ArrowLeft' && lightboxIndex > 0) {
-        showLightboxAt(--lightboxIndex);
-        if (lightboxThumbs[lightboxIndex]) activateThumb(lightboxThumbs[lightboxIndex]);
+    // Scroll de filmstrip zodat de actieve thumbnail zichtbaar blijft
+    function scrollFilmstripToThumb(thumb) {
+      const filmstrip = thumb.closest('.filmstrip');
+      if (!filmstrip) return;
+      const thumbRect = thumb.getBoundingClientRect();
+      const stripRect = filmstrip.getBoundingClientRect();
+      if (thumbRect.left < stripRect.left || thumbRect.right > stripRect.right) {
+        const offset = thumb.offsetLeft - filmstrip.offsetLeft - stripRect.width / 2 + thumb.offsetWidth / 2;
+        filmstrip.scrollTo({ left: offset, behavior: 'smooth' });
       }
-      if (e.key === 'ArrowRight' && lightboxIndex < lightboxThumbs.length - 1) {
-        showLightboxAt(++lightboxIndex);
-        if (lightboxThumbs[lightboxIndex]) activateThumb(lightboxThumbs[lightboxIndex]);
+    }
+
+    // Navigeer naar vorige/volgende screenshot in de hero view
+    function navigateHero(direction) {
+      const activeSection = document.querySelector('.website-section.active');
+      if (!activeSection || activeSection.dataset.site === '__schema__') return;
+      const thumbs = [...activeSection.querySelectorAll('.fs-thumb')];
+      const activeThumb = activeSection.querySelector('.fs-thumb.active');
+      const idx = activeThumb ? thumbs.indexOf(activeThumb) : -1;
+      const newIdx = idx + direction;
+      if (newIdx >= 0 && newIdx < thumbs.length) {
+        activateThumb(thumbs[newIdx]);
+        scrollFilmstripToThumb(thumbs[newIdx]);
+      }
+    }
+
+    document.addEventListener('keydown', (e) => {
+      // Negeer toetsen als een inputveld of select actief is
+      const tag = document.activeElement && document.activeElement.tagName;
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+
+      if (lightbox.classList.contains('open')) {
+        if (e.key === 'Escape') closeLightbox();
+        if (e.key === 'ArrowLeft' && lightboxIndex > 0) {
+          showLightboxAt(--lightboxIndex);
+          if (lightboxThumbs[lightboxIndex]) activateThumb(lightboxThumbs[lightboxIndex]);
+        }
+        if (e.key === 'ArrowRight' && lightboxIndex < lightboxThumbs.length - 1) {
+          showLightboxAt(++lightboxIndex);
+          if (lightboxThumbs[lightboxIndex]) activateThumb(lightboxThumbs[lightboxIndex]);
+        }
+        return;
+      }
+
+      // Pijltjestoetsen navigatie in de hero view
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        navigateHero(-1);
+      }
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        navigateHero(1);
       }
     });
   </script>
