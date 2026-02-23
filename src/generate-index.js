@@ -36,6 +36,19 @@ function buildStructure(objects) {
   return structure;
 }
 
+// Slanke structuur voor client-side: alleen bestandsnamen per website/datum
+// (website en datum zijn al de keys, URLs worden client-side opgebouwd)
+function buildClientStructure(structure) {
+  const result = {};
+  for (const [website, dates] of Object.entries(structure)) {
+    result[website] = {};
+    for (const [date, items] of Object.entries(dates)) {
+      result[website][date] = items.map(item => item.filename);
+    }
+  }
+  return result;
+}
+
 function loadWebsitesMeta() {
   const raw = readFileSync(new URL('../websites.json', import.meta.url), 'utf-8');
   const websites = JSON.parse(raw);
@@ -53,6 +66,10 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
   // Bouw metadata JSON voor client-side filtering
   const metaJSON = JSON.stringify(websitesMeta);
 
+  // Slanke structuur voor lazy rendering van filmstrips (alleen bestandsnamen)
+  const clientStructure = buildClientStructure(structure);
+  const clientStructureJSON = JSON.stringify(clientStructure);
+
   // Verzamel alle unieke datums (nieuwste eerst) voor het datumfilter
   const allDates = new Set();
   for (const website of Object.values(structure)) {
@@ -69,6 +86,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RI&amp;G Screenshots</title>
+  <link rel="preconnect" href="${baseUrl}" crossorigin>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -731,7 +749,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       const newestTimePart = newestTIdx > -1 ? newestItem.filename.slice(newestTIdx+1, newestTIdx+9) : '';
       const newestTimeStr = newestTimePart.length === 8 ? newestTimePart.replace(/-/g, ':') : '';
 
-      return `<div class="website-section${i === 0 ? ' active' : ''}" data-site="${website}">
+      return `<div class="website-section${i === 0 ? ' active' : ''}" data-site="${website}" data-rendered="${i === 0 ? 'true' : 'false'}">
       <!-- Filmstrip tijdlijn: boven de hero voor snelle navigatie -->
       <div class="filmstrip-wrap">
         <div class="filmstrip-header">
@@ -739,7 +757,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
           <span class="filmstrip-scroll-hint">oudste ← scroll → nieuwste</span>
         </div>
         <div class="filmstrip" id="filmstrip-${website}">
-          ${Object.entries(dates).map(([date, pairs]) => {
+          ${i === 0 ? Object.entries(dates).map(([date, pairs]) => {
             return '<div class="fs-date-group" data-date="'+date+'">'
               + '<div class="fs-date-sep">'+date+'</div>'
               + '<div class="fs-thumbs">'
@@ -748,7 +766,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
                 const timePart = tIdx > -1 ? item.filename.slice(tIdx+1, tIdx+9) : '';
                 const timeStr = timePart.length === 8 ? timePart.replace(/-/g, ':') : '';
                 const url = baseUrl + '/' + item.key;
-                const isNewestThumb = i === 0 && date === lastDateKey && pairIdx === pairs.length - 1;
+                const isNewestThumb = date === lastDateKey && pairIdx === pairs.length - 1;
                 // Eager load enkel nieuwste thumb van eerste website
                 const src = isNewestThumb ? 'src="'+url+'"' : '';
                 return '<div class="fs-thumb'+(isNewestThumb ? ' active' : '')+'" data-url="'+url+'" data-date="'+date+'" data-time="'+timeStr+'">'
@@ -758,7 +776,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
               }).join('')
               + '</div>'
               + '</div>';
-          }).join('\n          ')}
+          }).join('\n          ') : '<!-- lazy rendered -->'}
         </div>
       </div>
 
@@ -776,7 +794,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
           <div class="hero-peek hero-peek-left hidden" id="peek-left-${website}"><img alt=""></div>
           <div class="hero-stage" id="hero-stage-${website}">
             <img class="hero-img" id="hero-img-${website}"
-              ${i === 0 && newestUrl ? 'src="'+newestUrl+'"' : ''}
+              ${i === 0 && newestUrl ? 'src="'+newestUrl+'" fetchpriority="high"' : ''}
               alt="Screenshot">
             <div class="hero-placeholder" id="hero-placeholder-${website}"${i === 0 && newestUrl ? ' style="display:none"' : ''}>Selecteer een screenshot in de tijdlijn hierboven</div>
           </div>
@@ -838,6 +856,8 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
   <script>
     const meta = ${metaJSON};
     const allDates = ${datesJSON};
+    const screenshotData = ${clientStructureJSON};
+    const screenshotBaseUrl = '${baseUrl}';
 
     const filterState = { cluster: null };
 
@@ -939,7 +959,52 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       });
     }, { rootMargin: '400px' });
 
-    document.querySelectorAll('.fs-thumb img[data-src]').forEach(img => imageObserver.observe(img));
+    // Observeer alleen de eerste (actieve) sectie bij het laden
+    // Andere secties worden geobserveerd wanneer ze gerenderd worden
+    (function() {
+      var first = document.querySelector('.website-section.active');
+      if (first) first.querySelectorAll('.fs-thumb img[data-src]').forEach(function(img) { imageObserver.observe(img); });
+    })();
+
+    // Lazy rendering: bouw filmstrip HTML vanuit JSON data bij eerste tab-activatie
+    function renderFilmstrip(siteKey) {
+      var section = document.querySelector('.website-section[data-site="' + siteKey + '"]');
+      if (!section || section.dataset.rendered === 'true') return;
+
+      var dates = screenshotData[siteKey];
+      if (!dates) return;
+
+      var filmstrip = section.querySelector('.filmstrip');
+      if (!filmstrip) return;
+
+      var html = '';
+      var dateKeys = Object.keys(dates);
+      for (var d = 0; d < dateKeys.length; d++) {
+        var date = dateKeys[d];
+        var filenames = dates[date];
+        html += '<div class="fs-date-group" data-date="' + date + '">';
+        html += '<div class="fs-date-sep">' + date + '</div>';
+        html += '<div class="fs-thumbs">';
+        for (var f = 0; f < filenames.length; f++) {
+          var filename = filenames[f];
+          var tIdx = filename.indexOf('T');
+          var timePart = tIdx > -1 ? filename.slice(tIdx + 1, tIdx + 9) : '';
+          var timeStr = timePart.length === 8 ? timePart.replace(/-/g, ':') : '';
+          var url = screenshotBaseUrl + '/' + siteKey + '/' + date + '/' + filename;
+          html += '<div class="fs-thumb" data-url="' + url + '" data-date="' + date + '" data-time="' + timeStr + '">';
+          html += '<img data-src="' + url + '" alt="' + timeStr + '">';
+          html += '<span class="fs-time">' + timeStr + '</span>';
+          html += '</div>';
+        }
+        html += '</div></div>';
+      }
+
+      filmstrip.innerHTML = html;
+      section.dataset.rendered = 'true';
+
+      // Observeer nieuwe afbeeldingen voor lazy loading
+      filmstrip.querySelectorAll('.fs-thumb img[data-src]').forEach(function(img) { imageObserver.observe(img); });
+    }
 
     // Hero: activeer een filmstrip-thumbnail en update de grote weergave
     function activateThumb(thumb) {
@@ -1035,9 +1100,12 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       }
     }
 
-    // Filmstrip thumbnail klikken
-    document.querySelectorAll('.fs-thumb').forEach(thumb => {
-      thumb.addEventListener('click', () => activateThumb(thumb));
+    // Filmstrip thumbnail klikken (event delegation: werkt ook voor lazy-gerenderde thumbs)
+    document.querySelectorAll('.filmstrip').forEach(filmstrip => {
+      filmstrip.addEventListener('click', (e) => {
+        const thumb = e.target.closest('.fs-thumb');
+        if (thumb) activateThumb(thumb);
+      });
     });
 
     // Tabs
@@ -1051,6 +1119,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
         const toolbar = document.getElementById('toolbar');
         if (toolbar) toolbar.style.display = tab.dataset.site === '__schema__' ? 'none' : '';
         if (tab.dataset.site !== '__schema__') {
+          renderFilmstrip(tab.dataset.site);
           initSectionHero(section);
         }
       }
