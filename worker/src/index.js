@@ -31,6 +31,15 @@ export default {
       return new Response(null, { headers });
     }
 
-    return new Response(object.body, { headers });
+    // R2-objecten met Content-Encoding: gzip decomprimeren, zodat
+    // Cloudflare's edge de encoding zelf kan afhandelen. Zonder dit
+    // ontvangt de browser rauwe gzip-bytes en toont het onleesbare tekens.
+    let body = object.body;
+    if (headers.get('content-encoding') === 'gzip') {
+      headers.delete('content-encoding');
+      body = body.pipeThrough(new DecompressionStream('gzip'));
+    }
+
+    return new Response(body, { headers });
   },
 };
