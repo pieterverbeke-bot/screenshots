@@ -429,7 +429,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
     }
 
     .hero-stage {
-      background: #16101f;
+      background: #ffffff;
       border-radius: 10px;
       overflow-y: auto;
       overflow-x: hidden;
@@ -439,12 +439,20 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       cursor: zoom-in;
       touch-action: pan-y;
       scrollbar-width: thin;
-      scrollbar-color: #6a5a7a #16101f;
+      scrollbar-color: #c9b8d9 #f5f2f8;
+      border: 1px solid #e0d8ea;
+      box-shadow: 0 2px 8px rgba(120, 60, 150, 0.08);
+      transition: box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+
+    .hero-stage.swiping {
+      box-shadow: 0 8px 24px rgba(120, 60, 150, 0.18);
+      border-color: #c9b8d9;
     }
 
     .hero-stage::-webkit-scrollbar { width: 5px; }
-    .hero-stage::-webkit-scrollbar-track { background: #16101f; }
-    .hero-stage::-webkit-scrollbar-thumb { background: #6a5a7a; border-radius: 3px; }
+    .hero-stage::-webkit-scrollbar-track { background: #f5f2f8; }
+    .hero-stage::-webkit-scrollbar-thumb { background: #c9b8d9; border-radius: 3px; }
 
     .hero-img {
       width: 100%;
@@ -469,10 +477,11 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       flex-shrink: 0;
       overflow: hidden;
       border-radius: 10px;
-      background: #16101f;
+      background: #f0ecf5;
       opacity: 0.45;
       transition: opacity 0.2s ease;
       cursor: pointer;
+      border: 1px solid #e0d8ea;
     }
 
     .hero-peek:hover { opacity: 0.7; }
@@ -1305,6 +1314,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
         const rotation = dx * 0.015;
         const opacity = Math.max(0.4, 1 - Math.abs(dx) / 300);
         heroImg.classList.add('swiping');
+        stage.classList.add('swiping');
         heroImg.style.transform = 'translateX(' + dx + 'px) rotate(' + rotation + 'deg)';
         heroImg.style.opacity = opacity;
       }, { passive: true });
@@ -1316,6 +1326,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
         const heroImg = stage.querySelector('.hero-img');
         if (!heroImg) return;
         heroImg.classList.remove('swiping');
+        stage.classList.remove('swiping');
 
         const section = stage.closest('.website-section');
         if (!section) { resetHeroTransform(heroImg); return; }
