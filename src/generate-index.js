@@ -639,6 +639,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       width: 100%;
       border-collapse: collapse;
       font-size: 0.84rem;
+      table-layout: fixed;
     }
 
     .schema-table th {
@@ -652,10 +653,21 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       background: #f8f5fa;
     }
 
+    .schema-table th:nth-child(1) { width: 14%; }
+    .schema-table th:nth-child(2) { width: 46%; }
+    .schema-table th:nth-child(3) { width: 16%; }
+    .schema-table th:nth-child(4) { width: 24%; }
+
     .schema-table td {
       padding: 0.55rem 0.9rem;
       border-bottom: 1px solid #f5f2f8;
       vertical-align: middle;
+    }
+
+    .schema-table td:nth-child(2) {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .schema-table tr:last-child td { border-bottom: none; }
@@ -1133,6 +1145,14 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
     (function() {
       const firstSection = document.querySelector('.website-section.active');
       if (firstSection) initSectionHero(firstSection, true);
+    })();
+
+    // Standaard cluster selecteren bij openen
+    (function() {
+      const defaultCluster = 'AD Regiosites';
+      clusterSelect.value = defaultCluster;
+      filterState.cluster = defaultCluster;
+      applyClusterFilter();
     })();
 
     // Klik op peek-afbeeldingen om te navigeren
