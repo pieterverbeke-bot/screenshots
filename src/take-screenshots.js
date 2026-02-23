@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 import puppeteer from 'puppeteer';
-import { readFileSync, existsSync, mkdirSync } from 'fs';
+import sharp from 'sharp';
+import { readFileSync, existsSync, mkdirSync, statSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -20,8 +21,12 @@ const CONFIG = {
   timeout: 60000,
   scrollDelay: 200,
   waitAfterScroll: 1500,
-  // WebP compressie (0-100), 40 geeft goede kwaliteit voor full-page screenshots (grotere bestanden dan viewport-only)
-  webpQuality: 40,
+  // WebP compressie (0-100), 30 geeft goede balans tussen kwaliteit en bestandsgrootte
+  webpQuality: 30,
+  // Resize na capture: breedte verkleinen om bestandsgrootte te reduceren (100-300 KB target)
+  resizeWidth: 960,
+  // Maximale hoogte in pixels (beperkt extreem lange full-page screenshots)
+  maxHeight: 8000,
   // Tijdzone voor bestandsnamen
   timezone: 'Europe/Brussels',
   // Aantal sites die tegelijk verwerkt worden (3 is optimaal voor GitHub Actions 2-core runners)
@@ -628,13 +633,37 @@ async function capturePage(browser, website, timestamp) {
     const filepath = join(SCREENSHOTS_DIR, filename);
 
     console.log(`📸 ${name}: Taking screenshot...`);
-    await page.screenshot({
-      path: filepath,
+    const rawBuffer = await page.screenshot({
       fullPage: CONFIG.fullPage,
       type: 'webp',
-      quality: CONFIG.webpQuality
+      quality: 80 // hoge kwaliteit voor tussenresultaat, sharp doet de finale compressie
     });
-    console.log(`✅ ${name}: Saved ${filename}`);
+
+    // Resize en comprimeer met sharp voor kleinere bestanden (target: 100-300 KB)
+    const metadata = await sharp(rawBuffer).metadata();
+    const targetWidth = CONFIG.resizeWidth;
+    const maxHeight = CONFIG.maxHeight;
+
+    let pipeline = sharp(rawBuffer);
+
+    // Bereken of hoogte beperkt moet worden
+    if (metadata.width && metadata.height) {
+      const scaledHeight = Math.round(metadata.height * (targetWidth / metadata.width));
+      if (scaledHeight > maxHeight) {
+        // Crop naar maximale hoogte na resize
+        pipeline = pipeline.resize(targetWidth, maxHeight, { fit: 'cover', position: 'top' });
+      } else {
+        pipeline = pipeline.resize(targetWidth, null, { fit: 'inside', withoutEnlargement: true });
+      }
+    } else {
+      pipeline = pipeline.resize(targetWidth, null, { fit: 'inside', withoutEnlargement: true });
+    }
+
+    await pipeline.webp({ quality: CONFIG.webpQuality }).toFile(filepath);
+
+    const stats = statSync(filepath);
+    const fileSizeKB = Math.round(stats.size / 1024);
+    console.log(`✅ ${name}: Saved ${filename} (${fileSizeKB} KB)`);
     return filename;
   } finally {
     await page.close();
