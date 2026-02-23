@@ -429,8 +429,10 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
     }
 
     .hero-stage {
-      background: #16101f;
+      background: #ffffff;
       border-radius: 10px;
+      border: 1px solid #e0dae8;
+      box-shadow: 0 2px 12px rgba(120, 60, 150, 0.08);
       overflow-y: auto;
       overflow-x: hidden;
       position: relative;
@@ -439,12 +441,18 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       cursor: zoom-in;
       touch-action: pan-y;
       scrollbar-width: thin;
-      scrollbar-color: #6a5a7a #16101f;
+      scrollbar-color: #b8a8cc #f0ecf5;
+      transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+
+    .hero-stage.is-swiping {
+      border-color: #b89ac9;
+      box-shadow: 0 6px 28px rgba(120, 60, 150, 0.18);
     }
 
     .hero-stage::-webkit-scrollbar { width: 5px; }
-    .hero-stage::-webkit-scrollbar-track { background: #16101f; }
-    .hero-stage::-webkit-scrollbar-thumb { background: #6a5a7a; border-radius: 3px; }
+    .hero-stage::-webkit-scrollbar-track { background: #f0ecf5; }
+    .hero-stage::-webkit-scrollbar-thumb { background: #b8a8cc; border-radius: 3px; }
 
     .hero-img {
       width: 100%;
@@ -469,8 +477,9 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       flex-shrink: 0;
       overflow: hidden;
       border-radius: 10px;
-      background: #16101f;
-      opacity: 0.45;
+      background: #f0ebf6;
+      border: 1px solid #e0dae8;
+      opacity: 0.55;
       transition: opacity 0.2s ease;
       cursor: pointer;
     }
@@ -1305,6 +1314,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
         const rotation = dx * 0.015;
         const opacity = Math.max(0.4, 1 - Math.abs(dx) / 300);
         heroImg.classList.add('swiping');
+        stage.classList.add('is-swiping');
         heroImg.style.transform = 'translateX(' + dx + 'px) rotate(' + rotation + 'deg)';
         heroImg.style.opacity = opacity;
       }, { passive: true });
@@ -1316,6 +1326,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
         const heroImg = stage.querySelector('.hero-img');
         if (!heroImg) return;
         heroImg.classList.remove('swiping');
+        stage.classList.remove('is-swiping');
 
         const section = stage.closest('.website-section');
         if (!section) { resetHeroTransform(heroImg); return; }
