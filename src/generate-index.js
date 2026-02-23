@@ -873,6 +873,30 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
 
     const filterState = { cluster: null };
 
+    // URL query parameters parsen voor deelbare links
+    // Gebruik: ?cluster=HLN&site=hln&date=2024-01-15
+    function getUrlParams() {
+      const params = new URLSearchParams(window.location.search);
+      return {
+        cluster: params.get('cluster'),
+        site: params.get('site'),
+        date: params.get('date'),
+      };
+    }
+
+    function updateUrl() {
+      const params = new URLSearchParams();
+      if (filterState.cluster) params.set('cluster', filterState.cluster);
+      const activeTab = document.querySelector('.tab.active');
+      if (activeTab && activeTab.dataset.site !== '__schema__') {
+        params.set('site', activeTab.dataset.site);
+      }
+      const qs = params.toString();
+      history.replaceState(null, '', qs ? '?' + qs : window.location.pathname);
+    }
+
+    const urlParams = getUrlParams();
+
     // Bouw cluster-chips dynamisch uit metadata
     function getUniqueValues(key) {
       const vals = new Set();
@@ -890,6 +914,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
     clusterSelect.addEventListener('change', () => {
       filterState.cluster = clusterSelect.value || null;
       applyClusterFilter();
+      updateUrl();
     });
 
     // Datum-select: navigeren naar die datum in de actieve filmstrip
@@ -1138,7 +1163,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
     }
 
     document.querySelectorAll('.tab').forEach(tab => {
-      tab.addEventListener('click', () => activateTab(tab));
+      tab.addEventListener('click', () => { activateTab(tab); updateUrl(); });
     });
 
     // Initialiseer de hero van de eerste sectie (instant scroll naar nieuwste)
@@ -1147,12 +1172,30 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       if (firstSection) initSectionHero(firstSection, true);
     })();
 
-    // Standaard cluster selecteren bij openen
+    // Standaard cluster selecteren bij openen (URL param overschrijft default)
     (function() {
-      const defaultCluster = 'AD Regiosites';
+      const defaultCluster = urlParams.cluster || 'AD Regiosites';
       clusterSelect.value = defaultCluster;
       filterState.cluster = defaultCluster;
       applyClusterFilter();
+
+      // Als een specifieke site via URL is meegegeven, activeer die tab
+      if (urlParams.site) {
+        const targetTab = document.querySelector('.tab[data-site="' + urlParams.site + '"]');
+        if (targetTab && !targetTab.classList.contains('hidden')) {
+          activateTab(targetTab);
+        }
+      }
+
+      // Als een datum via URL is meegegeven, navigeer daarheen
+      if (urlParams.date) {
+        // Wacht tot filmstrip gerenderd is
+        requestAnimationFrame(() => {
+          scrollFilmstripToDate(urlParams.date);
+        });
+      }
+
+      updateUrl();
     })();
 
     // Klik op peek-afbeeldingen om te navigeren
