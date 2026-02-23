@@ -5,3 +5,8 @@ compatibility_date = "2024-12-01"
 [[r2_buckets]]
 binding = "SCREENSHOTS_BUCKET"
 bucket_name = "screenshots"
+
+# Wachtwoordbeveiliging: stel het AUTH_PASSWORD secret in via:
+#   npx wrangler secret put AUTH_PASSWORD
+# Voer vervolgens het gewenste wachtwoord in (bv. Screenshot2000).
+# Zonder dit secret is de viewer publiek toegankelijk.
