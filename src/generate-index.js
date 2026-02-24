@@ -177,7 +177,10 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       white-space: nowrap;
     }
 
-    .cluster-select {
+    /* Stream filter dropdown */
+    .stream-filter-wrap { position: relative; }
+
+    .stream-filter-btn {
       appearance: none;
       -webkit-appearance: none;
       padding: 0.2rem 1.4rem 0.2rem 0.5rem;
@@ -191,10 +194,101 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       font-weight: 500;
       transition: all 0.15s ease;
       line-height: 1.3;
+      white-space: nowrap;
+      user-select: none;
     }
 
-    .cluster-select:hover { background-color: #ebe4f0; border-color: #c0b0d0; }
-    .cluster-select:focus { outline: none; border-color: #783c96; box-shadow: 0 0 0 2px rgba(120,60,150,0.12); }
+    .stream-filter-btn:hover { background-color: #ebe4f0; border-color: #c0b0d0; }
+    .stream-filter-btn.open { border-color: #783c96; box-shadow: 0 0 0 2px rgba(120,60,150,0.12); }
+
+    .stream-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      background: #fff;
+      border: 1px solid #e0dae6;
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+      z-index: 200;
+      min-width: 190px;
+      padding: 0.35rem 0;
+      max-height: 360px;
+      overflow-y: auto;
+    }
+
+    .stream-dropdown.open { display: block; }
+
+    .stream-dropdown-actions {
+      display: flex;
+      gap: 0.3rem;
+      padding: 0.25rem 0.6rem 0.4rem;
+      border-bottom: 1px solid #f0ecf5;
+    }
+
+    .stream-action-btn {
+      border: none;
+      background: #f0ebf6;
+      color: #783c96;
+      font-family: inherit;
+      font-size: 0.6rem;
+      font-weight: 600;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .stream-action-btn:hover { background: #e4d9ee; }
+
+    .stream-option {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.3rem 0.6rem;
+      cursor: pointer;
+      font-size: 0.7rem;
+      font-weight: 500;
+      color: #5a4a6a;
+      transition: background 0.1s;
+      user-select: none;
+    }
+
+    .stream-option:hover { background: #f8f5fa; }
+
+    .stream-check {
+      width: 14px;
+      height: 14px;
+      border: 1.5px solid #c0b0d0;
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.15s;
+    }
+
+    .stream-option.active .stream-check {
+      background: #783c96;
+      border-color: #783c96;
+    }
+
+    .stream-option.active .stream-check::after {
+      content: '';
+      display: block;
+      width: 6px;
+      height: 3.5px;
+      border-left: 1.5px solid #fff;
+      border-bottom: 1.5px solid #fff;
+      transform: rotate(-45deg) translateY(-0.5px);
+    }
+
+    .stream-count {
+      margin-left: auto;
+      font-size: 0.58rem;
+      color: #b0a0c0;
+      font-weight: 400;
+    }
 
     /* Date dropdown instead of chips row */
     .date-select-wrap {
@@ -727,11 +821,16 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
   <div class="toolbar" id="toolbar">
     <div class="toolbar-inner">
       <div class="toolbar-section">
-        <span class="toolbar-label">Cluster</span>
-        <div class="date-select-wrap">
-          <select class="cluster-select" id="filter-cluster">
-            <option value="">Alle clusters</option>
-          </select>
+        <span class="toolbar-label">Streams</span>
+        <div class="stream-filter-wrap">
+          <button class="stream-filter-btn" id="stream-filter-btn" type="button">Alle streams</button>
+          <div class="stream-dropdown" id="stream-dropdown">
+            <div class="stream-dropdown-actions">
+              <button class="stream-action-btn" id="stream-all" type="button">Alles</button>
+              <button class="stream-action-btn" id="stream-none" type="button">Geen</button>
+            </div>
+            <div id="stream-options"></div>
+          </div>
         </div>
       </div>
       <div class="toolbar-divider"></div>
@@ -879,14 +978,15 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
     const screenshotData = ${clientStructureJSON};
     const screenshotBaseUrl = '${baseUrl}';
 
-    const filterState = { cluster: null };
+    const filterState = { streams: new Set() };
 
     // URL query parameters parsen voor deelbare links
-    // Gebruik: ?cluster=HLN&site=hln&date=2024-01-15
+    // Gebruik: ?streams=ADR,België&site=hln&date=2024-01-15
     function getUrlParams() {
       const params = new URLSearchParams(window.location.search);
       return {
-        cluster: params.get('cluster'),
+        streams: params.get('streams'),
+        cluster: params.get('cluster'), // backwards compat met oude URLs
         site: params.get('site'),
         date: params.get('date'),
       };
@@ -894,7 +994,10 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
 
     function updateUrl() {
       const params = new URLSearchParams();
-      if (filterState.cluster) params.set('cluster', filterState.cluster);
+      // Sla streams alleen op als niet alles geselecteerd is
+      if (filterState.streams.size < allClusters.length) {
+        params.set('streams', [...filterState.streams].join(','));
+      }
       const activeTab = document.querySelector('.tab.active');
       if (activeTab && activeTab.dataset.site !== '__schema__') {
         params.set('site', activeTab.dataset.site);
@@ -912,15 +1015,92 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       return [...vals].sort();
     }
 
-    const clusterSelect = document.getElementById('filter-cluster');
-    getUniqueValues('cluster').forEach(val => {
-      const option = document.createElement('option');
-      option.value = val;
-      option.textContent = val;
-      clusterSelect.appendChild(option);
+    const allClusters = getUniqueValues('cluster');
+    const streamBtn = document.getElementById('stream-filter-btn');
+    const streamDropdown = document.getElementById('stream-dropdown');
+    const streamOptionsEl = document.getElementById('stream-options');
+
+    // Tel sites per cluster voor weergave in dropdown
+    const clusterCounts = {};
+    Object.values(meta).forEach(m => {
+      if (m.cluster) clusterCounts[m.cluster] = (clusterCounts[m.cluster] || 0) + 1;
     });
-    clusterSelect.addEventListener('change', () => {
-      filterState.cluster = clusterSelect.value || null;
+
+    // Standaard: alle streams actief
+    allClusters.forEach(c => filterState.streams.add(c));
+
+    function renderStreamOptions() {
+      streamOptionsEl.innerHTML = allClusters.map(cluster => {
+        const active = filterState.streams.has(cluster);
+        const count = clusterCounts[cluster] || 0;
+        return '<div class="stream-option' + (active ? ' active' : '') + '" data-cluster="' + cluster + '">'
+          + '<span class="stream-check"></span>'
+          + '<span>' + cluster + '</span>'
+          + '<span class="stream-count">' + count + '</span>'
+          + '</div>';
+      }).join('');
+    }
+
+    function updateStreamBtn() {
+      const total = allClusters.length;
+      const active = filterState.streams.size;
+      if (active === total) {
+        streamBtn.textContent = 'Alle streams';
+      } else if (active === 0) {
+        streamBtn.textContent = 'Geen streams';
+      } else {
+        streamBtn.textContent = active + ' van ' + total + ' streams';
+      }
+    }
+
+    renderStreamOptions();
+    updateStreamBtn();
+
+    // Toggle dropdown open/dicht
+    streamBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      streamDropdown.classList.toggle('open');
+      streamBtn.classList.toggle('open');
+    });
+
+    // Sluit dropdown bij klik buiten
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.stream-filter-wrap')) {
+        streamDropdown.classList.remove('open');
+        streamBtn.classList.remove('open');
+      }
+    });
+
+    // Toggle individuele stream
+    streamOptionsEl.addEventListener('click', (e) => {
+      const option = e.target.closest('.stream-option');
+      if (!option) return;
+      const cluster = option.dataset.cluster;
+      if (filterState.streams.has(cluster)) {
+        filterState.streams.delete(cluster);
+      } else {
+        filterState.streams.add(cluster);
+      }
+      renderStreamOptions();
+      updateStreamBtn();
+      applyClusterFilter();
+      updateUrl();
+    });
+
+    // Alles selecteren
+    document.getElementById('stream-all').addEventListener('click', () => {
+      allClusters.forEach(c => filterState.streams.add(c));
+      renderStreamOptions();
+      updateStreamBtn();
+      applyClusterFilter();
+      updateUrl();
+    });
+
+    // Alles deselecteren
+    document.getElementById('stream-none').addEventListener('click', () => {
+      filterState.streams.clear();
+      renderStreamOptions();
+      updateStreamBtn();
       applyClusterFilter();
       updateUrl();
     });
@@ -980,7 +1160,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       tabs.forEach(tab => {
         const cluster = tab.dataset.cluster;
         const isSchema = tab.dataset.site === '__schema__';
-        const visible = isSchema || !filterState.cluster || cluster === filterState.cluster;
+        const visible = isSchema || filterState.streams.has(cluster);
         tab.classList.toggle('hidden', !visible);
         if (visible && !isSchema && !firstVisible) firstVisible = tab;
         if (visible && tab.classList.contains('active')) activeIsVisible = true;
@@ -1180,11 +1360,26 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       if (firstSection) initSectionHero(firstSection, true);
     })();
 
-    // Standaard cluster selecteren bij openen (URL param overschrijft default)
+    // Stream filter initialiseren vanuit URL params (backwards compat met ?cluster=)
     (function() {
-      const defaultCluster = urlParams.cluster || 'AD Regiosites';
-      clusterSelect.value = defaultCluster;
-      filterState.cluster = defaultCluster;
+      if (urlParams.streams) {
+        // Nieuw formaat: ?streams=ADR,België,...
+        filterState.streams.clear();
+        urlParams.streams.split(',').forEach(s => {
+          const decoded = decodeURIComponent(s.trim());
+          if (allClusters.includes(decoded)) filterState.streams.add(decoded);
+        });
+      } else if (urlParams.cluster) {
+        // Backwards compat: oud ?cluster=ADR formaat → toon alleen die cluster
+        filterState.streams.clear();
+        if (allClusters.includes(urlParams.cluster)) {
+          filterState.streams.add(urlParams.cluster);
+        }
+      }
+      // Anders: standaard alle streams actief (al ingesteld hierboven)
+
+      renderStreamOptions();
+      updateStreamBtn();
       applyClusterFilter();
 
       // Als een specifieke site via URL is meegegeven, activeer die tab
