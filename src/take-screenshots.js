@@ -20,7 +20,7 @@ const CONFIG = {
   fullPage: true,
   timeout: 60000,
   scrollDelay: 350,
-  waitAfterScroll: 1500,
+  waitAfterScroll: 2500,
   // WebP compressie (0-100), 30 geeft goede balans tussen kwaliteit en bestandsgrootte
   webpQuality: 30,
   // Resize na capture: breedte verkleinen om bestandsgrootte te reduceren (100-300 KB target)
@@ -74,12 +74,12 @@ async function autoScroll(page) {
 
           if (totalHeight >= scrollHeight || scrollCount >= maxScrolls) {
             clearInterval(timer);
-            // Wacht 3 seconden onderaan zodat IntersectionObservers tijd hebben om te vuren
+            // Wacht 5 seconden onderaan zodat IntersectionObservers tijd hebben om te vuren
             // en afbeeldingen onderaan de pagina beginnen laden
             setTimeout(() => {
               window.scrollTo(0, 0);
               resolve();
-            }, 3000);
+            }, 5000);
           }
         }, scrollDelay);
       });
@@ -206,6 +206,41 @@ async function forceLoadLazyImages(page) {
         }
       });
 
+      // DPG Media / moderne sites: content-visibility kan afbeeldingen buiten viewport blokkeren
+      document.querySelectorAll('[style*="content-visibility"]').forEach(el => {
+        el.style.contentVisibility = 'visible';
+        count++;
+      });
+
+      // Forceer img elementen zonder src maar met srcset om te laden
+      document.querySelectorAll('img:not([src])').forEach(img => {
+        if (img.srcset || img.dataset.srcset) {
+          // Haal eerste URL uit srcset
+          const srcset = img.srcset || img.dataset.srcset;
+          const firstUrl = srcset.split(',')[0].trim().split(/\s+/)[0];
+          if (firstUrl && firstUrl.startsWith('http')) {
+            img.src = firstUrl;
+            count++;
+          }
+        }
+      });
+
+      // Zoek verborgen/collapsed containers met afbeeldingen en maak ze zichtbaar
+      document.querySelectorAll('img').forEach(img => {
+        if (!img.complete || img.naturalHeight === 0) {
+          // Check of een parent element display:none of visibility:hidden heeft
+          let parent = img.parentElement;
+          for (let i = 0; i < 5 && parent; i++) {
+            const style = window.getComputedStyle(parent);
+            if (style.contentVisibility === 'auto' || style.contentVisibility === 'hidden') {
+              parent.style.contentVisibility = 'visible';
+              count++;
+            }
+            parent = parent.parentElement;
+          }
+        }
+      });
+
       return count;
     });
     if (forced > 0) {
@@ -223,12 +258,15 @@ async function waitForImages(page) {
       const images = Array.from(document.querySelectorAll('img'));
       await Promise.all(
         images.map((img) => {
-          if (img.complete) return Promise.resolve();
+          // Controleer of het beeld daadwerkelijk geladen is (niet alleen complete=true met placeholder)
+          if (img.complete && img.naturalHeight > 0) return Promise.resolve();
+          // Afbeelding zonder src hoeft niet te wachten
+          if (!img.src && !img.srcset) return Promise.resolve();
           return new Promise((resolve) => {
             img.addEventListener('load', resolve);
             img.addEventListener('error', resolve);
-            // Timeout na 5 seconden per afbeelding
-            setTimeout(resolve, 5000);
+            // Timeout na 8 seconden per afbeelding (verhoogd voor trage CDN's)
+            setTimeout(resolve, 8000);
           });
         })
       );
@@ -311,6 +349,10 @@ async function removeBlurEffects(page) {
           opacity: 1 !important;
           transition: none !important;
           animation: none !important;
+        }
+        /* Override content-visibility: auto zodat afbeeldingen buiten viewport ook renderen */
+        * {
+          content-visibility: visible !important;
         }
       `
     });
@@ -434,10 +476,11 @@ async function handleDPGPrivacyGate(page) {
     return;
   }
 
-  // Case 2: Privacy gate als iframe op de pagina
+  // Case 2: Privacy gate als iframe op de pagina (myprivacy.dpgmedia of Sourcepoint iframe)
   for (const frame of page.frames()) {
-    if (frame.url().includes('myprivacy.dpgmedia')) {
-      console.log(`🔒 DPG privacy gate iframe detected`);
+    const frameUrl = frame.url();
+    if (frameUrl.includes('myprivacy.dpgmedia') || frameUrl.includes('sourcepoint') || frameUrl.includes('sp-prod')) {
+      console.log(`🔒 DPG/Sourcepoint privacy gate iframe detected: ${frameUrl.slice(0, 80)}...`);
       try {
         const clicked = await clickAcceptButton(frame);
         if (clicked) {
@@ -803,6 +846,9 @@ async function loadAndPrepare(page, website, waitUntil = 'networkidle2') {
   console.log(`📸 ${name}: Force-loading lazy images...`);
   await forceLoadLazyImages(page);
 
+  // Geef browser tijd om DOM-wijzigingen te verwerken en netwerk-verzoeken te starten
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
   console.log(`📸 ${name}: Waiting for images to load...`);
   await waitForImages(page);
 
@@ -813,7 +859,29 @@ async function loadAndPrepare(page, website, waitUntil = 'networkidle2') {
 
   // Na individueel scrollen opnieuw force-loaden en wachten
   await forceLoadLazyImages(page);
+
+  // Wacht tot alle getriggerde netwerk-verzoeken zijn afgerond (alle afbeeldingen geladen)
+  console.log(`📸 ${name}: Waiting for network to settle...`);
+  try {
+    await page.waitForNetworkIdle({ idleTime: 500, timeout: 8000 });
+  } catch { /* Timeout is ok — sommige sites laden continu (ads, trackers) */ }
+
   await waitForImages(page);
+
+  // Derde pass voor hardnekkige lazy-loaded afbeeldingen (DPG Media, VRT NWS)
+  const unloadedCount = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('img')).filter(img =>
+      !img.complete || img.naturalHeight === 0
+    ).length
+  ).catch(() => 0);
+
+  if (unloadedCount > 3) {
+    console.log(`📸 ${name}: ${unloadedCount} images still unloaded, doing third pass...`);
+    await scrollImagesToLoad(page);
+    await forceLoadLazyImages(page);
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    await waitForImages(page);
+  }
 
   // Verwijder CSS blur/filter effecten van LQIP lazy loading (VRT NWS, React blur-up, etc.)
   console.log(`📸 ${name}: Removing blur/placeholder effects...`);
@@ -869,6 +937,12 @@ async function capturePage(browser, website, timestamp) {
 
       // Kopieer prototype en statische properties van de originele IO
       window.IntersectionObserver.prototype = OriginalIO.prototype;
+
+      // Override content-visibility: auto zodat afbeeldingen buiten viewport ook renderen
+      // (voorkomt dat de browser afbeeldingen skip die buiten het zichtbare gebied vallen)
+      const style = document.createElement('style');
+      style.textContent = '* { content-visibility: visible !important; }';
+      (document.head || document.documentElement).appendChild(style);
     });
 
     console.log(`📸 ${name}: Loading page...`);
