@@ -35,7 +35,7 @@ function loginPage(error) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login — RI&amp;G Screenshots</title>
+  <title>Login — Rigby&#39;s screenshot</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -135,7 +135,7 @@ function loginPage(error) {
 <body>
   <header>
     <div class="header-inner">
-      <h1>RI&amp;G Screenshots</h1>
+      <h1>Rigby&#39;s screenshot</h1>
     </div>
   </header>
   <div class="login-wrap">

@@ -85,7 +85,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RI&amp;G Screenshots</title>
+  <title>Rigby&#39;s screenshot</title>
   <link rel="preconnect" href="${baseUrl}" crossorigin>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -719,7 +719,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
 <body>
   <header>
     <div class="header-inner">
-      <h1>RI&amp;G Screenshots</h1>
+      <h1>Rigby&#39;s screenshot</h1>
       <p>Laatste update: ${new Date().toLocaleString('nl-BE', { timeZone: 'Europe/Brussels' })}</p>
     </div>
   </header>
