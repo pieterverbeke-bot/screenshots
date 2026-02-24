@@ -429,8 +429,9 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
     }
 
     .hero-stage {
-      background: #16101f;
+      background: #ffffff;
       border-radius: 10px;
+      border: 1px solid #e0d8e8;
       overflow-y: auto;
       overflow-x: hidden;
       position: relative;
@@ -439,12 +440,12 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       cursor: zoom-in;
       touch-action: pan-y;
       scrollbar-width: thin;
-      scrollbar-color: #6a5a7a #16101f;
+      scrollbar-color: #c9b8d9 #ffffff;
     }
 
     .hero-stage::-webkit-scrollbar { width: 5px; }
-    .hero-stage::-webkit-scrollbar-track { background: #16101f; }
-    .hero-stage::-webkit-scrollbar-thumb { background: #6a5a7a; border-radius: 3px; }
+    .hero-stage::-webkit-scrollbar-track { background: #ffffff; }
+    .hero-stage::-webkit-scrollbar-thumb { background: #c9b8d9; border-radius: 3px; }
 
     .hero-img {
       width: 100%;
@@ -452,10 +453,16 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       display: block;
       transition: opacity 0.25s ease, transform 0.25s ease;
       will-change: transform;
+      border: 1px solid #e0d8e8;
+      border-radius: 6px;
     }
 
     .hero-img.loading { opacity: 0.4; }
-    .hero-img.swiping { transition: none !important; }
+    .hero-img.swiping {
+      transition: none !important;
+      border-color: #c9b8d9;
+      box-shadow: 0 4px 24px rgba(120, 60, 150, 0.15);
+    }
 
     /* Carousel wrapper met peek-afbeeldingen links/rechts */
     .hero-carousel {
@@ -469,7 +476,8 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       flex-shrink: 0;
       overflow: hidden;
       border-radius: 10px;
-      background: #16101f;
+      background: #ffffff;
+      border: 1px solid #e0d8e8;
       opacity: 0.45;
       transition: opacity 0.2s ease;
       cursor: pointer;
