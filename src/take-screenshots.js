@@ -977,25 +977,132 @@ async function capturePage(browser, website, timestamp) {
       'sec-ch-ua-platform': '"Linux"'
     });
 
-    // Blokkeer Consent Management Platform (CMP) scripts zodat cookie/privacy popups
-    // niet verschijnen. Stealth modus zorgt ervoor dat sites een echte gebruiker detecteren,
-    // waardoor Sourcepoint/Didomi consent popups getoond worden. Door de scripts te blokkeren
-    // verschijnt de popup nooit en blijft de pagina-inhoud gewoon zichtbaar.
-    await page.setRequestInterception(true);
-    const blockedCmpPatterns = [
-      'cdn.privacy-mgmt.com',       // Sourcepoint CMP (DPG Media: HLN, De Morgen, AD, etc.)
-      'sourcepoint.mgr.consensu',   // Sourcepoint TCF endpoint
-      'sp-prod.net',                // Sourcepoint CDN
-      'sdk.privacy-center.org',     // Didomi SDK (NU.nl)
-      'api.privacy-center.org',     // Didomi API
-    ];
-    page.on('request', (request) => {
-      const url = request.url();
-      if (blockedCmpPatterns.some(pattern => url.includes(pattern))) {
-        request.abort();
+    // Blokkeer consent/cookie popups op DOM-niveau (Sourcepoint, Didomi, OneTrust, CookieBot, etc.)
+    // Drielaagse aanpak: 1) CSS verbergt popups instant, 2) MutationObserver verwijdert ze uit DOM,
+    // 3) TCF API stub meldt dat consent al gegeven is zodat CMP geen popup toont.
+    await page.evaluateOnNewDocument(() => {
+      // Laag 1: CSS — verberg bekende CMP containers direct (voordat JS ze kan tonen)
+      const cmpStyle = document.createElement('style');
+      cmpStyle.textContent = `
+        div[id^="sp_message_container"],
+        div[class*="sp_message"],
+        .message-overlay,
+        #didomi-host,
+        #didomi-popup,
+        .didomi-popup-container,
+        .didomi-popup-overlay,
+        [id*="didomi"],
+        div[id^="onetrust-"],
+        #onetrust-banner-sdk,
+        #CybotCookiebotDialog,
+        [class*="cmp-container"],
+        [class*="consent-banner"],
+        [class*="cookie-banner"],
+        [class*="cookie-wall"],
+        [class*="consent-overlay"],
+        [class*="consent-wall"],
+        [id*="consent-overlay"],
+        [id*="cmpbox"],
+        div[data-nosnippet][aria-modal="true"],
+        div[class*="privacy-gate"],
+        div[id*="privacy-gate"] {
+          display: none !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+          height: 0 !important;
+          overflow: hidden !important;
+          pointer-events: none !important;
+        }
+      `;
+      (document.head || document.documentElement).appendChild(cmpStyle);
+
+      // Laag 2: MutationObserver — verwijder CMP containers zodra ze verschijnen in de DOM
+      const cmpObserver = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+          for (const node of mutation.addedNodes) {
+            if (node.nodeType !== 1) continue;
+
+            const id = node.id || '';
+            const cls = node.className || '';
+
+            // Sourcepoint containers (sp_message_container_XXXXX)
+            if (id.startsWith('sp_message_container') || id.startsWith('sp_veil')) {
+              node.remove();
+              continue;
+            }
+
+            // Didomi containers
+            if (id.startsWith('didomi')) {
+              node.remove();
+              continue;
+            }
+
+            // OneTrust
+            if (id.startsWith('onetrust-') || id === 'onetrust-banner-sdk') {
+              node.remove();
+              continue;
+            }
+
+            // CookieBot
+            if (id === 'CybotCookiebotDialog' || id === 'CybotCookiebotDialogBodyUnderlay') {
+              node.remove();
+              continue;
+            }
+
+            // Iframes die CMP laden
+            if (node.tagName === 'IFRAME') {
+              const src = node.src || '';
+              if (src.includes('privacy-mgmt') || src.includes('sp-prod') ||
+                  src.includes('sourcepoint') || src.includes('didomi') ||
+                  src.includes('myprivacy.dpgmedia') || src.includes('consent')) {
+                node.remove();
+                continue;
+              }
+            }
+
+            // Generieke consent/privacy class-patronen op divs met hoge z-index
+            if (typeof cls === 'string' && (
+                cls.includes('sp_message') || cls.includes('consent-overlay') ||
+                cls.includes('cookie-wall') || cls.includes('consent-wall') ||
+                cls.includes('consent-banner') || cls.includes('cookie-banner') ||
+                cls.includes('privacy-gate') || cls.includes('cmp-container')
+            )) {
+              node.remove();
+              continue;
+            }
+          }
+        }
+      });
+
+      // Start observeren zodra de DOM beschikbaar is
+      if (document.documentElement) {
+        cmpObserver.observe(document.documentElement, { childList: true, subtree: true });
       } else {
-        request.continue();
+        document.addEventListener('DOMContentLoaded', () => {
+          cmpObserver.observe(document.documentElement, { childList: true, subtree: true });
+        });
       }
+
+      // Laag 3: TCF API stub — meld aan CMP scripts dat consent al gegeven is
+      // Hierdoor tonen Sourcepoint/Didomi/etc. hun popup niet
+      window.__tcfapi = function(cmd, version, callback) {
+        if (cmd === 'addEventListener') {
+          if (callback) callback({
+            eventStatus: 'tcloaded',
+            cmpStatus: 'loaded',
+            gdprApplies: false,
+            listenerId: Math.random(),
+          }, true);
+        } else if (cmd === 'removeEventListener') {
+          if (callback) callback(true);
+        } else if (callback) {
+          callback({ gdprApplies: false }, true);
+        }
+      };
+
+      // Sourcepoint specifiek: blokkeer _sp_ message queue
+      window._sp_queue = [];
+      window._sp_ = { config: { events: {} } };
     });
 
     // Stealth overrides: navigator.webdriver, plugins, chrome.runtime, permissions
