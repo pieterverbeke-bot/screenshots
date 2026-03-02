@@ -21,10 +21,10 @@ const CONFIG = {
   timeout: 60000,
   scrollDelay: 350,
   waitAfterScroll: 2500,
-  // WebP compressie (0-100), 30 geeft goede balans tussen kwaliteit en bestandsgrootte
-  webpQuality: 30,
-  // Resize na capture: breedte verkleinen om bestandsgrootte te reduceren (100-300 KB target)
-  resizeWidth: 960,
+  // WebP compressie (0-100), 50 geeft goede balans tussen kwaliteit en bestandsgrootte (~700 KB target)
+  webpQuality: 50,
+  // Resize na capture: breedte verkleinen om bestandsgrootte te reduceren (~700 KB target)
+  resizeWidth: 1280,
   // Maximale hoogte in pixels (beperkt extreem lange full-page screenshots)
   maxHeight: 8000,
   // Tijdzone voor bestandsnamen
@@ -393,13 +393,55 @@ async function scrollImagesToLoad(page) {
   }
 }
 
-// Detecteer en wacht op Cloudflare "Verify you are human" challenge
+// Laatste redmiddel: probeer afbeeldingen die niet geladen zijn expliciet op te halen via fetch()
+// en reset hun src om de browser de gecachte versie te laten laden
+async function preloadFailedImages(page) {
+  try {
+    const preloaded = await page.evaluate(async () => {
+      let count = 0;
+      const unloaded = Array.from(document.querySelectorAll('img'))
+        .filter(img => img.src && img.src.startsWith('http') && (!img.complete || img.naturalHeight === 0));
+
+      await Promise.all(unloaded.map(async (img) => {
+        try {
+          await fetch(img.src, { mode: 'no-cors', credentials: 'omit' });
+          // Reset src om de browser de gecachte versie te laten laden
+          const src = img.src;
+          img.removeAttribute('src');
+          await new Promise(r => setTimeout(r, 50));
+          img.src = src;
+          count++;
+        } catch { /* CDN kan no-cors weigeren, negeren */ }
+      }));
+      return count;
+    });
+    if (preloaded > 0) {
+      console.log(`🔄 Preloaded ${preloaded} failed image(s) via fetch`);
+    }
+  } catch (error) {
+    console.log(`⚠️  Preload failed images error: ${error.message}`);
+  }
+}
+
+// Detecteer en wacht op Cloudflare "Verify you are human" challenge of "blocked" pagina
 async function handleCloudflareChallenge(page) {
   try {
-    const isChallengePage = await page.evaluate(() => {
+    const cfStatus = await page.evaluate(() => {
       const bodyText = document.body?.innerText || '';
       const title = document.title || '';
-      return (
+
+      // "Sorry, you have been blocked" — WAF-blokkering, niet oplosbaar via challenge
+      const isBlocked = (
+        bodyText.includes('Sorry, you have been blocked') ||
+        bodyText.includes('Access denied') ||
+        bodyText.includes('You have been blocked') ||
+        !!document.querySelector('.cf-error-details') ||
+        !!document.querySelector('#cf-error-details')
+      );
+      if (isBlocked) return 'blocked';
+
+      // Interactieve challenge (Turnstile, JS challenge)
+      const isChallenge = (
         bodyText.includes('Verify you are human') ||
         bodyText.includes('Controleer of u een mens bent') ||
         bodyText.includes('confirm you are human') ||
@@ -410,10 +452,20 @@ async function handleCloudflareChallenge(page) {
         !!document.querySelector('.cf-turnstile') ||
         !!document.querySelector('iframe[src*="challenges.cloudflare.com"]')
       );
+      if (isChallenge) return 'challenge';
+
+      return 'ok';
     });
 
-    if (!isChallengePage) return false;
+    if (cfStatus === 'ok') return false;
 
+    // WAF-blokkering: gooi een error zodat de retry-logica in takeScreenshot het opnieuw probeert
+    if (cfStatus === 'blocked') {
+      console.log(`🛡️  Cloudflare WAF blocked — will retry with fresh page`);
+      throw new Error('Cloudflare blocked');
+    }
+
+    // Interactieve challenge: probeer op te lossen
     console.log(`🛡️  Cloudflare challenge detected, waiting for resolution...`);
 
     // Probeer de Turnstile checkbox te klikken als die er is
@@ -450,6 +502,8 @@ async function handleCloudflareChallenge(page) {
     await new Promise(resolve => setTimeout(resolve, 2000));
     return true;
   } catch (error) {
+    // Propageer Cloudflare-blokkering naar takeScreenshot voor retry
+    if (error?.message === 'Cloudflare blocked') throw error;
     console.log(`⚠️  Cloudflare challenge timeout or error: ${error.message}`);
     return false;
   }
@@ -883,6 +937,12 @@ async function loadAndPrepare(page, website, waitUntil = 'networkidle2') {
     await waitForImages(page);
   }
 
+  // Laatste redmiddel: expliciet ophalen van afbeeldingen die nog niet geladen zijn
+  console.log(`📸 ${name}: Preloading any remaining failed images...`);
+  await preloadFailedImages(page);
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  await waitForImages(page);
+
   // Verwijder CSS blur/filter effecten van LQIP lazy loading (VRT NWS, React blur-up, etc.)
   console.log(`📸 ${name}: Removing blur/placeholder effects...`);
   await removeBlurEffects(page);
@@ -902,6 +962,56 @@ async function capturePage(browser, website, timestamp) {
   const page = await browser.newPage();
   try {
     await page.setViewport(CONFIG.desktopViewport);
+
+    // Stel een realistische User-Agent in (standaard bevat Puppeteer "HeadlessChrome" wat bot-detectie triggert)
+    await page.setUserAgent(
+      'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+    );
+
+    // Stel realistische HTTP headers in (sec-ch-ua, Accept-Language) zodat CDN's en Cloudflare
+    // de browser als een echte Chrome-browser herkennen
+    await page.setExtraHTTPHeaders({
+      'Accept-Language': 'nl-NL,nl;q=0.9,en-US;q=0.8,en;q=0.7',
+      'sec-ch-ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+      'sec-ch-ua-mobile': '?0',
+      'sec-ch-ua-platform': '"Linux"'
+    });
+
+    // Stealth overrides: navigator.webdriver, plugins, chrome.runtime, permissions
+    // Dit voorkomt dat sites (Cloudflare, DPG Media, VRT) de browser als headless detecteren
+    await page.evaluateOnNewDocument(() => {
+      // navigator.webdriver = false (standaard true in headless Chrome)
+      Object.defineProperty(navigator, 'webdriver', { get: () => false });
+
+      // Realistische navigator.plugins (headless Chrome heeft standaard een lege array)
+      Object.defineProperty(navigator, 'plugins', {
+        get: () => {
+          const plugins = [
+            { name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer', description: 'Portable Document Format', length: 1 },
+            { name: 'Chrome PDF Viewer', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai', description: '', length: 1 },
+            { name: 'Native Client', filename: 'internal-nacl-plugin', description: '', length: 1 }
+          ];
+          plugins.length = 3;
+          return plugins;
+        }
+      });
+
+      // chrome.runtime object (aanwezig in echte Chrome, ontbreekt in headless)
+      window.chrome = {
+        runtime: { onConnect: { addListener: function(){} }, onMessage: { addListener: function(){} }, sendMessage: function(){} },
+        loadTimes: function() { return {}; },
+        csi: function() { return {}; }
+      };
+
+      // Permissions.query override (Cloudflare checkt notification permissions)
+      const origQuery = window.navigator.permissions?.query?.bind(window.navigator.permissions);
+      if (origQuery) {
+        window.navigator.permissions.query = (params) =>
+          params.name === 'notifications'
+            ? Promise.resolve({ state: Notification.permission })
+            : origQuery(params);
+      }
+    });
 
     // Override IntersectionObserver zodat alle lazy-loaded elementen (vooral React-gebaseerde
     // image components zoals bij VRT NWS) meteen als zichtbaar worden beschouwd.
@@ -997,8 +1107,22 @@ async function takeScreenshot(browser, website) {
     const filename = await capturePage(browser, website, timestamp);
     return { success: true, name, filename };
   } catch (error) {
-    console.error(`❌ ${name}: Screenshot failed — ${error?.message}`);
-    return { success: false, name, error: error?.message };
+    // Bij Cloudflare-blokkering of network error: retry met verse page na korte delay
+    const msg = error?.message || '';
+    if (msg.includes('Cloudflare') || msg.includes('blocked') ||
+        msg.includes('net::') || msg.includes('Navigation timeout')) {
+      console.log(`🔄 ${name}: Retrying in 5s after — ${msg}`);
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      try {
+        const filename = await capturePage(browser, website, timestamp);
+        return { success: true, name, filename };
+      } catch (retryError) {
+        console.error(`❌ ${name}: Retry also failed — ${retryError?.message}`);
+        return { success: false, name, error: retryError?.message };
+      }
+    }
+    console.error(`❌ ${name}: Screenshot failed — ${msg}`);
+    return { success: false, name, error: msg };
   }
 }
 
