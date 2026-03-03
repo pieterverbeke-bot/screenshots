@@ -526,31 +526,47 @@ async function handleDPGPrivacyGate(page) {
       console.log(`🔒 Clicked DPG consent: "${clicked}"`);
       await navigationPromise;
       await new Promise(resolve => setTimeout(resolve, 3000));
+    } else {
+      console.log(`🔒 No accept button found on myprivacy page, attempting DOM removal`);
     }
     return;
   }
 
-  // Case 2: Privacy gate als iframe op de pagina (myprivacy.dpgmedia of Sourcepoint iframe)
-  for (const frame of page.frames()) {
-    const frameUrl = frame.url();
-    if (frameUrl.includes('myprivacy.dpgmedia') || frameUrl.includes('sourcepoint') || frameUrl.includes('sp-prod')) {
-      console.log(`🔒 DPG/Sourcepoint privacy gate iframe detected: ${frameUrl.slice(0, 80)}...`);
-      try {
-        const clicked = await clickAcceptButton(frame);
-        if (clicked) {
-          console.log(`🔒 Clicked DPG iframe consent: "${clicked}"`);
-          await new Promise(resolve => setTimeout(resolve, 2000));
+  // Case 2: Privacy gate als iframe op de pagina — poll tot 6s voor het iframe verschijnt
+  const cmpFramePatterns = [
+    'myprivacy.dpgmedia',
+    'sourcepoint',
+    'sp-prod',
+    'privacy-mgmt.com',
+    'sp-jsprod',
+  ];
+  const deadline = Date.now() + 6000;
+  while (Date.now() < deadline) {
+    for (const frame of page.frames()) {
+      const frameUrl = frame.url();
+      if (cmpFramePatterns.some(p => frameUrl.includes(p))) {
+        console.log(`🔒 DPG/Sourcepoint privacy gate iframe detected: ${frameUrl.slice(0, 80)}`);
+        try {
+          // Wacht tot de iframe-inhoud geladen is
+          await frame.waitForSelector('button, [role="button"], a', { timeout: 3000 }).catch(() => {});
+          const clicked = await clickAcceptButton(frame);
+          if (clicked) {
+            console.log(`🔒 Clicked DPG iframe consent: "${clicked}"`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            return;
+          }
+        } catch {
+          // Cross-origin iframe access kan falen
         }
-      } catch {
-        // Cross-origin iframe access kan falen
       }
-      return;
     }
+    // Wacht 400ms voor volgende poll zodat iframe tijd krijgt te laden
+    await new Promise(resolve => setTimeout(resolve, 400));
   }
 
   // Case 3: Privacy gate overlay op de pagina zelf (niet via iframe/redirect)
   const hasPrivacyWall = await page.evaluate(() => {
-    return !!document.querySelector('[class*="privacy-wall"], [class*="privacy-gate"], [id*="privacy-wall"], [id*="privacy-gate"], [data-testid*="privacy"]');
+    return !!document.querySelector('[class*="privacy-wall"], [class*="privacy-gate"], [id*="privacy-wall"], [id*="privacy-gate"], [data-testid*="privacy"], [id^="sp_message_container"]');
   }).catch(() => false);
 
   if (hasPrivacyWall) {
@@ -645,7 +661,27 @@ async function removeRemainingOverlays(page) {
         }
       }
 
-      // 4. Herstel scrolling op body/html (vaak geblokkeerd door modals)
+      // 4. Verwijder CMP/consent iframes op basis van src-patroon (Sourcepoint, Didomi, DPG)
+      const cmpIframePatterns = [
+        'privacy-mgmt.com',
+        'sourcepoint',
+        'myprivacy.dpgmedia',
+        'sp-prod',
+        'sp-jsprod',
+        'didomi',
+        'sdk.privacy-center.org',
+      ];
+      document.querySelectorAll('iframe').forEach(iframe => {
+        const src = iframe.getAttribute('src') || iframe.src || '';
+        if (cmpIframePatterns.some(p => src.includes(p))) {
+          // Verwijder ook de container rondom het iframe
+          const container = iframe.closest('[id^="sp_"], [class*="sp_message"], [class*="consent-overlay"]') || iframe;
+          container.remove();
+          removedElements.push(`CMP iframe: ${src.slice(0, 60)}`);
+        }
+      });
+
+      // 5. Herstel scrolling op body/html (vaak geblokkeerd door modals)
       document.documentElement.style.overflow = '';
       document.body.style.overflow = '';
       document.documentElement.style.position = '';
@@ -679,8 +715,15 @@ async function clickAcceptButton(context) {
       /accept(eer)? (en )?door/i,
       /ik ga akkoord/i,
       /ja,? ik accepteer/i,
+      /ik accepteer/i,
       /toestaan/i,
       /doorgaan/i,
+      /ga verder/i,
+      /gratis verder/i,
+      /advertenties accepteren/i,
+      /verder zonder/i,
+      /akkoord gaan/i,
+      /consent/i,
     ];
 
     const elements = [...document.querySelectorAll('button, a, [role="button"], input[type="submit"], input[type="button"]')];
@@ -977,6 +1020,27 @@ async function capturePage(browser, website, timestamp) {
       'sec-ch-ua-platform': '"Linux"'
     });
 
+    // Blokkeer Sourcepoint en Didomi CDN-requests zodat de CMP-scripts nooit laden
+    // en dus ook geen privacy-gate popup kunnen tonen. Dit is de meest betrouwbare aanpak.
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+      const url = req.url();
+      const cmpDomains = [
+        'cdn.privacy-mgmt.com',
+        '.sourcepoint.com/',
+        'sp-prod.net',
+        'sp-jsprod.com',
+        'sdk.privacy-center.org',
+        'api.didomi.io',
+      ];
+      if (cmpDomains.some(d => url.includes(d))) {
+        // Geef lege JS terug zodat de pagina niet crasht
+        req.respond({ status: 200, contentType: 'application/javascript; charset=utf-8', body: '(function(){})();' });
+      } else {
+        req.continue();
+      }
+    });
+
     // Consent cookies zetten VOOR navigatie zodat CMP's (Sourcepoint, Didomi) denken
     // dat de gebruiker al consent heeft gegeven en de popup niet tonen.
     await page.setCookie(
@@ -987,6 +1051,35 @@ async function capturePage(browser, website, timestamp) {
       // Didomi consent cookie
       { name: 'didomi_token', value: 'eyJ1c2VyX2lkIjoiMTgzNjZhMjAtZjA1OS02YjcxLWIzZDItNTI3YmE2NWE3YWIyIiwiY3JlYXRlZCI6IjIwMjQtMDEtMDFUMDA6MDA6MDAuMDAwWiIsInVwZGF0ZWQiOiIyMDI0LTAxLTAxVDAwOjAwOjAwLjAwMFoiLCJ2ZXJzaW9uIjoyLCJwdXJwb3NlcyI6eyJlbmFibGVkIjpbImNvb2tpZXMiLCJnZW9sb2NhdGlvbl9kYXRhIiwiZGV2aWNlX2NoYXJhY3RlcmlzdGljcyJdfSwidmVuZG9ycyI6eyJlbmFibGVkIjpbXX19', url: website.url },
     );
+
+    // Pre-set consent in localStorage zodat CMPs geen popup tonen.
+    // Dit wordt uitgevoerd vóór pagina-scripts draaien (evaluateOnNewDocument).
+    await page.evaluateOnNewDocument(() => {
+      try {
+        // TCF v2 consent string: volledige toestemming voor alle doeleinden
+        // (generic string die door Sourcepoint/IAB herkend wordt als "consent given")
+        const tcfConsent = 'CPuI5IAPII5IAAfACBENDeCgAAAAAAAAAAAAAAAAAAAAA';
+        localStorage.setItem('sp.euconsent-v2', tcfConsent);
+        localStorage.setItem('euconsent-v2', tcfConsent);
+
+        // Sourcepoint: markeer alle berichten als al gezien
+        localStorage.setItem('_sp_v1_p_', '1');
+        localStorage.setItem('_sp_v1_consent_', '{"consentedAll":true}');
+
+        // Didomi: alle doeleinden geaccepteerd
+        localStorage.setItem('didomi-purposes', 'enabled');
+        localStorage.setItem('didomi_consent_string', 'all');
+
+        // Generieke consent flags
+        localStorage.setItem('cookie_consent', 'accepted');
+        localStorage.setItem('cookieConsent', 'all');
+        localStorage.setItem('privacy_gate_accepted', 'true');
+        localStorage.setItem('dpg_privacy', 'accepted');
+        localStorage.setItem('cc_status', 'accepted');
+      } catch (e) {
+        // localStorage niet beschikbaar in sommige contexten
+      }
+    });
 
     // TCF API stub: maak __tcfapi NIET-OVERSCHRIJFBAAR zodat CMP scripts
     // hem niet kunnen vervangen. Meldt gdprApplies=false zodat geen popup getoond wordt.
