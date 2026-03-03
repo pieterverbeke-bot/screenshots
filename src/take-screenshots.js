@@ -977,41 +977,25 @@ async function capturePage(browser, website, timestamp) {
       'sec-ch-ua-platform': '"Linux"'
     });
 
-    // Consent cookies zetten VOOR navigatie zodat CMP's (Sourcepoint, Didomi) denken
-    // dat de gebruiker al consent heeft gegeven en de popup niet tonen.
-    await page.setCookie(
-      { name: 'consentUUID', value: 'ee27a709-4689-4c62-b0eb-5765c42f7e7c', url: website.url },
-      { name: 'consentDate', value: new Date().toISOString(), url: website.url },
-      { name: 'addtl_consent', value: '1~', url: website.url },
-      { name: '_sp_su', value: 'false', url: website.url },
-      // Didomi consent cookie
-      { name: 'didomi_token', value: 'eyJ1c2VyX2lkIjoiMTgzNjZhMjAtZjA1OS02YjcxLWIzZDItNTI3YmE2NWE3YWIyIiwiY3JlYXRlZCI6IjIwMjQtMDEtMDFUMDA6MDA6MDAuMDAwWiIsInVwZGF0ZWQiOiIyMDI0LTAxLTAxVDAwOjAwOjAwLjAwMFoiLCJ2ZXJzaW9uIjoyLCJwdXJwb3NlcyI6eyJlbmFibGVkIjpbImNvb2tpZXMiLCJnZW9sb2NhdGlvbl9kYXRhIiwiZGV2aWNlX2NoYXJhY3RlcmlzdGljcyJdfSwidmVuZG9ycyI6eyJlbmFibGVkIjpbXX19', url: website.url },
-    );
-
-    // TCF API stub: maak __tcfapi NIET-OVERSCHRIJFBAAR zodat CMP scripts
-    // hem niet kunnen vervangen. Meldt gdprApplies=false zodat geen popup getoond wordt.
-    await page.evaluateOnNewDocument(() => {
-      const tcfStub = function(cmd, version, callback) {
-        if (cmd === 'addEventListener') {
-          if (callback) callback({
-            eventStatus: 'tcloaded',
-            cmpStatus: 'loaded',
-            gdprApplies: false,
-            listenerId: Math.random(),
-          }, true);
-        } else if (cmd === 'removeEventListener') {
-          if (callback) callback(true);
-        } else if (callback) {
-          callback({ gdprApplies: false }, true);
-        }
-      };
-
-      // Niet-overschrijfbaar: Sourcepoint/Didomi kan __tcfapi niet vervangen
-      Object.defineProperty(window, '__tcfapi', {
-        get: () => tcfStub,
-        set: () => {},
-        configurable: false,
-      });
+    // Blokkeer Consent Management Platform (CMP) scripts zodat cookie/privacy popups
+    // niet verschijnen. Stealth modus zorgt ervoor dat sites een echte gebruiker detecteren,
+    // waardoor Sourcepoint/Didomi consent popups getoond worden. Door de scripts te blokkeren
+    // verschijnt de popup nooit en blijft de pagina-inhoud gewoon zichtbaar.
+    await page.setRequestInterception(true);
+    const blockedCmpPatterns = [
+      'cdn.privacy-mgmt.com',       // Sourcepoint CMP (DPG Media: HLN, De Morgen, AD, etc.)
+      'sourcepoint.mgr.consensu',   // Sourcepoint TCF endpoint
+      'sp-prod.net',                // Sourcepoint CDN
+      'sdk.privacy-center.org',     // Didomi SDK (NU.nl)
+      'api.privacy-center.org',     // Didomi API
+    ];
+    page.on('request', (request) => {
+      const url = request.url();
+      if (blockedCmpPatterns.some(pattern => url.includes(pattern))) {
+        request.abort();
+      } else {
+        request.continue();
+      }
     });
 
     // Stealth overrides: navigator.webdriver, plugins, chrome.runtime, permissions
@@ -1097,9 +1081,6 @@ async function capturePage(browser, website, timestamp) {
 
     const filename = `${name}_${timestamp}.webp`;
     const filepath = join(SCREENSHOTS_DIR, filename);
-
-    // Allerlaatste opruiming vlak voor screenshot (vangt popups die na scrolling verschijnen)
-    await removeRemainingOverlays(page);
 
     console.log(`📸 ${name}: Taking screenshot...`);
     const rawBuffer = await page.screenshot({
