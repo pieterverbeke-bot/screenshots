@@ -1060,17 +1060,28 @@ async function main() {
 
   let websites;
   if (isOnTheHour) {
-    // Op het hele uur: alle sites, maar filter sites met interval > 60 op basis van uur
+    // Op het hele uur: alle sites (behalve halfHour-sites), filter interval > 60 op basis van uur
     websites = allWebsites.filter(w => {
+      if (w.halfHour) return false; // deze draaien op het halve uur
       const interval = w.interval || 60;
       if (interval <= 60) return true;
       // Voor interval > 60 (bv. 180 = elke 3 uur): alleen als het uur deelbaar is door (interval/60)
       const hourCycle = interval / 60;
-      return currentHour % hourCycle === 0;
+      const offset = w.offset || 0;
+      return ((currentHour - offset + 24) % hourCycle) === 0;
     });
   } else {
-    // Half-uur run: alleen sites met interval <= 30
-    websites = allWebsites.filter(w => (w.interval || 60) <= 30);
+    // Half-uur run: sites met interval <= 30 + halfHour-sites die op dit uur gepland staan
+    websites = allWebsites.filter(w => {
+      const interval = w.interval || 60;
+      if (!w.halfHour && interval <= 30) return true;
+      if (w.halfHour && interval > 60) {
+        const hourCycle = interval / 60;
+        const offset = w.offset || 0;
+        return ((currentHour - offset + 24) % hourCycle) === 0;
+      }
+      return false;
+    });
   }
 
   console.log(`📋 Found ${allWebsites.length} website(s) configured, ${websites.length} scheduled this run (minute=${currentMinute}, hour=${currentHour}, ${isOnTheHour ? 'full run' : 'half-hour run'})`);
