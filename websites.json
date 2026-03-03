@@ -254,7 +254,7 @@
   {
     "name": "indebuurt-almelo",
     "label": "indebuurt Almelo",
-    "url": "https://indebuurt.nl/Almelo",
+    "url": "https://indebuurt.nl/almelo/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -265,7 +265,7 @@
   {
     "name": "indebuurt-amersfoort",
     "label": "indebuurt Amersfoort",
-    "url": "https://indebuurt.nl/Amersfoort",
+    "url": "https://indebuurt.nl/amersfoort/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -276,7 +276,7 @@
   {
     "name": "indebuurt-amsterdam",
     "label": "indebuurt Amsterdam",
-    "url": "https://indebuurt.nl/Amsterdam",
+    "url": "https://indebuurt.nl/amsterdam/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -287,7 +287,7 @@
   {
     "name": "indebuurt-apeldoorn",
     "label": "indebuurt Apeldoorn",
-    "url": "https://indebuurt.nl/Apeldoorn",
+    "url": "https://indebuurt.nl/apeldoorn/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -298,7 +298,7 @@
   {
     "name": "indebuurt-arnhem",
     "label": "indebuurt Arnhem",
-    "url": "https://indebuurt.nl/Arnhem",
+    "url": "https://indebuurt.nl/arnhem/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -309,7 +309,7 @@
   {
     "name": "indebuurt-bergenopzoom",
     "label": "indebuurt Bergen op Zoom",
-    "url": "https://indebuurt.nl/BergenopZoom",
+    "url": "https://indebuurt.nl/bergenopzoom/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -320,7 +320,7 @@
   {
     "name": "indebuurt-breda",
     "label": "indebuurt Breda",
-    "url": "https://indebuurt.nl/Breda",
+    "url": "https://indebuurt.nl/breda/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -331,7 +331,7 @@
   {
     "name": "indebuurt-delft",
     "label": "indebuurt Delft",
-    "url": "https://indebuurt.nl/Delft",
+    "url": "https://indebuurt.nl/delft/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -342,7 +342,7 @@
   {
     "name": "indebuurt-denbosch",
     "label": "indebuurt Den Bosch",
-    "url": "https://indebuurt.nl/DenBosch",
+    "url": "https://indebuurt.nl/denbosch/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -353,7 +353,7 @@
   {
     "name": "indebuurt-denhaag",
     "label": "indebuurt Den Haag",
-    "url": "https://indebuurt.nl/DenHaag",
+    "url": "https://indebuurt.nl/denhaag/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -364,7 +364,7 @@
   {
     "name": "indebuurt-deventer",
     "label": "indebuurt Deventer",
-    "url": "https://indebuurt.nl/Deventer",
+    "url": "https://indebuurt.nl/deventer/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -375,7 +375,7 @@
   {
     "name": "indebuurt-doetinchem",
     "label": "indebuurt Doetinchem",
-    "url": "https://indebuurt.nl/Doetinchem",
+    "url": "https://indebuurt.nl/doetinchem/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -386,7 +386,7 @@
   {
     "name": "indebuurt-dordrecht",
     "label": "indebuurt Dordrecht",
-    "url": "https://indebuurt.nl/Dordrecht",
+    "url": "https://indebuurt.nl/dordrecht/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -397,7 +397,7 @@
   {
     "name": "indebuurt-ede",
     "label": "indebuurt Ede",
-    "url": "https://indebuurt.nl/Ede",
+    "url": "https://indebuurt.nl/ede/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -408,7 +408,7 @@
   {
     "name": "indebuurt-eindhoven",
     "label": "indebuurt Eindhoven",
-    "url": "https://indebuurt.nl/Eindhoven",
+    "url": "https://indebuurt.nl/eindhoven/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -419,7 +419,7 @@
   {
     "name": "indebuurt-enschede",
     "label": "indebuurt Enschede",
-    "url": "https://indebuurt.nl/Enschede",
+    "url": "https://indebuurt.nl/enschede/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -430,7 +430,7 @@
   {
     "name": "indebuurt-gouda",
     "label": "indebuurt Gouda",
-    "url": "https://indebuurt.nl/Gouda",
+    "url": "https://indebuurt.nl/gouda/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -441,7 +441,7 @@
   {
     "name": "indebuurt-groningen",
     "label": "indebuurt Groningen",
-    "url": "https://indebuurt.nl/Groningen",
+    "url": "https://indebuurt.nl/groningen/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -452,7 +452,7 @@
   {
     "name": "indebuurt-haarlem",
     "label": "indebuurt Haarlem",
-    "url": "https://indebuurt.nl/Haarlem",
+    "url": "https://indebuurt.nl/haarlem/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -463,7 +463,7 @@
   {
     "name": "indebuurt-helmond",
     "label": "indebuurt Helmond",
-    "url": "https://indebuurt.nl/Helmond",
+    "url": "https://indebuurt.nl/helmond/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -474,7 +474,7 @@
   {
     "name": "indebuurt-hengelo",
     "label": "indebuurt Hengelo",
-    "url": "https://indebuurt.nl/Hengelo",
+    "url": "https://indebuurt.nl/hengelo/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -485,7 +485,7 @@
   {
     "name": "indebuurt-leiden",
     "label": "indebuurt Leiden",
-    "url": "https://indebuurt.nl/Leiden",
+    "url": "https://indebuurt.nl/leiden/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -496,7 +496,7 @@
   {
     "name": "indebuurt-middelburg",
     "label": "indebuurt Middelburg",
-    "url": "https://indebuurt.nl/Middelburg",
+    "url": "https://indebuurt.nl/middelburg/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -507,7 +507,7 @@
   {
     "name": "indebuurt-nijmegen",
     "label": "indebuurt Nijmegen",
-    "url": "https://indebuurt.nl/Nijmegen",
+    "url": "https://indebuurt.nl/nijmegen/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -518,7 +518,7 @@
   {
     "name": "indebuurt-rotterdam",
     "label": "indebuurt Rotterdam",
-    "url": "https://indebuurt.nl/Rotterdam",
+    "url": "https://indebuurt.nl/rotterdam/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -529,7 +529,7 @@
   {
     "name": "indebuurt-schiedam",
     "label": "indebuurt Schiedam",
-    "url": "https://indebuurt.nl/Schiedam",
+    "url": "https://indebuurt.nl/schiedam/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -540,7 +540,7 @@
   {
     "name": "indebuurt-tilburg",
     "label": "indebuurt Tilburg",
-    "url": "https://indebuurt.nl/Tilburg",
+    "url": "https://indebuurt.nl/tilburg/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -551,7 +551,7 @@
   {
     "name": "indebuurt-utrecht",
     "label": "indebuurt Utrecht",
-    "url": "https://indebuurt.nl/Utrecht",
+    "url": "https://indebuurt.nl/utrecht/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -562,7 +562,7 @@
   {
     "name": "indebuurt-veenendaal",
     "label": "indebuurt Veenendaal",
-    "url": "https://indebuurt.nl/Veenendaal",
+    "url": "https://indebuurt.nl/veenendaal/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -573,7 +573,7 @@
   {
     "name": "indebuurt-vlaardingen",
     "label": "indebuurt Vlaardingen",
-    "url": "https://indebuurt.nl/Vlaardingen",
+    "url": "https://indebuurt.nl/vlaardingen/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -584,7 +584,7 @@
   {
     "name": "indebuurt-vlissingen",
     "label": "indebuurt Vlissingen",
-    "url": "https://indebuurt.nl/Vlissingen",
+    "url": "https://indebuurt.nl/vlissingen/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -595,7 +595,7 @@
   {
     "name": "indebuurt-woerden",
     "label": "indebuurt Woerden",
-    "url": "https://indebuurt.nl/Woerden",
+    "url": "https://indebuurt.nl/woerden/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -606,7 +606,7 @@
   {
     "name": "indebuurt-zoetermeer",
     "label": "indebuurt Zoetermeer",
-    "url": "https://indebuurt.nl/Zoetermeer",
+    "url": "https://indebuurt.nl/zoetermeer/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
@@ -617,7 +617,7 @@
   {
     "name": "indebuurt-zwolle",
     "label": "indebuurt Zwolle",
-    "url": "https://indebuurt.nl/Zwolle",
+    "url": "https://indebuurt.nl/zwolle/",
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "indebuurt",
