@@ -222,42 +222,34 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
     .date-select:hover { background-color: #ebe4f0; border-color: #c0b0d0; }
     .date-select:focus { outline: none; border-color: #783c96; box-shadow: 0 0 0 2px rgba(120,60,150,0.12); }
 
-    /* Website tabs - inline in toolbar */
-    .tabs-scroll {
-      display: flex;
-      gap: 0.2rem;
-      overflow-x: auto;
-      scrollbar-width: none;
-      flex: 1;
-      min-width: 0;
-    }
-
-    .tabs-scroll::-webkit-scrollbar { height: 0; }
-
-    .tab {
-      padding: 0.22rem 0.65rem;
-      border: none;
+    /* Website select dropdown - replaces horizontal tabs for better navigation */
+    .site-select {
+      appearance: none;
+      -webkit-appearance: none;
+      padding: 0.2rem 1.4rem 0.2rem 0.5rem;
+      border: 1px solid #e0dae6;
       border-radius: 999px;
-      background: transparent;
-      color: #7a6a8a;
+      background: #f8f5fa url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236a5a7a' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 0.45rem center;
+      color: #6a5a7a;
       cursor: pointer;
       font-family: inherit;
-      font-size: 0.68rem;
+      font-size: 0.65rem;
       font-weight: 500;
-      white-space: nowrap;
-      transition: all 0.18s ease;
+      transition: all 0.15s ease;
       line-height: 1.3;
+      max-width: 220px;
     }
 
-    .tab:hover {
-      background: rgba(120,60,150,0.08);
-      color: #5a3a7a;
+    .site-select:hover { background-color: #ebe4f0; border-color: #c0b0d0; }
+    .site-select:focus { outline: none; border-color: #783c96; box-shadow: 0 0 0 2px rgba(120,60,150,0.12); }
+
+    /* Hidden tabs container - keeps DOM for JS compatibility but not displayed */
+    .tabs-scroll {
+      display: none;
     }
 
-    .tab.active {
-      background: #783c96;
-      color: #fff;
-      box-shadow: 0 1px 6px rgba(120, 60, 150, 0.3);
+    .tab {
+      display: none;
     }
 
     .tab.hidden { display: none; }
@@ -599,16 +591,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       pointer-events: none;
     }
 
-    /* Schema tab */
-    .tab-schema {
-      margin-left: auto;
-      background: rgba(120,60,150,0.06);
-      font-weight: 600;
-    }
-
-    .tab-schema.active {
-      background: #5a2d82;
-    }
+    /* Schema tab - hidden, navigated via dropdown */
 
     .schema-intro {
       margin-bottom: 1.5rem;
@@ -703,7 +686,6 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       .toolbar { padding: 0.35rem 0.75rem; top: 32px; }
       .toolbar-inner { flex-wrap: wrap; gap: 0.3rem; }
       .toolbar-divider { display: none; }
-      .tabs-scroll { order: 10; flex-basis: 100%; }
       .content { padding: 0.5rem 0.75rem 2rem; }
       .hero-stage { height: 55vh; }
       .fs-thumb { flex: 0 0 64px; width: 64px; }
@@ -744,6 +726,13 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
         </div>
       </div>
       <div class="toolbar-divider"></div>
+      <div class="toolbar-section">
+        <span class="toolbar-label">Website</span>
+        <div class="date-select-wrap">
+          <select class="site-select" id="filter-site">
+          </select>
+        </div>
+      </div>
       <div class="tabs-scroll" id="tabs">
         ${websites.map((w, i) => {
           const m = websitesMeta[w];
@@ -922,7 +911,52 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
     clusterSelect.addEventListener('change', () => {
       filterState.cluster = clusterSelect.value || null;
       applyClusterFilter();
+      updateSiteSelect();
       updateUrl();
+    });
+
+    // Website-select: dropdown om websites te kiezen (vervangt horizontale tabs)
+    const siteSelect = document.getElementById('filter-site');
+
+    function updateSiteSelect() {
+      const tabs = document.querySelectorAll('.tab');
+      const activeTab = document.querySelector('.tab.active');
+      const activeSite = activeTab ? activeTab.dataset.site : '';
+
+      // Verwijder oude opties
+      siteSelect.innerHTML = '';
+
+      // Voeg zichtbare websites toe als opties
+      let hasActive = false;
+      tabs.forEach(tab => {
+        const isSchema = tab.dataset.site === '__schema__';
+        const cluster = tab.dataset.cluster;
+        const visible = isSchema || !filterState.cluster || cluster === filterState.cluster;
+        if (!visible) return;
+
+        const option = document.createElement('option');
+        option.value = tab.dataset.site;
+        option.textContent = isSchema ? 'Schema' : (meta[tab.dataset.site] ? meta[tab.dataset.site].label : tab.dataset.site);
+        if (tab.dataset.site === activeSite) {
+          option.selected = true;
+          hasActive = true;
+        }
+        siteSelect.appendChild(option);
+      });
+
+      // Als de actieve tab niet zichtbaar is, selecteer de eerste optie
+      if (!hasActive && siteSelect.options.length > 0) {
+        siteSelect.options[0].selected = true;
+      }
+    }
+
+    siteSelect.addEventListener('change', () => {
+      const siteKey = siteSelect.value;
+      const tab = document.querySelector('.tab[data-site="' + siteKey + '"]');
+      if (tab) {
+        activateTab(tab);
+        updateUrl();
+      }
     });
 
     // Datum-select: navigeren naar die datum in de actieve filmstrip
@@ -1161,13 +1195,14 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       const section = document.querySelector('.website-section[data-site="' + tab.dataset.site + '"]');
       if (section) {
         section.classList.add('active');
-        const toolbar = document.getElementById('toolbar');
-        if (toolbar) toolbar.style.display = tab.dataset.site === '__schema__' ? 'none' : '';
+        // Toolbar always visible since navigation is via dropdown
         if (tab.dataset.site !== '__schema__') {
           renderFilmstrip(tab.dataset.site);
           initSectionHero(section);
         }
       }
+      // Sync de website dropdown
+      if (siteSelect) siteSelect.value = tab.dataset.site;
     }
 
     document.querySelectorAll('.tab').forEach(tab => {
@@ -1186,6 +1221,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       clusterSelect.value = defaultCluster;
       filterState.cluster = defaultCluster;
       applyClusterFilter();
+      updateSiteSelect();
 
       // Als een specifieke site via URL is meegegeven, activeer die tab
       if (urlParams.site) {
