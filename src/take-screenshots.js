@@ -977,27 +977,6 @@ async function capturePage(browser, website, timestamp) {
       'sec-ch-ua-platform': '"Linux"'
     });
 
-    // Blokkeer Consent Management Platform (CMP) scripts zodat cookie/privacy popups
-    // niet verschijnen. Stealth modus zorgt ervoor dat sites een echte gebruiker detecteren,
-    // waardoor Sourcepoint/Didomi consent popups getoond worden. Door de scripts te blokkeren
-    // verschijnt de popup nooit en blijft de pagina-inhoud gewoon zichtbaar.
-    await page.setRequestInterception(true);
-    const blockedCmpPatterns = [
-      'cdn.privacy-mgmt.com',       // Sourcepoint CMP (DPG Media: HLN, De Morgen, AD, etc.)
-      'sourcepoint.mgr.consensu',   // Sourcepoint TCF endpoint
-      'sp-prod.net',                // Sourcepoint CDN
-      'sdk.privacy-center.org',     // Didomi SDK (NU.nl)
-      'api.privacy-center.org',     // Didomi API
-    ];
-    page.on('request', (request) => {
-      const url = request.url();
-      if (blockedCmpPatterns.some(pattern => url.includes(pattern))) {
-        request.abort();
-      } else {
-        request.continue();
-      }
-    });
-
     // Stealth overrides: navigator.webdriver, plugins, chrome.runtime, permissions
     // Dit voorkomt dat sites (Cloudflare, DPG Media, VRT) de browser als headless detecteren
     await page.evaluateOnNewDocument(() => {
