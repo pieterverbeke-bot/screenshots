@@ -21,8 +21,8 @@ const CONFIG = {
   timeout: 60000,
   scrollDelay: 350,
   waitAfterScroll: 2500,
-  // WebP compressie (0-100), 30 geeft goede balans tussen kwaliteit en bestandsgrootte
-  webpQuality: 30,
+  // WebP compressie (0-100), 70 geeft hogere resolutie (70% web kwaliteit)
+  webpQuality: 70,
   // Resize na capture: breedte verkleinen om bestandsgrootte te reduceren (100-300 KB target)
   resizeWidth: 960,
   // Maximale hoogte in pixels (beperkt extreem lange full-page screenshots)
