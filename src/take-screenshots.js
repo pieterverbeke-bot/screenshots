@@ -2,7 +2,7 @@
 
 import puppeteer from 'puppeteer';
 import sharp from 'sharp';
-import { readFileSync, existsSync, mkdirSync, statSync } from 'fs';
+import { readFileSync, existsSync, mkdirSync, statSync, unlinkSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -30,7 +30,9 @@ const CONFIG = {
   // Tijdzone voor bestandsnamen
   timezone: 'Europe/Brussels',
   // Aantal sites die tegelijk verwerkt worden (3 is optimaal voor GitHub Actions 2-core runners)
-  concurrency: 3
+  concurrency: 3,
+  // Minimale bestandsgrootte in KB — screenshots kleiner dan dit zijn waarschijnlijk blanco pagina's
+  minFileSizeKB: 10
 };
 
 // Genereer timestamp in GMT+1 (België/Nederland)
@@ -509,6 +511,148 @@ async function handleDPGPrivacyGate(page) {
   }
 }
 
+// Probeer consent te geven via knoppen in een blokkerende overlay voordat die overlay verwijderd wordt.
+// Alleen actief als er een overlay met z-index >= 900 is die > 30% van het scherm bedekt.
+// Dit voorkomt dat removeRemainingOverlays de overlay verwijdert zonder consent te geven,
+// waardoor de pagina blanco blijft (zoals bij indebuurt.nl sites).
+async function tryConsentBeforeRemoval(page) {
+  try {
+    // Stap 1: Detecteer of er een blokkerende overlay is
+    const hasBlockingOverlay = await page.evaluate(() => {
+      const viewportArea = window.innerWidth * window.innerHeight;
+      const selectors = [
+        'div[style*="z-index"]', 'div[style*="position: fixed"]', 'div[style*="position:fixed"]',
+        '[class*="overlay"]', '[class*="modal"]', '[class*="popup"]', '[class*="backdrop"]',
+        'iframe[style*="z-index"]',
+      ];
+      const els = document.querySelectorAll(selectors.join(','));
+      for (const el of els) {
+        const style = window.getComputedStyle(el);
+        if (style.position !== 'fixed' && style.position !== 'absolute') continue;
+        const z = parseInt(style.zIndex, 10);
+        if (isNaN(z) || z < 900) continue;
+        const rect = el.getBoundingClientRect();
+        if (rect.width * rect.height > viewportArea * 0.3) return true;
+      }
+      return false;
+    }).catch(() => false);
+
+    if (!hasBlockingOverlay) return; // Geen overlay → geen actie nodig
+
+    console.log(`🔒 Blocking overlay detected, waiting for CMP to load...`);
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    // Stap 2: Probeer dismissPopups opnieuw (CMP iframe kan nu geladen zijn)
+    await dismissPopups(page);
+
+    // Check of overlay nog steeds aanwezig is na dismissPopups
+    const stillBlocked = await page.evaluate(() => {
+      const viewportArea = window.innerWidth * window.innerHeight;
+      const selectors = [
+        'div[style*="z-index"]', 'div[style*="position: fixed"]', 'div[style*="position:fixed"]',
+        '[class*="overlay"]', '[class*="modal"]', '[class*="popup"]', '[class*="backdrop"]',
+        'iframe[style*="z-index"]',
+      ];
+      const els = document.querySelectorAll(selectors.join(','));
+      for (const el of els) {
+        const style = window.getComputedStyle(el);
+        if (style.position !== 'fixed' && style.position !== 'absolute') continue;
+        const z = parseInt(style.zIndex, 10);
+        if (isNaN(z) || z < 900) continue;
+        const rect = el.getBoundingClientRect();
+        if (rect.width * rect.height > viewportArea * 0.3) return true;
+      }
+      return false;
+    }).catch(() => false);
+
+    if (!stillBlocked) {
+      console.log(`🔒 Overlay dismissed via consent button`);
+      return;
+    }
+
+    // Stap 3: Probeer accept-knoppen in ALLE iframes (niet alleen bekende URL-patronen)
+    for (const frame of page.frames()) {
+      if (frame === page.mainFrame()) continue;
+      try {
+        const clicked = await clickAcceptButton(frame);
+        if (clicked) {
+          console.log(`🔒 Clicked consent in iframe: "${clicked}"`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          return;
+        }
+      } catch {
+        // Cross-origin iframe, negeren
+      }
+    }
+
+    // Stap 4: Zoek accept-knoppen binnen de overlay zelf (bredere tekstpatronen)
+    const clickedInOverlay = await page.evaluate(() => {
+      const acceptPatterns = [
+        /akkoord/i, /accepteren/i, /accept/i, /agree/i, /toestaan/i,
+        /alle cookies/i, /consent/i, /ga verder/i, /doorgaan/i,
+        /i understand/i, /got it/i, /continue/i, /ok/i,
+      ];
+      const buttons = [...document.querySelectorAll('button, a, [role="button"], input[type="submit"]')];
+      for (const btn of buttons) {
+        const text = (btn.textContent || btn.value || '').trim();
+        if (text.length > 50 || text.length === 0) continue; // Skip lange teksten en lege knoppen
+        if (acceptPatterns.some(p => p.test(text))) {
+          const rect = btn.getBoundingClientRect();
+          const style = window.getComputedStyle(btn);
+          if (rect.width > 0 && rect.height > 0 &&
+              style.display !== 'none' && style.visibility !== 'hidden') {
+            btn.click();
+            return text;
+          }
+        }
+      }
+      return null;
+    }).catch(() => null);
+
+    if (clickedInOverlay) {
+      console.log(`🔒 Clicked consent button: "${clickedInOverlay}"`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      return;
+    }
+
+    // Stap 5: Probeer TCF API als laatste redmiddel
+    const tcfResult = await page.evaluate(() => {
+      if (typeof window.__tcfapi === 'function') {
+        return new Promise(resolve => {
+          // IAB TCF v2 standaard: postCustomConsent met alle purposes
+          window.__tcfapi('getTCData', 2, (data) => {
+            if (data?.tcString) {
+              // TCF is actief, probeer consent te geven
+              // Sommige CMPs ondersteunen 'acceptAll' of vergelijkbaar
+              if (typeof window.__tcfapi === 'function') {
+                window.__tcfapi('postCustomConsent', 2,
+                  () => resolve('tcf-postCustomConsent'),
+                  [1,2,3,4,5,6,7,8,9,10], // Standard TCF purposes
+                  [], []
+                );
+              } else {
+                resolve(null);
+              }
+            } else {
+              resolve(null);
+            }
+          });
+          // Timeout na 2s
+          setTimeout(() => resolve(null), 2000);
+        });
+      }
+      return null;
+    }).catch(() => null);
+
+    if (tcfResult) {
+      console.log(`🔒 Granted consent via TCF API: ${tcfResult}`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+  } catch (error) {
+    console.log(`⚠️  tryConsentBeforeRemoval error: ${error.message}`);
+  }
+}
+
 // Verwijder hardnekkige overlays/modals/popups uit de DOM (laatste redmiddel voor schone screenshots)
 async function removeRemainingOverlays(page) {
   try {
@@ -835,6 +979,9 @@ async function loadAndPrepare(page, website, waitUntil = 'networkidle2') {
   // Na cookie consent kan DPG privacy gate pas verschijnen, dus opnieuw checken
   await handleDPGPrivacyGate(page);
 
+  // Probeer consent te geven als er een blokkerende overlay is (voorkomt blanco screenshots)
+  await tryConsentBeforeRemoval(page);
+
   // Laatste redmiddel: verwijder hardnekkige overlays/modals die niet via klikken weggaan
   console.log(`📸 ${name}: Cleaning up remaining overlays...`);
   await removeRemainingOverlays(page);
@@ -958,6 +1105,11 @@ async function capturePage(browser, website, timestamp) {
       quality: 80 // hoge kwaliteit voor tussenresultaat, sharp doet de finale compressie
     });
 
+    // Guard: voorkom crash in sharp bij lege buffer (bv. "Input Buffer is empty")
+    if (!rawBuffer || rawBuffer.length === 0) {
+      throw new Error('Screenshot produced an empty buffer — page may not have rendered');
+    }
+
     // Resize en comprimeer met sharp voor kleinere bestanden (target: 100-300 KB)
     const metadata = await sharp(rawBuffer).metadata();
     const targetWidth = CONFIG.resizeWidth;
@@ -982,6 +1134,13 @@ async function capturePage(browser, website, timestamp) {
 
     const stats = statSync(filepath);
     const fileSizeKB = Math.round(stats.size / 1024);
+
+    // Detecteer blanco screenshots (1 KB = vrijwel zeker een lege pagina)
+    if (fileSizeKB < CONFIG.minFileSizeKB) {
+      unlinkSync(filepath);
+      throw new Error(`Screenshot too small: ${fileSizeKB} KB (likely blank page)`);
+    }
+
     console.log(`✅ ${name}: Saved ${filename} (${fileSizeKB} KB)`);
     return filename;
   } finally {
@@ -992,13 +1151,21 @@ async function capturePage(browser, website, timestamp) {
 async function takeScreenshot(browser, website) {
   const { name } = website;
   const timestamp = getLocalTimestamp();
+  const maxAttempts = 2;
 
-  try {
-    const filename = await capturePage(browser, website, timestamp);
-    return { success: true, name, filename };
-  } catch (error) {
-    console.error(`❌ ${name}: Screenshot failed — ${error?.message}`);
-    return { success: false, name, error: error?.message };
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const filename = await capturePage(browser, website, timestamp);
+      return { success: true, name, filename };
+    } catch (error) {
+      if (attempt < maxAttempts && error?.message?.includes('too small')) {
+        console.log(`⚠️  ${name}: Blank page detected, retrying (attempt ${attempt + 1}/${maxAttempts})...`);
+        await new Promise(r => setTimeout(r, 3000));
+        continue;
+      }
+      console.error(`❌ ${name}: Screenshot failed — ${error?.message}`);
+      return { success: false, name, error: error?.message };
+    }
   }
 }
 
