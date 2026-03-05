@@ -488,7 +488,7 @@ async function handleDPGPrivacyGate(page) {
   // Case 2: Privacy gate als iframe op de pagina (myprivacy.dpgmedia of Sourcepoint iframe)
   for (const frame of page.frames()) {
     const frameUrl = frame.url();
-    if (frameUrl.includes('myprivacy.dpgmedia') || frameUrl.includes('sourcepoint') || frameUrl.includes('sp-prod')) {
+    if (frameUrl.includes('myprivacy.dpgmedia') || frameUrl.includes('sourcepoint') || frameUrl.includes('sp-prod') || frameUrl.includes('privacy-mgmt.com') || frameUrl.includes('cdn.privacy-mgmt')) {
       console.log(`🔒 DPG/Sourcepoint privacy gate iframe detected: ${frameUrl.slice(0, 80)}...`);
       try {
         const clicked = await clickAcceptButton(frame);
@@ -965,7 +965,7 @@ async function dismissPopups(page) {
 }
 
 // Laad pagina en maak klaar voor screenshot (consent-afhandeling, overlays, scroll).
-async function loadAndPrepare(page, website, waitUntil = 'networkidle2') {
+async function loadAndPrepare(page, website, waitUntil = 'networkidle2', { isMobile = false } = {}) {
   const { name, url } = website;
 
   console.log(`📸 ${name}: Navigating to ${url} (waitUntil: ${waitUntil})`);
@@ -979,6 +979,11 @@ async function loadAndPrepare(page, website, waitUntil = 'networkidle2') {
 
   // DPG privacy gate afhandelen (redirect of iframe)
   await handleDPGPrivacyGate(page);
+
+  if (isMobile) {
+    // Mobiel: extra wachttijd voor consent-iframes die later laden op kleinere viewports
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  }
 
   console.log(`📸 ${name}: Dismissing popups...`);
   await dismissPopups(page);
@@ -1047,6 +1052,11 @@ async function loadAndPrepare(page, website, waitUntil = 'networkidle2') {
   // Laatste cleanup: scrollen kan nieuwe popups triggeren (notificatie-prompts, etc.)
   await dismissPopups(page);
   await removeRemainingOverlays(page);
+
+  // Mobiel: extra DPG privacy gate check — kan pas verschijnen nadat andere overlays verwijderd zijn
+  if (isMobile) {
+    await handleDPGPrivacyGate(page);
+  }
 }
 
 // Neem een desktopscreenshot op een verse pagina.
@@ -1163,6 +1173,9 @@ async function capturePageMobile(browser, website, timestamp) {
   try {
     await page.setViewport(CONFIG.mobileViewport);
 
+    // Mobiele user-agent zodat sites hun echte mobiele versie serveren (inclusief mobiele consent-flow)
+    await page.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1');
+
     // Zelfde IntersectionObserver override als desktop
     await page.evaluateOnNewDocument(() => {
       const OriginalIO = window.IntersectionObserver;
@@ -1192,7 +1205,7 @@ async function capturePageMobile(browser, website, timestamp) {
     });
 
     console.log(`📱 ${name}: Loading mobile page...`);
-    await loadAndPrepare(page, website, 'networkidle2');
+    await loadAndPrepare(page, website, 'networkidle2', { isMobile: true });
 
     const filename = `${name}_${timestamp}_mobile.webp`;
     const filepath = join(SCREENSHOTS_DIR, filename);
