@@ -32,7 +32,14 @@ const CONFIG = {
   // Aantal sites die tegelijk verwerkt worden (3 is optimaal voor GitHub Actions 2-core runners)
   concurrency: 3,
   // Minimale bestandsgrootte in KB — screenshots kleiner dan dit zijn waarschijnlijk blanco pagina's
-  minFileSizeKB: 10
+  minFileSizeKB: 10,
+  // Mobiel viewport (iPhone 14/15 formaat)
+  mobileViewport: {
+    width: 390,
+    height: 844
+  },
+  // Resize-breedte voor mobiele screenshots (match viewport breedte)
+  mobileResizeWidth: 390
 };
 
 // Genereer timestamp in GMT+1 (België/Nederland)
@@ -1148,15 +1155,105 @@ async function capturePage(browser, website, timestamp) {
   }
 }
 
+// Neem een mobiele screenshot op een verse pagina.
+async function capturePageMobile(browser, website, timestamp) {
+  const { name } = website;
+
+  const page = await browser.newPage();
+  try {
+    await page.setViewport(CONFIG.mobileViewport);
+
+    // Zelfde IntersectionObserver override als desktop
+    await page.evaluateOnNewDocument(() => {
+      const OriginalIO = window.IntersectionObserver;
+      window.IntersectionObserver = function(callback, options) {
+        const wrappedCallback = (entries, observer) => {
+          const modified = entries.map(entry => {
+            if (!entry.isIntersecting) {
+              const fake = {};
+              for (const key of ['boundingClientRect', 'intersectionRect', 'rootBounds', 'target', 'time']) {
+                fake[key] = entry[key];
+              }
+              fake.isIntersecting = true;
+              fake.intersectionRatio = 1;
+              return fake;
+            }
+            return entry;
+          });
+          callback(modified, observer);
+        };
+        const instance = new OriginalIO(wrappedCallback, options);
+        return instance;
+      };
+      window.IntersectionObserver.prototype = OriginalIO.prototype;
+      const style = document.createElement('style');
+      style.textContent = '* { content-visibility: visible !important; }';
+      (document.head || document.documentElement).appendChild(style);
+    });
+
+    console.log(`📱 ${name}: Loading mobile page...`);
+    await loadAndPrepare(page, website, 'networkidle2');
+
+    const filename = `${name}_${timestamp}_mobile.webp`;
+    const filepath = join(SCREENSHOTS_DIR, filename);
+
+    console.log(`📱 ${name}: Taking mobile screenshot...`);
+    const rawBuffer = await page.screenshot({
+      fullPage: CONFIG.fullPage,
+      type: 'webp',
+      quality: 80
+    });
+
+    if (!rawBuffer || rawBuffer.length === 0) {
+      throw new Error('Mobile screenshot produced an empty buffer');
+    }
+
+    const metadata = await sharp(rawBuffer).metadata();
+    const targetWidth = CONFIG.mobileResizeWidth;
+    const maxHeight = CONFIG.maxHeight;
+
+    let pipeline = sharp(rawBuffer);
+
+    if (metadata.width && metadata.height) {
+      const scaledHeight = Math.round(metadata.height * (targetWidth / metadata.width));
+      if (scaledHeight > maxHeight) {
+        pipeline = pipeline.resize(targetWidth, maxHeight, { fit: 'cover', position: 'top' });
+      } else {
+        pipeline = pipeline.resize(targetWidth, null, { fit: 'inside', withoutEnlargement: true });
+      }
+    } else {
+      pipeline = pipeline.resize(targetWidth, null, { fit: 'inside', withoutEnlargement: true });
+    }
+
+    await pipeline.webp({ quality: CONFIG.webpQuality }).toFile(filepath);
+
+    const stats = statSync(filepath);
+    const fileSizeKB = Math.round(stats.size / 1024);
+
+    if (fileSizeKB < CONFIG.minFileSizeKB) {
+      unlinkSync(filepath);
+      throw new Error(`Mobile screenshot too small: ${fileSizeKB} KB (likely blank page)`);
+    }
+
+    console.log(`✅ ${name}: Saved mobile ${filename} (${fileSizeKB} KB)`);
+    return filename;
+  } finally {
+    await page.close();
+  }
+}
+
 async function takeScreenshot(browser, website) {
   const { name } = website;
   const timestamp = getLocalTimestamp();
   const maxAttempts = 2;
 
+  // Desktop screenshot
+  let desktopResult = null;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const filename = await capturePage(browser, website, timestamp);
-      return { success: true, name, filename };
+      desktopResult = { success: true, name, filename };
+      break;
     } catch (error) {
       if (attempt < maxAttempts && error?.message?.includes('too small')) {
         console.log(`⚠️  ${name}: Blank page detected, retrying (attempt ${attempt + 1}/${maxAttempts})...`);
@@ -1164,9 +1261,31 @@ async function takeScreenshot(browser, website) {
         continue;
       }
       console.error(`❌ ${name}: Screenshot failed — ${error?.message}`);
-      return { success: false, name, error: error?.message };
+      desktopResult = { success: false, name, error: error?.message };
     }
   }
+
+  // Mobiele screenshot (onafhankelijk van desktop resultaat)
+  let mobileFilename = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      mobileFilename = await capturePageMobile(browser, website, timestamp);
+      break;
+    } catch (error) {
+      if (attempt < maxAttempts && error?.message?.includes('too small')) {
+        console.log(`⚠️  ${name}: Mobile blank page, retrying (attempt ${attempt + 1}/${maxAttempts})...`);
+        await new Promise(r => setTimeout(r, 3000));
+        continue;
+      }
+      console.error(`⚠️  ${name}: Mobile screenshot failed — ${error?.message}`);
+    }
+  }
+
+  if (desktopResult) {
+    desktopResult.mobileFilename = mobileFilename;
+    return desktopResult;
+  }
+  return { success: false, name, error: 'Desktop screenshot failed', mobileFilename };
 }
 
 // Verwerk websites in parallelle batches
