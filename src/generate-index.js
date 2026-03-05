@@ -4,8 +4,10 @@ import { gzipSync } from 'zlib';
 import { createR2Client, listAllObjects } from './r2-client.js';
 
 function buildStructure(objects) {
-  // Structuur: { websiteName: { datum: [{ filename, key, size }] } }
-  const structure = {};
+  // Twee structuren: desktop en mobiel
+  // { websiteName: { datum: [{ filename, key, size }] } }
+  const desktop = {};
+  const mobile = {};
 
   for (const obj of objects) {
     const parts = obj.Key.split('/');
@@ -14,26 +16,26 @@ function buildStructure(objects) {
     if (!parts[2].endsWith('.webp') && !parts[2].endsWith('.jpg')) continue;
 
     const [website, date, filename] = parts;
+    const isMobile = /_mobile\.(webp|jpg)$/.test(filename);
+    const target = isMobile ? mobile : desktop;
 
-    // Sla legacy mobiele screenshots over
-    if (/_mobile\.(webp|jpg)$/.test(filename)) continue;
-
-    if (!structure[website]) structure[website] = {};
-    if (!structure[website][date]) structure[website][date] = [];
-    structure[website][date].push({ filename, key: obj.Key, size: obj.Size });
+    if (!target[website]) target[website] = {};
+    if (!target[website][date]) target[website][date] = [];
+    target[website][date].push({ filename, key: obj.Key, size: obj.Size });
   }
 
   // Sorteer datums oudste eerst, screenshots binnen een datum ook oudste eerst
-  // (tijdlijn loopt van links/oud naar rechts/nieuw)
-  for (const website of Object.keys(structure)) {
-    const sorted = {};
-    for (const date of Object.keys(structure[website]).sort()) {
-      sorted[date] = structure[website][date].sort((a, b) => a.filename.localeCompare(b.filename));
+  for (const structure of [desktop, mobile]) {
+    for (const website of Object.keys(structure)) {
+      const sorted = {};
+      for (const date of Object.keys(structure[website]).sort()) {
+        sorted[date] = structure[website][date].sort((a, b) => a.filename.localeCompare(b.filename));
+      }
+      structure[website] = sorted;
     }
-    structure[website] = sorted;
   }
 
-  return structure;
+  return { desktop, mobile };
 }
 
 // Slanke structuur voor client-side: alleen bestandsnamen per website/datum
@@ -59,26 +61,33 @@ function loadWebsitesMeta() {
   return { meta, websites };
 }
 
-function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
-  const websites = Object.keys(structure).sort();
+function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta, allWebsites) {
+  const websites = Object.keys(desktopStructure).sort();
   const baseUrl = publicUrl.replace(/\/$/, '');
 
   // Bouw metadata JSON voor client-side filtering
   const metaJSON = JSON.stringify(websitesMeta);
 
   // Slanke structuur voor lazy rendering van filmstrips (alleen bestandsnamen)
-  const clientStructure = buildClientStructure(structure);
+  const clientStructure = buildClientStructure(desktopStructure);
   const clientStructureJSON = JSON.stringify(clientStructure);
+
+  // Mobiele structuur voor client-side switching
+  const mobileClientStructure = buildClientStructure(mobileStructure);
+  const mobileClientStructureJSON = JSON.stringify(mobileClientStructure);
 
   // Verzamel alle unieke datums (nieuwste eerst) voor het datumfilter
   const allDates = new Set();
-  for (const website of Object.values(structure)) {
+  for (const website of Object.values(desktopStructure)) {
     for (const date of Object.keys(website)) {
       allDates.add(date);
     }
   }
   const sortedDates = [...allDates].sort().reverse();
   const datesJSON = JSON.stringify(sortedDates);
+
+  // Gebruik desktopStructure als primaire structuur voor server-side HTML rendering
+  const structure = desktopStructure;
 
   return `<!DOCTYPE html>
 <html lang="nl">
@@ -679,6 +688,30 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
     .interval-180 { background: #ffedd5; color: #c2410c; }
     .interval-240 { background: #fee2e2; color: #b91c1c; }
 
+    .mobile-toggle {
+      appearance: none;
+      -webkit-appearance: none;
+      padding: 0.2rem 0.6rem;
+      border: 1px solid #e0dae6;
+      border-radius: 999px;
+      background: #f8f5fa;
+      color: #6a5a7a;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.62rem;
+      font-weight: 600;
+      transition: all 0.15s ease;
+      line-height: 1.3;
+      white-space: nowrap;
+    }
+    .mobile-toggle:hover { background: #ebe4f0; border-color: #c0b0d0; }
+    .mobile-toggle.active {
+      background: #783c96;
+      color: #fff;
+      border-color: #783c96;
+    }
+    .mobile-toggle.active:hover { background: #6a3485; }
+
     @media (max-width: 700px) {
       header { padding: 0.5rem 1rem; }
       .header-inner { flex-direction: column; align-items: flex-start; gap: 0.1rem; }
@@ -733,6 +766,10 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
           </select>
         </div>
       </div>
+      <div class="toolbar-divider"></div>
+      <div class="toolbar-section">
+        <button class="mobile-toggle" id="mobile-toggle" title="Schakelen tussen desktop en mobiele screenshots">Mobiele versie</button>
+      </div>
       <div class="tabs-scroll" id="tabs">
         ${websites.map((w, i) => {
           const m = websitesMeta[w];
@@ -758,7 +795,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       const newestTimePart = newestTIdx > -1 ? newestItem.filename.slice(newestTIdx+1, newestTIdx+9) : '';
       const newestTimeStr = newestTimePart.length === 8 ? newestTimePart.replace(/-/g, ':') : '';
 
-      return `<div class="website-section${i === 0 ? ' active' : ''}" data-site="${website}" data-rendered="${i === 0 ? 'true' : 'false'}">
+      return `<div class="website-section${i === 0 ? ' active' : ''}" data-site="${website}" data-rendered="${i === 0 ? 'true' : 'false'}" data-rendered-mode="${i === 0 ? 'desktop' : ''}">
       <!-- Filmstrip tijdlijn: boven de hero voor snelle navigatie -->
       <div class="filmstrip-wrap">
         <div class="filmstrip-header">
@@ -866,7 +903,11 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
     const meta = ${metaJSON};
     const allDates = ${datesJSON};
     const screenshotData = ${clientStructureJSON};
+    const mobileScreenshotData = ${mobileClientStructureJSON};
     const screenshotBaseUrl = '${baseUrl}';
+
+    let isMobileMode = false;
+    function getActiveData() { return isMobileMode ? mobileScreenshotData : screenshotData; }
 
     const filterState = { cluster: null };
 
@@ -878,6 +919,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
         cluster: params.get('cluster'),
         site: params.get('site'),
         date: params.get('date'),
+        mobile: params.get('mobile'),
       };
     }
 
@@ -888,6 +930,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
       if (activeTab && activeTab.dataset.site !== '__schema__') {
         params.set('site', activeTab.dataset.site);
       }
+      if (isMobileMode) params.set('mobile', '1');
       const qs = params.toString();
       history.replaceState(null, '', qs ? '?' + qs : window.location.pathname);
     }
@@ -1046,12 +1089,25 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
     })();
 
     // Lazy rendering: bouw filmstrip HTML vanuit JSON data bij eerste tab-activatie
-    function renderFilmstrip(siteKey) {
+    function renderFilmstrip(siteKey, forceRerender) {
       var section = document.querySelector('.website-section[data-site="' + siteKey + '"]');
-      if (!section || section.dataset.rendered === 'true') return;
+      if (!section) return;
 
-      var dates = screenshotData[siteKey];
-      if (!dates) return;
+      // Track welke modus gerenderd is zodat we weten wanneer herrendering nodig is
+      var renderedMode = section.dataset.renderedMode;
+      var currentMode = isMobileMode ? 'mobile' : 'desktop';
+      if (section.dataset.rendered === 'true' && renderedMode === currentMode && !forceRerender) return;
+
+      var data = getActiveData();
+      var dates = data[siteKey];
+      if (!dates) {
+        // Geen data voor deze modus — toon melding
+        var filmstrip = section.querySelector('.filmstrip');
+        if (filmstrip) filmstrip.innerHTML = '<div style="padding:1rem;color:#9a8aaa;font-size:0.8rem;">Geen ' + (isMobileMode ? 'mobiele' : 'desktop') + ' screenshots beschikbaar.</div>';
+        section.dataset.rendered = 'true';
+        section.dataset.renderedMode = currentMode;
+        return;
+      }
 
       var filmstrip = section.querySelector('.filmstrip');
       if (!filmstrip) return;
@@ -1080,6 +1136,7 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
 
       filmstrip.innerHTML = html;
       section.dataset.rendered = 'true';
+      section.dataset.renderedMode = currentMode;
 
       // Observeer nieuwe afbeeldingen voor lazy loading
       filmstrip.querySelectorAll('.fs-thumb img[data-src]').forEach(function(img) { imageObserver.observe(img); });
@@ -1231,6 +1288,18 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
         }
       }
 
+      // Mobiele modus via URL parameter
+      if (urlParams.mobile === '1') {
+        isMobileMode = true;
+        document.getElementById('mobile-toggle').classList.add('active');
+        // Herrender de actieve sectie in mobiele modus
+        var activeSec = document.querySelector('.website-section.active');
+        if (activeSec && activeSec.dataset.site !== '__schema__') {
+          renderFilmstrip(activeSec.dataset.site, true);
+          initSectionHero(activeSec, true);
+        }
+      }
+
       // Als een datum via URL is meegegeven, navigeer daarheen
       if (urlParams.date) {
         // Wacht tot filmstrip gerenderd is
@@ -1241,6 +1310,28 @@ function generateHTML(structure, publicUrl, websitesMeta, allWebsites) {
 
       updateUrl();
     })();
+
+    // Mobiele versie toggle
+    document.getElementById('mobile-toggle').addEventListener('click', function() {
+      isMobileMode = !isMobileMode;
+      this.classList.toggle('active', isMobileMode);
+
+      // Markeer alle secties als niet-gerenderd zodat ze herrenderd worden
+      document.querySelectorAll('.website-section').forEach(function(s) {
+        if (s.dataset.site !== '__schema__') {
+          s.dataset.rendered = 'false';
+        }
+      });
+
+      // Herrender de actieve sectie
+      var activeSection = document.querySelector('.website-section.active');
+      if (activeSection && activeSection.dataset.site !== '__schema__') {
+        renderFilmstrip(activeSection.dataset.site, true);
+        initSectionHero(activeSection, true);
+      }
+
+      updateUrl();
+    });
 
     // Klik op peek-afbeeldingen om te navigeren
     document.querySelectorAll('.hero-peek-left').forEach(peek => {
@@ -1510,12 +1601,14 @@ async function main() {
   const objects = await listAllObjects(client, bucketName);
   console.log(`   Found ${objects.length} object(s)`);
 
-  const structure = buildStructure(objects);
+  const { desktop, mobile } = buildStructure(objects);
   const { meta: websitesMeta, websites: allWebsites } = loadWebsitesMeta();
-  const websiteCount = Object.keys(structure).length;
-  console.log(`   ${websiteCount} website(s) with screenshots\n`);
+  const desktopCount = Object.keys(desktop).length;
+  const mobileCount = Object.keys(mobile).length;
+  console.log(`   ${desktopCount} website(s) with desktop screenshots`);
+  console.log(`   ${mobileCount} website(s) with mobile screenshots\n`);
 
-  const html = generateHTML(structure, publicUrl, websitesMeta, allWebsites);
+  const html = generateHTML(desktop, mobile, publicUrl, websitesMeta, allWebsites);
 
   // Gzip compressie: typisch 70-80% kleiner, snellere downloads
   const compressed = gzipSync(html, { level: 9 });
