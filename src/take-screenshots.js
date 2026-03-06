@@ -215,6 +215,34 @@ async function forceLoadLazyImages(page) {
         }
       });
 
+      // Picture fallback: als de img in een <picture> niet geladen is, verwijder media-attributen
+      // en wijs eerste geldige source-URL direct toe aan de img (VRT NWS, Nieuwsblad)
+      document.querySelectorAll('picture').forEach(picture => {
+        const img = picture.querySelector('img');
+        if (!img) return;
+        if (img.complete && img.naturalHeight > 0 && !isPlaceholder(img.getAttribute('src'))) return;
+
+        // Verwijder media-attributen die niet matchen zodat sources altijd beschikbaar zijn
+        picture.querySelectorAll('source[media]').forEach(source => {
+          source.removeAttribute('media');
+        });
+
+        // Zoek eerste geldige URL uit source srcsets als img nog niet geladen is
+        if (!img.complete || img.naturalHeight === 0 || isPlaceholder(img.getAttribute('src'))) {
+          const sources = picture.querySelectorAll('source[srcset]');
+          for (const source of sources) {
+            const srcset = source.getAttribute('srcset');
+            if (!srcset) continue;
+            const firstUrl = srcset.split(',')[0].trim().split(/\s+/)[0];
+            if (firstUrl && (firstUrl.startsWith('http') || firstUrl.startsWith('/'))) {
+              img.src = firstUrl;
+              count++;
+              break;
+            }
+          }
+        }
+      });
+
       // DPG Media / moderne sites: content-visibility kan afbeeldingen buiten viewport blokkeren
       document.querySelectorAll('[style*="content-visibility"]').forEach(el => {
         el.style.contentVisibility = 'visible';
@@ -250,6 +278,29 @@ async function forceLoadLazyImages(page) {
         }
       });
 
+      // Shadow DOM: zoek afbeeldingen in shadow roots (Web Components)
+      function findShadowImages(root) {
+        const imgs = [];
+        const walk = (node) => {
+          if (node.shadowRoot) {
+            node.shadowRoot.querySelectorAll('img').forEach(img => imgs.push(img));
+            node.shadowRoot.querySelectorAll('*').forEach(walk);
+          }
+        };
+        root.querySelectorAll('*').forEach(walk);
+        return imgs;
+      }
+      const shadowImgs = findShadowImages(document);
+      shadowImgs.forEach(img => {
+        if (isPlaceholder(img.getAttribute('src'))) {
+          for (const attr of ['data-src', 'data-lazy-src', 'data-original']) {
+            const val = img.getAttribute(attr);
+            if (val && !isPlaceholder(val)) { img.src = val; count++; break; }
+          }
+        }
+        if (img.loading === 'lazy') { img.loading = 'eager'; count++; }
+      });
+
       return count;
     });
     if (forced > 0) {
@@ -260,11 +311,19 @@ async function forceLoadLazyImages(page) {
   }
 }
 
-// Wacht tot alle afbeeldingen geladen zijn
+// Wacht tot alle afbeeldingen geladen zijn (inclusief Shadow DOM)
 async function waitForImages(page) {
   try {
     await page.evaluate(async () => {
+      // Verzamel alle images, inclusief die in shadow roots
       const images = Array.from(document.querySelectorAll('img'));
+      const walk = (node) => {
+        if (node.shadowRoot) {
+          node.shadowRoot.querySelectorAll('img').forEach(img => images.push(img));
+          node.shadowRoot.querySelectorAll('*').forEach(walk);
+        }
+      };
+      document.querySelectorAll('*').forEach(walk);
       await Promise.all(
         images.map((img) => {
           // Controleer of het beeld daadwerkelijk geladen is (niet alleen complete=true met placeholder)
@@ -399,6 +458,30 @@ async function scrollImagesToLoad(page) {
     console.log(`🔍 Scrolled ${unloadedCount} unloaded image(s) into view`);
   } catch (error) {
     console.log(`⚠️  scrollImagesToLoad error: ${error.message}`);
+  }
+}
+
+// Dispatch synthetische scroll/resize/visibility events om framework-listeners te triggeren
+// die afbeeldingen laden op basis van scroll-positie of pagina-zichtbaarheid.
+async function dispatchVisibilityEvents(page) {
+  try {
+    await page.evaluate(() => {
+      // Scroll en resize events triggeren framework lazy-loaders (VRT, DPG Media)
+      window.dispatchEvent(new Event('scroll', { bubbles: true }));
+      window.dispatchEvent(new Event('resize', { bubbles: true }));
+      window.dispatchEvent(new Event('scrollend', { bubbles: true }));
+      document.dispatchEvent(new Event('scroll', { bubbles: true }));
+
+      // Zorg dat de pagina als zichtbaar wordt beschouwd (sommige frameworks stellen
+      // het laden van afbeeldingen uit tot de pagina zichtbaar is)
+      try {
+        Object.defineProperty(document, 'hidden', { value: false, configurable: true });
+        Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+      } catch(e) { /* properties kunnen al correct zijn */ }
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+  } catch (error) {
+    console.log(`⚠️  dispatchVisibilityEvents error: ${error.message}`);
   }
 }
 
@@ -998,12 +1081,20 @@ async function loadAndPrepare(page, website, waitUntil = 'networkidle2', { isMob
   console.log(`📸 ${name}: Cleaning up remaining overlays...`);
   await removeRemainingOverlays(page);
 
+  // Wacht na consent zodat frameworks (DPG Media/Nieuwsblad) afbeeldingen kunnen activeren
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  await forceLoadLazyImages(page);
+  await dispatchVisibilityEvents(page);
+
   console.log(`📸 ${name}: Scrolling to load all images...`);
   await autoScroll(page);
 
   // Forceer laden van lazy-loaded afbeeldingen (VRT, Nieuwsblad, etc.)
   console.log(`📸 ${name}: Force-loading lazy images...`);
   await forceLoadLazyImages(page);
+
+  // Trigger framework-listeners die afbeeldingen laden op basis van scroll/resize/visibility
+  await dispatchVisibilityEvents(page);
 
   // Geef browser tijd om DOM-wijzigingen te verwerken en netwerk-verzoeken te starten
   await new Promise(resolve => setTimeout(resolve, 1000));
@@ -1016,8 +1107,9 @@ async function loadAndPrepare(page, website, waitUntil = 'networkidle2', { isMob
   console.log(`📸 ${name}: Scrolling unloaded images into view...`);
   await scrollImagesToLoad(page);
 
-  // Na individueel scrollen opnieuw force-loaden en wachten
+  // Na individueel scrollen opnieuw force-loaden en events dispatchen
   await forceLoadLazyImages(page);
+  await dispatchVisibilityEvents(page);
 
   // Wacht tot alle getriggerde netwerk-verzoeken zijn afgerond (alle afbeeldingen geladen)
   console.log(`📸 ${name}: Waiting for network to settle...`);
@@ -1096,6 +1188,30 @@ async function capturePage(browser, website, timestamp) {
 
         // Maak een echte IntersectionObserver met de gewrapte callback
         const instance = new OriginalIO(wrappedCallback, options);
+
+        // Override observe() zodat de callback ook onmiddellijk wordt getriggerd
+        // wanneer een element wordt geobserveerd. Dit voorkomt dat frameworks
+        // (VRT NWS, Nieuwsblad) nooit het "zichtbaar"-signaal krijgen als de browser
+        // de IO-callback uitstelt voor elementen buiten de viewport.
+        const originalObserve = instance.observe.bind(instance);
+        instance.observe = function(target) {
+          originalObserve(target);
+          // Trigger callback direct na observe() via microtask
+          setTimeout(() => {
+            try {
+              wrappedCallback([{
+                target,
+                isIntersecting: true,
+                intersectionRatio: 1,
+                boundingClientRect: target.getBoundingClientRect(),
+                intersectionRect: target.getBoundingClientRect(),
+                rootBounds: null,
+                time: performance.now()
+              }], instance);
+            } catch(e) { /* element kan al verwijderd zijn */ }
+          }, 0);
+        };
+
         return instance;
       };
 
@@ -1200,6 +1316,26 @@ async function capturePageMobile(browser, website, timestamp) {
           callback(modified, observer);
         };
         const instance = new OriginalIO(wrappedCallback, options);
+
+        // Override observe() — trigger callback onmiddellijk bij observatie
+        const originalObserve = instance.observe.bind(instance);
+        instance.observe = function(target) {
+          originalObserve(target);
+          setTimeout(() => {
+            try {
+              wrappedCallback([{
+                target,
+                isIntersecting: true,
+                intersectionRatio: 1,
+                boundingClientRect: target.getBoundingClientRect(),
+                intersectionRect: target.getBoundingClientRect(),
+                rootBounds: null,
+                time: performance.now()
+              }], instance);
+            } catch(e) { /* element kan al verwijderd zijn */ }
+          }, 0);
+        };
+
         return instance;
       };
       window.IntersectionObserver.prototype = OriginalIO.prototype;
