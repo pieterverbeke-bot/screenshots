@@ -597,7 +597,7 @@ async function tryConsentBeforeRemoval(page) {
       const acceptPatterns = [
         /akkoord/i, /accepteren/i, /accept/i, /agree/i, /toestaan/i,
         /alle cookies/i, /consent/i, /ga verder/i, /doorgaan/i,
-        /i understand/i, /got it/i, /continue/i, /ok/i,
+        /i understand/i, /got it/i, /continue/i, /^ok$/i,
       ];
       const buttons = [...document.querySelectorAll('button, a, [role="button"], input[type="submit"]')];
       for (const btn of buttons) {
@@ -1116,8 +1116,12 @@ async function capturePage(browser, website, timestamp) {
     const filepath = join(SCREENSHOTS_DIR, filename);
 
     console.log(`📸 ${name}: Taking screenshot...`);
+    // Beperk hoogte om WebP dimensielimiet (16383px) te voorkomen
+    const desktopScrollHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+    const desktopCaptureHeight = Math.min(desktopScrollHeight, CONFIG.maxHeight);
+
     const rawBuffer = await page.screenshot({
-      fullPage: CONFIG.fullPage,
+      clip: { x: 0, y: 0, width: CONFIG.desktopViewport.width, height: desktopCaptureHeight },
       type: 'webp',
       quality: 80 // hoge kwaliteit voor tussenresultaat, sharp doet de finale compressie
     });
@@ -1211,8 +1215,13 @@ async function capturePageMobile(browser, website, timestamp) {
     const filepath = join(SCREENSHOTS_DIR, filename);
 
     console.log(`📱 ${name}: Taking mobile screenshot...`);
+    // Beperk hoogte om WebP dimensielimiet (16383px) te voorkomen — mobiele pagina's
+    // worden bij 390px breed extreem lang, waardoor Chrome een lege buffer retourneert
+    const mobileScrollHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+    const mobileCaptureHeight = Math.min(mobileScrollHeight, CONFIG.maxHeight);
+
     const rawBuffer = await page.screenshot({
-      fullPage: CONFIG.fullPage,
+      clip: { x: 0, y: 0, width: CONFIG.mobileViewport.width, height: mobileCaptureHeight },
       type: 'webp',
       quality: 80
     });
@@ -1285,8 +1294,8 @@ async function takeScreenshot(browser, website) {
       mobileFilename = await capturePageMobile(browser, website, timestamp);
       break;
     } catch (error) {
-      if (attempt < maxAttempts && error?.message?.includes('too small')) {
-        console.log(`⚠️  ${name}: Mobile blank page, retrying (attempt ${attempt + 1}/${maxAttempts})...`);
+      if (attempt < maxAttempts && (error?.message?.includes('too small') || error?.message?.includes('empty buffer'))) {
+        console.log(`⚠️  ${name}: Mobile screenshot failed (${error?.message}), retrying (attempt ${attempt + 1}/${maxAttempts})...`);
         await new Promise(r => setTimeout(r, 3000));
         continue;
       }
