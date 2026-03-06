@@ -574,6 +574,8 @@ async function handleDPGPrivacyGate(page) {
     if (frameUrl.includes('myprivacy.dpgmedia') || frameUrl.includes('sourcepoint') || frameUrl.includes('sp-prod') || frameUrl.includes('privacy-mgmt.com') || frameUrl.includes('cdn.privacy-mgmt')) {
       console.log(`🔒 DPG/Sourcepoint privacy gate iframe detected: ${frameUrl.slice(0, 80)}...`);
       try {
+        // Wacht tot er een knop in het iframe verschijnt (mobiel laadt trager)
+        await frame.waitForSelector('button', { timeout: 5000 }).catch(() => {});
         const clicked = await clickAcceptButton(frame);
         if (clicked) {
           console.log(`🔒 Clicked DPG iframe consent: "${clicked}"`);
@@ -847,7 +849,8 @@ async function removeRemainingOverlays(page) {
 
 // Generieke functie om accept-knoppen te vinden en klikken (werkt op page of frame)
 async function clickAcceptButton(context) {
-  return context.evaluate(() => {
+  // Stap 1: Probeer via evaluate (synthetische JS click)
+  const result = await context.evaluate(() => {
     const acceptPatterns = [
       /^akkoord$/i,
       /^accepteren$/i,
@@ -878,6 +881,42 @@ async function clickAcceptButton(context) {
     }
     return null;
   });
+
+  if (result) return result;
+
+  // Stap 2: Fallback — native Puppeteer click op Sourcepoint/consent selectors
+  // Synthetische el.click() mist soms op mobiel omdat consent-frameworks volledige
+  // pointer-events vereisen (pointerdown → mousedown → pointerup → mouseup → click)
+  const nativeClickSelectors = [
+    'button.sp_choice_type_11',
+    'button.sp_choice_type_ACCEPT_ALL',
+    'button[title*="kkoord"]',
+    'button[title*="ccept"]',
+    'button[title="Akkoord"]',
+    'button[title="Accepteren"]',
+    'button[title="Alle cookies accepteren"]',
+  ];
+
+  for (const selector of nativeClickSelectors) {
+    try {
+      const el = await context.$(selector);
+      if (el) {
+        const isVisible = await context.evaluate(btn => {
+          const rect = btn.getBoundingClientRect();
+          const style = window.getComputedStyle(btn);
+          return rect.width > 0 && rect.height > 0 &&
+                 style.display !== 'none' && style.visibility !== 'hidden';
+        }, el);
+        if (isVisible) {
+          await el.click();
+          const text = await context.evaluate(btn => (btn.textContent || btn.title || '').trim(), el);
+          return text || selector;
+        }
+      }
+    } catch { /* selector niet gevonden, probeer volgende */ }
+  }
+
+  return null;
 }
 
 // Probeer cookie/consent popups weg te klikken (meerdere rondes voor opeenvolgende popups)
@@ -1065,7 +1104,7 @@ async function loadAndPrepare(page, website, waitUntil = 'networkidle2', { isMob
 
   if (isMobile) {
     // Mobiel: extra wachttijd voor consent-iframes die later laden op kleinere viewports
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise(resolve => setTimeout(resolve, 4000));
   }
 
   console.log(`📸 ${name}: Dismissing popups...`);
@@ -1080,6 +1119,14 @@ async function loadAndPrepare(page, website, waitUntil = 'networkidle2', { isMob
   // Laatste redmiddel: verwijder hardnekkige overlays/modals die niet via klikken weggaan
   console.log(`📸 ${name}: Cleaning up remaining overlays...`);
   await removeRemainingOverlays(page);
+
+  // Mobiel: DPG JS kan privacy gate opnieuw renderen nadat overlay verwijderd is — opnieuw proberen
+  if (isMobile) {
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    await handleDPGPrivacyGate(page);
+    await dismissPopups(page);
+    await removeRemainingOverlays(page);
+  }
 
   // Wacht na consent zodat frameworks (DPG Media/Nieuwsblad) afbeeldingen kunnen activeren
   await new Promise(resolve => setTimeout(resolve, 2000));
