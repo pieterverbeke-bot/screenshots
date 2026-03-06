@@ -135,3 +135,31 @@ Change `RETENTION_DAYS` in `src/cleanup-r2.js` (currently 15 days).
 - `get-refresh-token.js` is a legacy helper for Google Drive OAuth; Google Drive upload is no longer part of the active pipeline
 - The viewer (`index.html`) is generated client-side from a JSON data blob embedded in the HTML; it supports filtering by cluster, website, and date range
 - Mobile screenshots are filtered out in `generate-index.js` (legacy `_mobile.` suffix check)
+
+## Lazy Loading & Image Loading Strategy (`src/take-screenshots.js`)
+
+De screenshot-tool gebruikt een multi-pass strategie om lazy-loaded afbeeldingen te forceren:
+
+### IntersectionObserver Override
+- `evaluateOnNewDocument` overschrijft `window.IntersectionObserver` zodat alle entries `isIntersecting=true` rapporteren
+- **Belangrijk**: `observe()` triggert de callback ook onmiddellijk via `setTimeout(0)`, zodat frameworks (VRT NWS, DPG Media) direct het "zichtbaar"-signaal krijgen — zelfs als de browser de IO-callback zou uitstellen voor elementen buiten de viewport
+- Dit is de primaire fix voor het laden van hero-afbeeldingen op VRT en Nieuwsblad
+
+### Synthetische Events
+- `dispatchVisibilityEvents()` dispatcht `scroll`, `resize`, `scrollend` en `visibilitychange` events op window/document
+- Zet `document.visibilityState` op `'visible'` voor frameworks die laden uitstellen tot de pagina zichtbaar is
+- Wordt aangeroepen na elke `forceLoadLazyImages()` pass
+
+### Force-Load Lazy Images (multi-pass)
+1. `data-src` / `data-srcset` / `data-lazy-src` → echte `src`/`srcset`
+2. `loading="lazy"` → `loading="eager"`
+3. VRT-specifiek: `<noscript>` extractie
+4. `<picture>` fallback: verwijdert niet-matchende `media`-attributen van `<source>` en wijst eerste geldige URL direct toe aan `<img>`
+5. Shadow DOM traversal: zoekt afbeeldingen in Web Component shadow roots
+6. `content-visibility: auto/hidden` → `visible` op parent-containers
+
+### Post-Consent Wachttijd
+- Na consent-afhandeling (DPG privacy gate, cookie popups) wordt 2 seconden gewacht
+- Gevolgd door een vroege `forceLoadLazyImages()` + `dispatchVisibilityEvents()` pass
+- Dit geeft DPG Media frameworks (Nieuwsblad, HLN) tijd om te re-renderen na consent
+
