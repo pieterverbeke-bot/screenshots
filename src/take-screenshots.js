@@ -580,11 +580,14 @@ async function handleDPGPrivacyGate(page) {
         if (clicked) {
           console.log(`🔒 Clicked DPG iframe consent: "${clicked}"`);
           await new Promise(resolve => setTimeout(resolve, 2000));
+          return; // Consent gelukt, stoppen
+        } else {
+          console.log(`⚠️  Consent button niet gevonden in iframe: ${frameUrl.slice(0, 80)}`);
         }
-      } catch {
-        // Cross-origin iframe access kan falen
+      } catch (err) {
+        console.log(`⚠️  Iframe consent access mislukt: ${err?.message || 'unknown error'}`);
       }
-      return;
+      // Niet returnen als klik mislukte — probeer andere iframes of Case 3
     }
   }
 
@@ -707,30 +710,32 @@ async function tryConsentBeforeRemoval(page) {
       return;
     }
 
-    // Stap 5: Probeer TCF API als laatste redmiddel
+    // Stap 5: Probeer TCF API als laatste redmiddel (zonder tcString vereiste)
     const tcfResult = await page.evaluate(() => {
       if (typeof window.__tcfapi === 'function') {
         return new Promise(resolve => {
-          // IAB TCF v2 standaard: postCustomConsent met alle purposes
-          window.__tcfapi('getTCData', 2, (data) => {
-            if (data?.tcString) {
-              // TCF is actief, probeer consent te geven
-              // Sommige CMPs ondersteunen 'acceptAll' of vergelijkbaar
-              if (typeof window.__tcfapi === 'function') {
-                window.__tcfapi('postCustomConsent', 2,
-                  () => resolve('tcf-postCustomConsent'),
-                  [1,2,3,4,5,6,7,8,9,10], // Standard TCF purposes
-                  [], []
-                );
-              } else {
-                resolve(null);
-              }
-            } else {
-              resolve(null);
+          // Probeer postCustomConsent direct — niet wachten op tcString
+          // (op mobiel kan TCF API beschikbaar zijn maar nog niet geïnitialiseerd)
+          try {
+            window.__tcfapi('postCustomConsent', 2,
+              () => resolve('tcf-postCustomConsent'),
+              [1,2,3,4,5,6,7,8,9,10], // Standard TCF purposes
+              [], []
+            );
+          } catch {
+            resolve(null);
+          }
+
+          // Fallback: probeer Sourcepoint-specifieke API
+          try {
+            if (window._sp_ && window._sp_.executeMessaging) {
+              window._sp_.executeMessaging();
+              resolve('sp-executeMessaging');
             }
-          });
-          // Timeout na 2s
-          setTimeout(() => resolve(null), 2000);
+          } catch { /* negeren */ }
+
+          // Timeout na 3s
+          setTimeout(() => resolve(null), 3000);
         });
       }
       return null;
@@ -864,9 +869,13 @@ async function clickAcceptButton(context) {
       /ja,? ik accepteer/i,
       /toestaan/i,
       /doorgaan/i,
+      /^verder$/i,
+      /^ga verder$/i,
+      /^ik begrijp het$/i,
     ];
 
-    const elements = [...document.querySelectorAll('button, a, [role="button"], input[type="submit"], input[type="button"]')];
+    // Inclusief div/span voor Sourcepoint mobiel (rendert soms geen <button> elementen)
+    const elements = [...document.querySelectorAll('button, a, [role="button"], input[type="submit"], input[type="button"], div[class*="button"], span[class*="button"]')];
     for (const el of elements) {
       const text = (el.textContent || el.value || '').trim();
       if (acceptPatterns.some(p => p.test(text))) {
@@ -888,13 +897,24 @@ async function clickAcceptButton(context) {
   // Synthetische el.click() mist soms op mobiel omdat consent-frameworks volledige
   // pointer-events vereisen (pointerdown → mousedown → pointerup → mouseup → click)
   const nativeClickSelectors = [
+    // Sourcepoint class-gebaseerde selectors
     'button.sp_choice_type_11',
     'button.sp_choice_type_ACCEPT_ALL',
+    // Sourcepoint data-attribute selectors (mobiele variant)
+    '[data-choice-type="11"]',
+    '[data-choice-type="ACCEPT_ALL"]',
+    // Sourcepoint message-component buttons
+    '.message-button',
+    '[class*="message-button"]',
+    // Titel-gebaseerde selectors
     'button[title*="kkoord"]',
     'button[title*="ccept"]',
     'button[title="Akkoord"]',
     'button[title="Accepteren"]',
     'button[title="Alle cookies accepteren"]',
+    // aria-label selectors
+    '[aria-label*="kkoord"]',
+    '[aria-label*="ccept"]',
   ];
 
   for (const selector of nativeClickSelectors) {
@@ -915,6 +935,26 @@ async function clickAcceptButton(context) {
       }
     } catch { /* selector niet gevonden, probeer volgende */ }
   }
+
+  // Stap 3: Laatste fallback — klik de eerste zichtbare, voldoende grote knop
+  // Consent popups bevatten typisch 1-3 knoppen; de eerste prominente is meestal "accept"
+  try {
+    const allButtons = await context.$$('button, [role="button"]');
+    for (const btn of allButtons) {
+      const info = await context.evaluate(el => {
+        const rect = el.getBoundingClientRect();
+        const style = window.getComputedStyle(el);
+        if (rect.width < 60 || rect.height < 20) return null;
+        if (style.display === 'none' || style.visibility === 'hidden') return null;
+        return { text: (el.textContent || '').trim(), width: rect.width, height: rect.height };
+      }, btn);
+      if (info && info.text.length > 0 && info.text.length < 50) {
+        await btn.click();
+        console.log(`🔒 clickAcceptButton fallback: clicked "${info.text}" (${info.width}x${info.height})`);
+        return info.text;
+      }
+    }
+  } catch { /* negeren */ }
 
   return null;
 }
