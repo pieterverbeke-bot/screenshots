@@ -54,6 +54,16 @@
     "interval": 60
   },
   {
+    "name": "rtl",
+    "label": "RTL Nieuws",
+    "url": "https://www.rtl.nl",
+    "land": "Nederland",
+    "medium": "nieuwsmedia",
+    "cluster": "RTL",
+    "interval": 60,
+    "skipHours": [0, 1, 2, 3, 4, 5]
+  },
+  {
     "name": "nrc",
     "label": "NRC Handelsblad",
     "url": "https://www.nrc.nl",
