@@ -1594,6 +1594,7 @@ async function main() {
     // Op het hele uur: alle sites (behalve halfHour-sites), filter interval > 60 op basis van uur
     websites = allWebsites.filter(w => {
       if (w.halfHour) return false; // deze draaien op het halve uur
+      if (w.skipHours && w.skipHours.includes(currentHour)) return false;
       const interval = w.interval || 60;
       if (interval <= 60) return true;
       // Voor interval > 60 (bv. 180 = elke 3 uur): alleen als het uur deelbaar is door (interval/60)
@@ -1604,6 +1605,7 @@ async function main() {
   } else {
     // Half-uur run: sites met interval <= 30 + halfHour-sites die op dit uur gepland staan
     websites = allWebsites.filter(w => {
+      if (w.skipHours && w.skipHours.includes(currentHour)) return false;
       const interval = w.interval || 60;
       if (!w.halfHour && interval <= 30) return true;
       if (w.halfHour && interval > 60) {
