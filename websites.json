@@ -181,6 +181,24 @@
     "interval": 180
   },
   {
+    "name": "ad-westland",
+    "label": "AD Westland",
+    "url": "https://www.ad.nl/westland",
+    "land": "Nederland",
+    "medium": "nieuwsmedia",
+    "cluster": "AD Regiosites",
+    "interval": 180
+  },
+  {
+    "name": "ad-alphen-aan-den-rijn",
+    "label": "AD Alphen aan den Rijn",
+    "url": "https://www.ad.nl/alphen-aan-den-rijn",
+    "land": "Nederland",
+    "medium": "nieuwsmedia",
+    "cluster": "AD Regiosites",
+    "interval": 180
+  },
+  {
     "name": "vk",
     "label": "VK",
     "url": "https://www.vk.nl",
