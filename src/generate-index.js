@@ -63,7 +63,7 @@ function loadWebsitesMeta() {
 
 function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta, allWebsites) {
   const websites = Object.keys(desktopStructure).sort();
-  const baseUrl = publicUrl.replace(/\/$/, '');
+  const baseUrl = '';
 
   // Bouw metadata JSON voor client-side filtering
   const metaJSON = JSON.stringify(websitesMeta);
