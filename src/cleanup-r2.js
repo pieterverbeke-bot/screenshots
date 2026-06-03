@@ -2,7 +2,7 @@ import { DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import { createR2Client, listAllObjects } from './r2-client.js';
 
 // Aantal dagen waarna screenshots verwijderd worden
-const RETENTION_DAYS = 15;
+const RETENTION_DAYS = 182; // 26 weken
 
 function getDateFromKey(key) {
   // Verwachte structuur: website/datum/bestand.webp (bv. hln/2026-02-05/hln_2026-02-05T10-00-00.webp)
