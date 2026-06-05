@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Automated website screenshot monitoring system that captures full-page desktop screenshots of Belgian/Dutch news and media websites, uploads them to Cloudflare R2, and serves them via a Cloudflare Worker with optional password protection. Triggered hourly via cron-job.org (external) or GitHub Actions workflow dispatch.
+Automated website screenshot monitoring system that captures full-page desktop screenshots of Belgian/Dutch news and media websites, uploads them to Cloudflare R2, and serves them via a Cloudflare Worker with optional Google login restricted to the persgroep.net domain. Triggered hourly via cron-job.org (external) or GitHub Actions workflow dispatch.
 
 ## Repository Structure
 
@@ -100,9 +100,11 @@ Each entry has:
 
 Located in `worker/`. Deployed separately from the main workflow.
 
-- Acts as a **proxy** for the R2 bucket with optional **password authentication**
-- Auth uses SHA-256 cookie tokens; cookie lives 30 days
-- Password is set via `npx wrangler secret put AUTH_PASSWORD` (if not set, viewer is public)
+- Acts as a **proxy** for the R2 bucket with optional **Google login (OAuth/OIDC)**
+- Access is restricted to verified Google accounts on the `persgroep.net` domain (`ALLOWED_DOMAIN` in `worker/src/index.js`)
+- OAuth uses the authorization code flow with PKCE; on success an HMAC-signed session cookie (HttpOnly) is set, living 30 days
+- Requires three secrets: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AUTH_SECRET` (via `npx wrangler secret put ...`); if any is missing, the viewer is public
+- Google Cloud Console: create a "Web application" OAuth client with redirect URI `https://<worker-domain>/auth/callback`
 - Deploy: `npm run deploy-worker` (runs `cd worker && npx wrangler deploy`)
 - R2 binding name in wrangler.toml: `SCREENSHOTS_BUCKET`
 
