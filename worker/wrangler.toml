@@ -6,7 +6,13 @@ compatibility_date = "2024-12-01"
 binding = "SCREENSHOTS_BUCKET"
 bucket_name = "screenshots"
 
-# Wachtwoordbeveiliging: stel het AUTH_PASSWORD secret in via:
-#   npx wrangler secret put AUTH_PASSWORD
-# Voer vervolgens het gewenste wachtwoord in (bv. Screenshot2000).
-# Zonder dit secret is de viewer publiek toegankelijk.
+# Toegangsbeveiliging via Google-login (enkel @persgroep.net accounts).
+# Stel de volgende drie secrets in; zonder deze is de viewer publiek toegankelijk:
+#   npx wrangler secret put GOOGLE_CLIENT_ID      # OAuth client ID uit Google Cloud Console
+#   npx wrangler secret put GOOGLE_CLIENT_SECRET  # bijbehorend client secret
+#   npx wrangler secret put AUTH_SECRET           # willekeurige string om sessie-cookies te ondertekenen
+#                                                 # genereer bv. met: openssl rand -base64 32
+#
+# Configureer in de Google Cloud Console (OAuth 2.0 Client ID, type "Web application"):
+#   Authorized redirect URI: https://<jouw-worker-domein>/auth/callback
+# Het toegestane e-maildomein (persgroep.net) staat in worker/src/index.js (ALLOWED_DOMAIN).

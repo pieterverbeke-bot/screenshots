@@ -1,16 +1,104 @@
-// Cookie-naam en levensduur (30 dagen)
-const AUTH_COOKIE = 'screenshots_auth';
-const COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
+// Sessie-cookie (ondertekend) en levensduur (30 dagen)
+const SESSION_COOKIE = 'screenshots_session';
+const STATE_COOKIE = 'screenshots_oauth_state';
+const SESSION_MAX_AGE = 60 * 60 * 24 * 30;
+const STATE_MAX_AGE = 60 * 10; // OAuth-state blijft 10 minuten geldig
 
-/**
- * Genereer een SHA-256 hex-hash van de opgegeven tekst.
- * Wordt gebruikt om een verificatie-token te maken voor de auth-cookie.
- */
-async function sha256(text) {
+// Enkel Google-accounts van dit domein krijgen toegang
+const ALLOWED_DOMAIN = 'persgroep.net';
+
+// Google OpenID Connect endpoints
+const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
+const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
+
+/* ---------------------------------------------------------------------------
+ * Encoding helpers
+ * ------------------------------------------------------------------------- */
+
+/** Base64url-encode een Uint8Array of string (zonder padding). */
+function base64urlEncode(input) {
+  const bytes = typeof input === 'string' ? new TextEncoder().encode(input) : input;
+  let binary = '';
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+/** Base64url-decode naar een string. */
+function base64urlDecodeToString(input) {
+  const padded = input.replace(/-/g, '+').replace(/_/g, '/');
+  const binary = atob(padded + '==='.slice((padded.length + 3) % 4));
+  return decodeURIComponent(
+    [...binary].map(c => '%' + c.charCodeAt(0).toString(16).padStart(2, '0')).join('')
+  );
+}
+
+/** SHA-256 over een string, als Uint8Array. */
+async function sha256Bytes(text) {
   const data = new TextEncoder().encode(text);
   const hash = await crypto.subtle.digest('SHA-256', data);
-  return [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2, '0')).join('');
+  return new Uint8Array(hash);
 }
+
+/** HMAC-SHA256 ondertekening van data met secret, base64url-encoded. */
+async function hmacSign(secret, data) {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(data));
+  return base64urlEncode(new Uint8Array(sig));
+}
+
+/** Constant-time string-vergelijking. */
+function timingSafeEqual(a, b) {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return result === 0;
+}
+
+/** Genereer een willekeurige base64url-string van n bytes. */
+function randomToken(n = 32) {
+  const bytes = new Uint8Array(n);
+  crypto.getRandomValues(bytes);
+  return base64urlEncode(bytes);
+}
+
+/* ---------------------------------------------------------------------------
+ * Sessie-token (ondertekend met AUTH_SECRET)
+ * ------------------------------------------------------------------------- */
+
+/** Maak een ondertekend sessie-token dat e-mail + vervaltijd bevat. */
+async function createSession(email, secret) {
+  const payload = base64urlEncode(JSON.stringify({
+    email,
+    exp: Math.floor(Date.now() / 1000) + SESSION_MAX_AGE,
+  }));
+  const sig = await hmacSign(secret, payload);
+  return `${payload}.${sig}`;
+}
+
+/** Valideer een sessie-token; geef het e-mailadres terug of null. */
+async function verifySession(token, secret) {
+  if (!token || !token.includes('.')) return null;
+  const [payload, sig] = token.split('.');
+  const expected = await hmacSign(secret, payload);
+  if (!timingSafeEqual(sig, expected)) return null;
+  try {
+    const data = JSON.parse(base64urlDecodeToString(payload));
+    if (!data.exp || data.exp < Math.floor(Date.now() / 1000)) return null;
+    return data.email || null;
+  } catch {
+    return null;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Cookie helpers
+ * ------------------------------------------------------------------------- */
 
 /** Lees een specifieke cookie uit de request headers. */
 function getCookie(request, name) {
@@ -24,22 +112,11 @@ function buildSetCookie(name, value, maxAge) {
   return `${name}=${value}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
 }
 
-/** HTML-loginpagina in dezelfde stijl als de screenshot viewer. */
-function loginPage(error) {
-  const errorHtml = error
-    ? '<div style="background:#fee2e2;color:#b91c1c;padding:0.5rem 1rem;border-radius:8px;font-size:0.85rem;margin-bottom:1rem;">Verkeerd wachtwoord. Probeer opnieuw.</div>'
-    : '';
+/* ---------------------------------------------------------------------------
+ * HTML-pagina's
+ * ------------------------------------------------------------------------- */
 
-  return `<!DOCTYPE html>
-<html lang="nl">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login — RI&amp;G Screenshots</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>
+const PAGE_STYLE = `
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -75,8 +152,9 @@ function loginPage(error) {
       border-radius: 14px;
       box-shadow: 0 4px 24px rgba(120, 60, 150, 0.10);
       padding: 2.5rem 2rem;
-      max-width: 380px;
+      max-width: 400px;
       width: 100%;
+      text-align: center;
     }
     .login-card h2 {
       font-size: 1.1rem;
@@ -88,49 +166,60 @@ function loginPage(error) {
       font-size: 0.82rem;
       color: #8a7a9a;
       margin-bottom: 1.5rem;
+      line-height: 1.5;
     }
-    .login-card label {
-      display: block;
-      font-size: 0.72rem;
-      font-weight: 600;
-      color: #6a5a7a;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: 0.4rem;
-    }
-    .login-card input[type="password"] {
+    .gsi-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
       width: 100%;
-      padding: 0.6rem 0.9rem;
+      padding: 0.65rem 1rem;
       border: 1.5px solid #e0dae6;
       border-radius: 8px;
+      background: #fff;
+      color: #3c4043;
       font-family: inherit;
       font-size: 0.9rem;
-      color: #2d2d3a;
-      background: #faf8fc;
-      transition: border-color 0.2s, box-shadow 0.2s;
-      margin-bottom: 1.2rem;
-    }
-    .login-card input[type="password"]:focus {
-      outline: none;
-      border-color: #783c96;
-      box-shadow: 0 0 0 3px rgba(120, 60, 150, 0.12);
-    }
-    .login-card button {
-      width: 100%;
-      padding: 0.65rem;
-      border: none;
-      border-radius: 8px;
-      background: linear-gradient(135deg, #783c96, #d23278);
-      color: #fff;
-      font-family: inherit;
-      font-size: 0.88rem;
       font-weight: 600;
+      text-decoration: none;
       cursor: pointer;
-      transition: opacity 0.2s, transform 0.15s;
+      transition: box-shadow 0.2s, border-color 0.2s, transform 0.15s;
     }
-    .login-card button:hover { opacity: 0.92; transform: translateY(-1px); }
-    .login-card button:active { transform: translateY(0); }
-  </style>
+    .gsi-button:hover {
+      box-shadow: 0 2px 10px rgba(120, 60, 150, 0.12);
+      border-color: #c9bdd6;
+      transform: translateY(-1px);
+    }
+    .gsi-button svg { width: 18px; height: 18px; }
+    .error-box {
+      background: #fee2e2;
+      color: #b91c1c;
+      padding: 0.6rem 1rem;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      margin-bottom: 1.2rem;
+      line-height: 1.4;
+    }`;
+
+const GOOGLE_LOGO = `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>`;
+
+/** Loginpagina met "Inloggen met Google" knop. */
+function loginPage(errorMessage) {
+  const errorHtml = errorMessage
+    ? `<div class="error-box">${errorMessage}</div>`
+    : '';
+
+  return `<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — RI&amp;G Screenshots</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>${PAGE_STYLE}</style>
 </head>
 <body>
   <header>
@@ -141,68 +230,143 @@ function loginPage(error) {
   <div class="login-wrap">
     <div class="login-card">
       <h2>Aanmelden</h2>
-      <p>Voer het wachtwoord in om de screenshots te bekijken.</p>
+      <p>Log in met je <strong>@${ALLOWED_DOMAIN}</strong> account om de screenshots te bekijken.</p>
       ${errorHtml}
-      <form method="POST" action="/login">
-        <label for="password">Wachtwoord</label>
-        <input type="password" id="password" name="password" required autofocus>
-        <button type="submit">Inloggen</button>
-      </form>
+      <a class="gsi-button" href="/auth/login">${GOOGLE_LOGO}<span>Inloggen met Google</span></a>
     </div>
   </div>
 </body>
 </html>`;
 }
 
+/* ---------------------------------------------------------------------------
+ * Worker
+ * ------------------------------------------------------------------------- */
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    const password = env.AUTH_PASSWORD;
+    const clientId = env.GOOGLE_CLIENT_ID;
+    const clientSecret = env.GOOGLE_CLIENT_SECRET;
+    const authSecret = env.AUTH_SECRET;
 
-    // --- Wachtwoordbeveiliging (overslaan als geen AUTH_PASSWORD secret is ingesteld) ---
-    if (password) {
-      const expectedToken = await sha256('screenshots_auth_' + password);
+    // Auth is actief zodra de Google-credentials zijn ingesteld.
+    // Zonder deze secrets is de viewer publiek toegankelijk (zoals voorheen).
+    const authEnabled = Boolean(clientId && clientSecret && authSecret);
 
-      // POST /login: wachtwoord controleren
-      if (url.pathname === '/login' && request.method === 'POST') {
-        const formData = await request.formData();
-        const submitted = formData.get('password') || '';
+    if (authEnabled) {
+      const redirectUri = `${url.origin}/auth/callback`;
 
-        if (submitted === password) {
-          return new Response(null, {
-            status: 302,
-            headers: {
-              'Location': '/',
-              'Set-Cookie': buildSetCookie(AUTH_COOKIE, expectedToken, COOKIE_MAX_AGE),
-            },
-          });
-        }
+      // --- Start Google OAuth flow ---
+      if (url.pathname === '/auth/login') {
+        const state = randomToken();
+        const verifier = randomToken();
+        const challenge = base64urlEncode(await sha256Bytes(verifier));
 
-        // Verkeerd wachtwoord: toon loginpagina opnieuw met foutmelding
-        return new Response(loginPage(true), {
-          status: 401,
-          headers: { 'Content-Type': 'text/html; charset=utf-8' },
+        const authUrl = new URL(GOOGLE_AUTH_URL);
+        authUrl.searchParams.set('client_id', clientId);
+        authUrl.searchParams.set('redirect_uri', redirectUri);
+        authUrl.searchParams.set('response_type', 'code');
+        authUrl.searchParams.set('scope', 'openid email profile');
+        authUrl.searchParams.set('state', state);
+        authUrl.searchParams.set('code_challenge', challenge);
+        authUrl.searchParams.set('code_challenge_method', 'S256');
+        authUrl.searchParams.set('hd', ALLOWED_DOMAIN); // hint: beperk tot dit domein
+        authUrl.searchParams.set('prompt', 'select_account');
+
+        // Bewaar state + PKCE-verifier kortstondig in een HttpOnly cookie
+        const stateValue = base64urlEncode(JSON.stringify({ state, verifier }));
+        return new Response(null, {
+          status: 302,
+          headers: {
+            'Location': authUrl.toString(),
+            'Set-Cookie': buildSetCookie(STATE_COOKIE, stateValue, STATE_MAX_AGE),
+          },
         });
       }
 
-      // GET /logout: cookie verwijderen
+      // --- OAuth callback van Google ---
+      if (url.pathname === '/auth/callback') {
+        const code = url.searchParams.get('code');
+        const returnedState = url.searchParams.get('state');
+        const stateCookie = getCookie(request, STATE_COOKIE);
+
+        if (!code || !returnedState || !stateCookie) {
+          return loginResponse('Aanmelden mislukt. Probeer opnieuw.');
+        }
+
+        let stored;
+        try {
+          stored = JSON.parse(base64urlDecodeToString(stateCookie));
+        } catch {
+          return loginResponse('Aanmelden mislukt. Probeer opnieuw.');
+        }
+
+        if (!stored.state || !timingSafeEqual(returnedState, stored.state)) {
+          return loginResponse('Ongeldige aanmeldsessie. Probeer opnieuw.');
+        }
+
+        // Wissel de autorisatiecode in voor tokens
+        const tokenResp = await fetch(GOOGLE_TOKEN_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            code,
+            client_id: clientId,
+            client_secret: clientSecret,
+            redirect_uri: redirectUri,
+            grant_type: 'authorization_code',
+            code_verifier: stored.verifier,
+          }),
+        });
+
+        if (!tokenResp.ok) {
+          return loginResponse('Aanmelden bij Google mislukt. Probeer opnieuw.');
+        }
+
+        const tokens = await tokenResp.json();
+        const claims = decodeIdToken(tokens.id_token);
+
+        if (!claims || !claims.email) {
+          return loginResponse('Geen e-mailadres ontvangen van Google.');
+        }
+
+        // Verifieer het domein server-side (de hd-parameter is enkel een hint)
+        const email = String(claims.email).toLowerCase();
+        const domainOk = email.endsWith('@' + ALLOWED_DOMAIN) &&
+          (!claims.hd || claims.hd === ALLOWED_DOMAIN);
+        const emailVerified = claims.email_verified === true || claims.email_verified === 'true';
+
+        if (!domainOk || !emailVerified) {
+          return loginResponse(
+            `Geen toegang. Enkel geverifieerde @${ALLOWED_DOMAIN} accounts zijn toegelaten.`
+          );
+        }
+
+        // Geldige gebruiker: sessie-cookie zetten, state-cookie wissen
+        const session = await createSession(email, authSecret);
+        const headers = new Headers({ 'Location': '/' });
+        headers.append('Set-Cookie', buildSetCookie(SESSION_COOKIE, session, SESSION_MAX_AGE));
+        headers.append('Set-Cookie', buildSetCookie(STATE_COOKIE, '', 0));
+        return new Response(null, { status: 302, headers });
+      }
+
+      // --- Uitloggen ---
       if (url.pathname === '/logout') {
         return new Response(null, {
           status: 302,
           headers: {
             'Location': '/',
-            'Set-Cookie': buildSetCookie(AUTH_COOKIE, '', 0),
+            'Set-Cookie': buildSetCookie(SESSION_COOKIE, '', 0),
           },
         });
       }
 
-      // Alle andere requests: cookie valideren
-      const token = getCookie(request, AUTH_COOKIE);
-      if (token !== expectedToken) {
-        return new Response(loginPage(false), {
-          status: 401,
-          headers: { 'Content-Type': 'text/html; charset=utf-8' },
-        });
+      // --- Alle overige requests: geldige sessie vereist ---
+      const sessionToken = getCookie(request, SESSION_COOKIE);
+      const email = await verifySession(sessionToken, authSecret);
+      if (!email) {
+        return loginResponse(null);
       }
     }
 
@@ -249,3 +413,24 @@ export default {
     return new Response(body, { headers });
   },
 };
+
+/** Bouw een 401-response met de loginpagina (en optionele foutmelding). */
+function loginResponse(errorMessage) {
+  return new Response(loginPage(errorMessage), {
+    status: 401,
+    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+  });
+}
+
+/** Decodeer het JWT-payload van een Google id_token (zonder verificatie:
+ *  het token komt rechtstreeks via TLS van Google's token-endpoint). */
+function decodeIdToken(idToken) {
+  if (!idToken || typeof idToken !== 'string') return null;
+  const parts = idToken.split('.');
+  if (parts.length !== 3) return null;
+  try {
+    return JSON.parse(base64urlDecodeToString(parts[1]));
+  } catch {
+    return null;
+  }
+}
