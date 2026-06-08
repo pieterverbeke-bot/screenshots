@@ -911,6 +911,111 @@ async function removeRemainingOverlays(page) {
   }
 }
 
+// Laatste, gerichte afhandeling van een hardnekkige consent/privacy gate vlak vóór de screenshot.
+// Pakt specifiek de DPG/Sourcepoint CMP ("Jouw privacy-instellingen" met een "Akkoord"-knop) aan:
+// 1) detecteer of de gate (nog) zichtbaar is (tekst, Sourcepoint-container of consent-iframe);
+// 2) klik ALLEEN de expliciete accepteer-knop (nooit "Instellingen"/"Inloggen") in álle frames;
+// 3) als de gate blijft staan: verwijder de gate-overlay/iframe zodat hij niet in beeld komt.
+// De functie is een no-op op sites zonder gate, dus veilig voor alle andere sites.
+async function dismissConsentGate(page) {
+  // Klik uitsluitend een accepteer-knop in een gegeven context (page of frame)
+  const clickAccept = async (ctx) => {
+    // Stap A: precieze Sourcepoint/DPG selectors (native click — registreert echte pointer events)
+    const acceptSelectors = [
+      'button.sp_choice_type_11',
+      'button.sp_choice_type_ACCEPT_ALL',
+      'button[title="Akkoord"]',
+      'button[aria-label="Akkoord"]',
+      'button[title="Alles accepteren"]',
+      'button[title="Alle cookies accepteren"]',
+      'button[title*="ccepteren"]',
+      'button[aria-label*="ccepteren"]',
+      '[data-testid="notice-accept-btn"]',
+      '#didomi-notice-agree-button',
+    ];
+    for (const sel of acceptSelectors) {
+      try {
+        const el = await ctx.$(sel);
+        if (!el) continue;
+        const visible = await ctx.evaluate(b => {
+          const r = b.getBoundingClientRect();
+          const s = window.getComputedStyle(b);
+          return r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden';
+        }, el).catch(() => false);
+        if (visible) { await el.click().catch(() => {}); return true; }
+      } catch { /* selector niet bruikbaar in deze context */ }
+    }
+    // Stap B: exacte tekstmatch op accepteer-knoppen (geen "instellingen"/"inloggen"/"weiger")
+    const byText = await ctx.evaluate(() => {
+      const accept = [/^akkoord$/i, /^accepteren$/i, /^alles accepteren$/i, /^alle cookies accepteren$/i, /^ik ga akkoord$/i, /^ja,? ik accepteer$/i, /^accepteer$/i];
+      const els = [...document.querySelectorAll('button, [role="button"], a, input[type="submit"], input[type="button"]')];
+      for (const el of els) {
+        const t = (el.textContent || el.value || '').trim();
+        if (!t || t.length > 40) continue;
+        if (!accept.some(p => p.test(t))) continue;
+        const r = el.getBoundingClientRect();
+        const s = window.getComputedStyle(el);
+        if (r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden') { el.click(); return true; }
+      }
+      return false;
+    }).catch(() => false);
+    return byText;
+  };
+
+  // Is er nog een consent/privacy gate zichtbaar?
+  const gateVisible = async () => page.evaluate(() => {
+    const txt = document.body?.innerText || '';
+    if (/privacy-instellingen|jouw privacy|wij en onze partners vragen|geef je toestemming/i.test(txt)) return true;
+    if (document.querySelector('[id^="sp_message_container"], iframe[id^="sp_message_iframe"], [class*="message-container"]')) return true;
+    return [...document.querySelectorAll('iframe')].some(f => /sp-prod|sourcepoint|privacy-mgmt|myprivacy\.dpgmedia|consent|cmp\./i.test(f.src || ''));
+  }).catch(() => false);
+
+  if (!(await gateVisible())) return; // geen gate → niets doen
+
+  // Probeer maximaal enkele rondes te accepteren (gate kan traag laden / opnieuw renderen)
+  for (let round = 0; round < 5; round++) {
+    let clicked = false;
+    for (const frame of page.frames()) {
+      try { if (await clickAccept(frame)) { clicked = true; break; } } catch { /* frame weg */ }
+    }
+    console.log(`🔒 Consent gate ${clicked ? 'accepteer-knop geklikt' : 'geen accepteer-knop gevonden'} (ronde ${round + 1})`);
+    await new Promise(r => setTimeout(r, clicked ? 2500 : 1200));
+    if (!(await gateVisible())) { console.log(`🔒 Consent gate verdwenen na accepteren`); return; }
+  }
+
+  // Laatste redmiddel: verwijder de gate-overlay/iframe zodat hij niet in de screenshot staat
+  const removed = await page.evaluate(() => {
+    let n = 0;
+    // 1) Sourcepoint / message containers
+    document.querySelectorAll('[id^="sp_message_container"], [id^="sp_message_iframe"], [class*="message-container"]').forEach(e => { e.remove(); n++; });
+    // 2) Consent-iframes op basis van src
+    document.querySelectorAll('iframe').forEach(f => {
+      if (/sp-prod|sourcepoint|privacy-mgmt|myprivacy\.dpgmedia|consent|cmp\./i.test(f.src || '')) {
+        const container = f.closest('div[style*="position"], div[class*="overlay"], div[class*="modal"], div[class*="gate"]') || f;
+        container.remove(); n++;
+      }
+    });
+    // 3) Main-DOM modal: vind de "privacy-instellingen"-knoppen en verwijder hun overlay-voorouder
+    const accept = [...document.querySelectorAll('button, [role="button"]')].find(b => /^akkoord$/i.test((b.textContent || '').trim()));
+    if (accept) {
+      let el = accept;
+      for (let i = 0; i < 12 && el && el !== document.body; i++) {
+        const s = window.getComputedStyle(el);
+        const r = el.getBoundingClientRect();
+        if ((s.position === 'fixed' || s.position === 'absolute') && r.width > 200 && r.height > 150) { el.remove(); n++; break; }
+        el = el.parentElement;
+      }
+    }
+    // Herstel scrollen dat de gate vaak blokkeert
+    document.documentElement.style.overflow = '';
+    document.body.style.overflow = '';
+    document.documentElement.classList.remove('has-overlay', 'modal-open', 'no-scroll', 'overflow-hidden');
+    document.body.classList.remove('has-overlay', 'modal-open', 'no-scroll', 'overflow-hidden');
+    return n;
+  }).catch(() => 0);
+  if (removed > 0) console.log(`🔒 Consent gate verwijderd als laatste redmiddel (${removed} element(en))`);
+}
+
 // Generieke functie om accept-knoppen te vinden en klikken (werkt op page of frame)
 async function clickAcceptButton(context) {
   // Stap 1: Probeer via evaluate (synthetische JS click)
@@ -1295,6 +1400,11 @@ async function loadAndPrepare(page, website, waitUntil = 'networkidle2', { isMob
   if (isMobile) {
     await handleDPGPrivacyGate(page);
   }
+
+  // Allerlaatste stap vóór de screenshot: een hardnekkige DPG/Sourcepoint consent gate
+  // ("Jouw privacy-instellingen") gericht accepteren of, als dat niet lukt, verwijderen.
+  // Dit vangt de gate die te laat verschijnt om door de eerdere passes afgehandeld te worden.
+  await dismissConsentGate(page);
 }
 
 // Neem een desktopscreenshot op een verse pagina.
