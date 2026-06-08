@@ -1529,7 +1529,7 @@ async function capturePage(browser, website, timestamp) {
     });
 
     console.log(`📸 ${name}: Loading page...`);
-    await loadAndPrepare(page, website, 'networkidle2');
+    await loadAndPrepare(page, website, website.waitUntil || 'networkidle2');
 
     const filename = `${name}_${timestamp}.webp`;
     const filepath = join(SCREENSHOTS_DIR, filename);
@@ -1650,7 +1650,7 @@ async function capturePageMobile(browser, website, timestamp) {
     });
 
     console.log(`📱 ${name}: Loading mobile page...`);
-    await loadAndPrepare(page, website, 'networkidle2', { isMobile: true });
+    await loadAndPrepare(page, website, website.waitUntil || 'networkidle2', { isMobile: true });
 
     const filename = `${name}_${timestamp}_mobile.webp`;
     const filepath = join(SCREENSHOTS_DIR, filename);
