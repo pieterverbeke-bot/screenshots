@@ -1051,11 +1051,11 @@ async function dismissConsentGate(page) {
 const CONSENT_FRAME_RE = /didomi|sourcepoint|sp-prod|sp_message|privacy-mgmt|onetrust|cookiebot|cookielaw|consensu|usercentrics|trustarc|quantcast|fundingchoices|myprivacy\.dpgmedia|cdn\.privacy|consent|cmp/i;
 
 // Bepaalt of een frame de moeite waard is om op consent-knoppen te doorzoeken.
+// Alleen frames met een herkenbare CMP-URL. (DPG's gate is een hoofd-document, niet een frame,
+// en wordt door handleDPGPrivacyGate afgehandeld; about:blank ad-frames slaan we over voor snelheid.)
 function isPotentialConsentFrame(frame, mainFrame) {
   if (frame === mainFrame) return false;
-  const u = frame.url() || '';
-  if (u === '' || u === 'about:blank') return true; // mogelijk srcdoc-CMP
-  return CONSENT_FRAME_RE.test(u);
+  return CONSENT_FRAME_RE.test(frame.url() || '');
 }
 
 // Generieke functie om accept-knoppen te vinden en klikken (werkt op page of frame)
