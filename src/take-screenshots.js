@@ -42,6 +42,65 @@ const CONFIG = {
   mobileResizeWidth: 390
 };
 
+// Stel een realistische desktop user-agent in.
+// De standaard Puppeteer-UA bevat de token "HeadlessChrome", die door Cloudflare
+// hard geblokkeerd wordt op o.a. Mediahuis-sites (Nieuwsblad, GvA) — de pagina toont
+// dan "Sorry, you have been blocked". We strippen "Headless" uit de echte browser-UA
+// (zodat de Chrome-versie automatisch meeschaalt) en zetten de bijbehorende
+// client-hints (Sec-CH-UA), want die verraden anders alsnog "HeadlessChrome".
+async function applyDesktopUserAgent(page, browser) {
+  const fullUA = await browser.userAgent();
+  const desktopUA = fullUA.replace(/HeadlessChrome/g, 'Chrome');
+  const major = (desktopUA.match(/Chrome\/(\d+)/) || [, '149'])[1];
+  try {
+    await page.setUserAgent(desktopUA, {
+      brands: [
+        { brand: 'Not/A)Brand', version: '8' },
+        { brand: 'Chromium', version: major },
+        { brand: 'Google Chrome', version: major },
+      ],
+      fullVersion: `${major}.0.0.0`,
+      platform: 'Linux',
+      platformVersion: '6.6.0',
+      architecture: 'x86',
+      model: '',
+      mobile: false,
+    });
+  } catch {
+    // Oudere Puppeteer of CDP-fout: val terug op alleen de UA-string
+    await page.setUserAgent(desktopUA);
+  }
+}
+
+// Stel een consistente mobiele user-agent in (Android Chrome).
+// Eerder werd een iPhone Safari-UA gebruikt, maar Puppeteer stuurt daarbij nog steeds
+// de standaard Sec-CH-UA client-hints mét "HeadlessChrome" — een tegenstrijdige,
+// bot-achtige fingerprint (iOS Safari-UA + Chromium-hints) waar de DPG/Sourcepoint
+// consent-flow op mobiel op reageert (privacy gate blijft staan). Met een Android
+// Chrome-UA kloppen UA en client-hints met elkaar en lekt er geen "HeadlessChrome".
+async function applyMobileUserAgent(page, browser) {
+  const fullUA = await browser.userAgent();
+  const major = (fullUA.match(/Chrome\/(\d+)/) || [, '149'])[1];
+  const mobileUA = `Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${major}.0.0.0 Mobile Safari/537.36`;
+  try {
+    await page.setUserAgent(mobileUA, {
+      brands: [
+        { brand: 'Not/A)Brand', version: '8' },
+        { brand: 'Chromium', version: major },
+        { brand: 'Google Chrome', version: major },
+      ],
+      fullVersion: `${major}.0.0.0`,
+      platform: 'Android',
+      platformVersion: '14.0.0',
+      architecture: '',
+      model: 'Pixel 7',
+      mobile: true,
+    });
+  } catch {
+    await page.setUserAgent(mobileUA);
+  }
+}
+
 // Genereer timestamp in GMT+1 (België/Nederland)
 function getLocalTimestamp() {
   const now = new Date();
@@ -547,23 +606,83 @@ async function handleCloudflareChallenge(page) {
   }
 }
 
+// Klik gericht een 'Akkoord'/accepteer-knop op de pagina, ÓÓK als die in een shadow DOM zit.
+// De DPG myprivacy.dpgmedia consent-pagina is opgebouwd uit web components, waardoor de knop
+// in een shadow root zit en met een gewone querySelector niet gevonden wordt (vandaar dat de
+// eerdere pogingen "geen accepteer-knop gevonden" rapporteerden). Klikt NOOIT
+// "Instellingen"/"Inloggen"/"Weiger". Retourneert {clicked: tekst} of {clicked: null, found: [...]}.
+async function clickAcceptDeep(context) {
+  return context.evaluate(() => {
+    const acceptPatterns = [
+      /^akkoord$/i, /^akkoord en sluiten$/i, /^accepteren$/i, /^accepteer$/i,
+      /^alles accepteren$/i, /^alle cookies accepteren$/i, /^alles aanvaarden$/i,
+      /^ik ga akkoord$/i, /^ja,? ik accepteer$/i, /^doorgaan$/i, /^accept(\s|$)/i, /^agree$/i,
+    ];
+    const rejectPattern = /instelling|inloggen|log in|weiger|meer opties|beheer|aanpassen|settings|manage|opties|keuze|voorkeuren/i;
+
+    // Verzamel klikbare elementen in document + alle (open) shadow roots
+    const clickables = [];
+    const walk = (root) => {
+      try {
+        root.querySelectorAll('button, a, [role="button"], input[type="submit"], input[type="button"]').forEach(e => clickables.push(e));
+        root.querySelectorAll('*').forEach(e => { if (e.shadowRoot) walk(e.shadowRoot); });
+      } catch { /* sommige roots zijn niet toegankelijk */ }
+    };
+    walk(document);
+
+    const isVisible = (el) => {
+      const r = el.getBoundingClientRect();
+      const s = window.getComputedStyle(el);
+      return r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden' && s.opacity !== '0';
+    };
+    const labelOf = (el) => {
+      const t = (el.textContent || el.value || '').trim();
+      const a = (el.getAttribute && (el.getAttribute('aria-label') || el.getAttribute('title'))) || '';
+      return (t || a.trim());
+    };
+
+    for (const el of clickables) {
+      const label = labelOf(el);
+      if (!label || label.length > 40) continue;
+      if (rejectPattern.test(label)) continue;
+      if (acceptPatterns.some(p => p.test(label)) && isVisible(el)) {
+        el.click();
+        return { clicked: label };
+      }
+    }
+    // Niets gevonden → geef de zichtbare knoplabels terug voor diagnostiek
+    const found = [...new Set(clickables.filter(isVisible).map(labelOf).filter(Boolean))].slice(0, 25);
+    return { clicked: null, found };
+  }).catch(() => ({ clicked: null, found: [] }));
+}
+
 // Detecteer en handel DPG Media privacy gate af (redirect naar myprivacy.dpgmedia.* of iframe)
 async function handleDPGPrivacyGate(page) {
   const url = page.url();
 
-  // Case 1: Volledig geredirect naar myprivacy.dpgmedia.be of .nl consent-pagina
+  // Case 1: Volledig geredirect naar myprivacy.dpgmedia.be of .nl consent-pagina.
+  // De "Akkoord"-knop zit in een shadow DOM; met clickAcceptDeep piercen we die.
+  // Bij klik navigeert de pagina via de callbackUrl terug naar de site (consent gezet).
   if (url.includes('myprivacy.dpgmedia')) {
     console.log(`🔒 DPG privacy gate redirect detected: ${url}`);
-    // Wacht zodat de consent-pagina volledig gerenderd is
-    await new Promise(resolve => setTimeout(resolve, 3000));
-
-    // Start navigatie-wacht VOOR de klik (race condition fix: klik kan onmiddellijk redirect triggeren)
-    const navigationPromise = page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
-    const clicked = await clickAcceptButton(page);
-    if (clicked) {
-      console.log(`🔒 Clicked DPG consent: "${clicked}"`);
-      await navigationPromise;
-      await new Promise(resolve => setTimeout(resolve, 3000));
+    for (let attempt = 0; attempt < 4; attempt++) {
+      // Wacht tot de web components gerenderd zijn (eerste poging iets langer)
+      await new Promise(resolve => setTimeout(resolve, attempt === 0 ? 2500 : 1500));
+      // Start navigatie-wacht VOOR de klik (klik triggert onmiddellijk een redirect terug)
+      const navigationPromise = page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 12000 }).catch(() => {});
+      const result = await clickAcceptDeep(page);
+      if (result.clicked) {
+        console.log(`🔒 Clicked DPG consent: "${result.clicked}"`);
+        await navigationPromise;
+        await new Promise(resolve => setTimeout(resolve, 2500));
+        if (!page.url().includes('myprivacy.dpgmedia')) {
+          console.log(`🔒 Terug op site na consent (${page.url().slice(0, 60)})`);
+          return;
+        }
+        // Nog steeds op de consent-pagina → volgende poging
+      } else {
+        console.log(`🔒 DPG consent-knop niet gevonden (poging ${attempt + 1}); zichtbare knoppen: ${JSON.stringify(result.found)}`);
+      }
     }
     return;
   }
@@ -665,9 +784,9 @@ async function tryConsentBeforeRemoval(page) {
       return;
     }
 
-    // Stap 3: Probeer accept-knoppen in ALLE iframes (niet alleen bekende URL-patronen)
+    // Stap 3: Probeer accept-knoppen in waarschijnlijke consent-iframes (ad-iframes overslaan)
     for (const frame of page.frames()) {
-      if (frame === page.mainFrame()) continue;
+      if (!isPotentialConsentFrame(frame, page.mainFrame())) continue;
       try {
         const clicked = await clickAcceptButton(frame);
         if (clicked) {
@@ -852,6 +971,93 @@ async function removeRemainingOverlays(page) {
   }
 }
 
+// Laatste, gerichte afhandeling van een hardnekkige consent/privacy gate vlak vóór de screenshot.
+// Pakt specifiek de DPG/Sourcepoint CMP ("Jouw privacy-instellingen" met een "Akkoord"-knop) aan:
+// 1) detecteer of de gate (nog) zichtbaar is (tekst, Sourcepoint-container of consent-iframe);
+// 2) klik ALLEEN de expliciete accepteer-knop (nooit "Instellingen"/"Inloggen") in álle frames;
+// 3) als de gate blijft staan: verwijder de gate-overlay/iframe zodat hij niet in beeld komt.
+// De functie is een no-op op sites zonder gate, dus veilig voor alle andere sites.
+async function dismissConsentGate(page) {
+  // Is er nog een ÉCHTE DPG/Sourcepoint privacy gate zichtbaar?
+  // Bewust eng gehouden: alleen de myprivacy-redirect, de letterlijke DPG-gate-tekst of een
+  // Sourcepoint-container. NIET matchen op generieke "consent"/"cmp" iframes, want bijna elke
+  // nieuwssite (bv. Nieuwsblad met Didomi + ad-iframes) heeft die — dat zou deze (relatief dure)
+  // functie onnodig laten draaien terwijl de consent al is afgehandeld.
+  const gateVisible = async () => {
+    if (page.url().includes('myprivacy.dpgmedia')) return true; // nog op de DPG consent-pagina
+    return page.evaluate(() => {
+      const txt = document.body?.innerText || '';
+      if (/jouw privacy-instellingen/i.test(txt)) return true;
+      return !!document.querySelector('[id^="sp_message_container"], iframe[id^="sp_message_iframe"]');
+    }).catch(() => false);
+  };
+
+  if (!(await gateVisible())) return; // geen gate → niets doen (no-op op de meeste sites)
+
+  // Accepteer via shadow-DOM-piercing op het hoofddocument (DPG myprivacy web components).
+  // Geen iteratie over alle (ad-)iframes meer: dat was traag op ad-zware sites en niet nodig,
+  // want de DPG-gate is een volledige pagina, geen iframe.
+  for (let round = 0; round < 3; round++) {
+    const navP = page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 8000 }).catch(() => {});
+    const deep = await clickAcceptDeep(page);
+    if (deep.clicked) {
+      console.log(`🔒 Consent gate "Akkoord" geklikt (shadow): "${deep.clicked}"`);
+      await navP;
+    } else {
+      console.log(`🔒 Consent gate geen accepteer-knop gevonden (ronde ${round + 1})`);
+    }
+    await new Promise(r => setTimeout(r, deep.clicked ? 2000 : 800));
+    if (!(await gateVisible())) { if (deep.clicked) console.log(`🔒 Consent gate verdwenen na accepteren`); return; }
+  }
+
+  // Laatste redmiddel: verwijder de gate-overlay/iframe zodat hij niet in de screenshot staat
+  const removed = await page.evaluate(() => {
+    let n = 0;
+    // 1) Sourcepoint / message containers
+    document.querySelectorAll('[id^="sp_message_container"], [id^="sp_message_iframe"], [class*="message-container"]').forEach(e => { e.remove(); n++; });
+    // 2) Consent-iframes op basis van src
+    document.querySelectorAll('iframe').forEach(f => {
+      if (/sp-prod|sourcepoint|privacy-mgmt|myprivacy\.dpgmedia|consent|cmp\./i.test(f.src || '')) {
+        const container = f.closest('div[style*="position"], div[class*="overlay"], div[class*="modal"], div[class*="gate"]') || f;
+        container.remove(); n++;
+      }
+    });
+    // 3) Main-DOM modal: vind de "privacy-instellingen"-knoppen en verwijder hun overlay-voorouder
+    const accept = [...document.querySelectorAll('button, [role="button"]')].find(b => /^akkoord$/i.test((b.textContent || '').trim()));
+    if (accept) {
+      let el = accept;
+      for (let i = 0; i < 12 && el && el !== document.body; i++) {
+        const s = window.getComputedStyle(el);
+        const r = el.getBoundingClientRect();
+        if ((s.position === 'fixed' || s.position === 'absolute') && r.width > 200 && r.height > 150) { el.remove(); n++; break; }
+        el = el.parentElement;
+      }
+    }
+    // Herstel scrollen dat de gate vaak blokkeert
+    document.documentElement.style.overflow = '';
+    document.body.style.overflow = '';
+    document.documentElement.classList.remove('has-overlay', 'modal-open', 'no-scroll', 'overflow-hidden');
+    document.body.classList.remove('has-overlay', 'modal-open', 'no-scroll', 'overflow-hidden');
+    return n;
+  }).catch(() => 0);
+  if (removed > 0) console.log(`🔒 Consent gate verwijderd als laatste redmiddel (${removed} element(en))`);
+}
+
+// Frames die mogelijk een consent/CMP bevatten (herkenning op URL). Ad-/tracking-iframes
+// (DoubleClick, googlesyndication, …) matchen niet, zodat we niet elke — vaak tientallen —
+// ad-iframe hoeven te doorzoeken met clickAcceptButton. Dat was de hoofdoorzaak van de trage
+// captures op ad-zware sites (Nieuwsblad, GvA). about:blank/lege frames houden we wél aan,
+// want sommige CMP's renderen via srcdoc zonder herkenbare URL.
+const CONSENT_FRAME_RE = /didomi|sourcepoint|sp-prod|sp_message|privacy-mgmt|onetrust|cookiebot|cookielaw|consensu|usercentrics|trustarc|quantcast|fundingchoices|myprivacy\.dpgmedia|cdn\.privacy|consent|cmp/i;
+
+// Bepaalt of een frame de moeite waard is om op consent-knoppen te doorzoeken.
+// Alleen frames met een herkenbare CMP-URL. (DPG's gate is een hoofd-document, niet een frame,
+// en wordt door handleDPGPrivacyGate afgehandeld; about:blank ad-frames slaan we over voor snelheid.)
+function isPotentialConsentFrame(frame, mainFrame) {
+  if (frame === mainFrame) return false;
+  return CONSENT_FRAME_RE.test(frame.url() || '');
+}
+
 // Generieke functie om accept-knoppen te vinden en klikken (werkt op page of frame)
 async function clickAcceptButton(context) {
   // Stap 1: Probeer via evaluate (synthetische JS click)
@@ -1026,8 +1232,9 @@ async function dismissPopups(page) {
     let clickedSomething = false;
 
     // Stap 1: Probeer consent-knoppen in iframes (Sourcepoint/Didomi renderen vaak in iframe, vooral op mobiel)
+    // Alleen waarschijnlijke consent-frames doorzoeken — ad-iframes overslaan voor snelheid.
     for (const frame of page.frames()) {
-      if (frame === page.mainFrame()) continue;
+      if (!isPotentialConsentFrame(frame, page.mainFrame())) continue;
       try {
         const clicked = await clickAcceptButton(frame);
         if (clicked) {
@@ -1236,6 +1443,11 @@ async function loadAndPrepare(page, website, waitUntil = 'networkidle2', { isMob
   if (isMobile) {
     await handleDPGPrivacyGate(page);
   }
+
+  // Allerlaatste stap vóór de screenshot: een hardnekkige DPG/Sourcepoint consent gate
+  // ("Jouw privacy-instellingen") gericht accepteren of, als dat niet lukt, verwijderen.
+  // Dit vangt de gate die te laat verschijnt om door de eerdere passes afgehandeld te worden.
+  await dismissConsentGate(page);
 }
 
 // Neem een desktopscreenshot op een verse pagina.
@@ -1245,6 +1457,10 @@ async function capturePage(browser, website, timestamp) {
   const page = await browser.newPage();
   try {
     await page.setViewport(CONFIG.desktopViewport);
+
+    // Realistische desktop user-agent — anders blokkeert Cloudflare de standaard
+    // "HeadlessChrome"-UA (o.a. Nieuwsblad, GvA tonen dan de "you have been blocked"-pagina).
+    await applyDesktopUserAgent(page, browser);
 
     // Override IntersectionObserver zodat alle lazy-loaded elementen (vooral React-gebaseerde
     // image components zoals bij VRT NWS) meteen als zichtbaar worden beschouwd.
@@ -1378,10 +1594,12 @@ async function capturePageMobile(browser, website, timestamp) {
 
   const page = await browser.newPage();
   try {
-    await page.setViewport(CONFIG.mobileViewport);
+    await page.setViewport({ ...CONFIG.mobileViewport, isMobile: true, hasTouch: true });
 
-    // Mobiele user-agent zodat sites hun echte mobiele versie serveren (inclusief mobiele consent-flow)
-    await page.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1');
+    // Consistente mobiele user-agent (Android Chrome) zodat sites hun mobiele versie serveren
+    // zonder dat de client-hints "HeadlessChrome" verraden — voorkomt dat de DPG privacy gate
+    // op mobiel blijft staan.
+    await applyMobileUserAgent(page, browser);
 
     // Zelfde IntersectionObserver override als desktop
     await page.evaluateOnNewDocument(() => {
@@ -1577,6 +1795,10 @@ async function main() {
     process.exit(0);
   }
 
+  // Handmatige test-override: SITES_FILTER=naam1,naam2 screenshot alleen die sites
+  // (omzeilt de planning). Leeg bij cron → normale planning hieronder.
+  const sitesFilter = (process.env.SITES_FILTER || '').split(',').map(s => s.trim()).filter(Boolean);
+
   // Filter websites op basis van interval en huidige tijd (Brussels-tijdzone)
   const now = new Date();
   const currentMinute = parseInt(
@@ -1590,7 +1812,12 @@ async function main() {
   const isOnTheHour = currentMinute < 15;
 
   let websites;
-  if (isOnTheHour) {
+  if (sitesFilter.length > 0) {
+    // Test-override actief: negeer de planning, neem precies de opgegeven sites
+    websites = allWebsites.filter(w => sitesFilter.includes(w.name));
+    const unknown = sitesFilter.filter(n => !allWebsites.some(w => w.name === n));
+    if (unknown.length > 0) console.log(`⚠️  Onbekende site(s) in SITES_FILTER: ${unknown.join(', ')}`);
+  } else if (isOnTheHour) {
     // Op het hele uur: alle sites (behalve halfHour-sites), filter interval > 60 op basis van uur
     websites = allWebsites.filter(w => {
       if (w.halfHour) return false; // deze draaien op het halve uur
