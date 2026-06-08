@@ -42,6 +42,65 @@ const CONFIG = {
   mobileResizeWidth: 390
 };
 
+// Stel een realistische desktop user-agent in.
+// De standaard Puppeteer-UA bevat de token "HeadlessChrome", die door Cloudflare
+// hard geblokkeerd wordt op o.a. Mediahuis-sites (Nieuwsblad, GvA) — de pagina toont
+// dan "Sorry, you have been blocked". We strippen "Headless" uit de echte browser-UA
+// (zodat de Chrome-versie automatisch meeschaalt) en zetten de bijbehorende
+// client-hints (Sec-CH-UA), want die verraden anders alsnog "HeadlessChrome".
+async function applyDesktopUserAgent(page, browser) {
+  const fullUA = await browser.userAgent();
+  const desktopUA = fullUA.replace(/HeadlessChrome/g, 'Chrome');
+  const major = (desktopUA.match(/Chrome\/(\d+)/) || [, '149'])[1];
+  try {
+    await page.setUserAgent(desktopUA, {
+      brands: [
+        { brand: 'Not/A)Brand', version: '8' },
+        { brand: 'Chromium', version: major },
+        { brand: 'Google Chrome', version: major },
+      ],
+      fullVersion: `${major}.0.0.0`,
+      platform: 'Linux',
+      platformVersion: '6.6.0',
+      architecture: 'x86',
+      model: '',
+      mobile: false,
+    });
+  } catch {
+    // Oudere Puppeteer of CDP-fout: val terug op alleen de UA-string
+    await page.setUserAgent(desktopUA);
+  }
+}
+
+// Stel een consistente mobiele user-agent in (Android Chrome).
+// Eerder werd een iPhone Safari-UA gebruikt, maar Puppeteer stuurt daarbij nog steeds
+// de standaard Sec-CH-UA client-hints mét "HeadlessChrome" — een tegenstrijdige,
+// bot-achtige fingerprint (iOS Safari-UA + Chromium-hints) waar de DPG/Sourcepoint
+// consent-flow op mobiel op reageert (privacy gate blijft staan). Met een Android
+// Chrome-UA kloppen UA en client-hints met elkaar en lekt er geen "HeadlessChrome".
+async function applyMobileUserAgent(page, browser) {
+  const fullUA = await browser.userAgent();
+  const major = (fullUA.match(/Chrome\/(\d+)/) || [, '149'])[1];
+  const mobileUA = `Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${major}.0.0.0 Mobile Safari/537.36`;
+  try {
+    await page.setUserAgent(mobileUA, {
+      brands: [
+        { brand: 'Not/A)Brand', version: '8' },
+        { brand: 'Chromium', version: major },
+        { brand: 'Google Chrome', version: major },
+      ],
+      fullVersion: `${major}.0.0.0`,
+      platform: 'Android',
+      platformVersion: '14.0.0',
+      architecture: '',
+      model: 'Pixel 7',
+      mobile: true,
+    });
+  } catch {
+    await page.setUserAgent(mobileUA);
+  }
+}
+
 // Genereer timestamp in GMT+1 (België/Nederland)
 function getLocalTimestamp() {
   const now = new Date();
@@ -1246,6 +1305,10 @@ async function capturePage(browser, website, timestamp) {
   try {
     await page.setViewport(CONFIG.desktopViewport);
 
+    // Realistische desktop user-agent — anders blokkeert Cloudflare de standaard
+    // "HeadlessChrome"-UA (o.a. Nieuwsblad, GvA tonen dan de "you have been blocked"-pagina).
+    await applyDesktopUserAgent(page, browser);
+
     // Override IntersectionObserver zodat alle lazy-loaded elementen (vooral React-gebaseerde
     // image components zoals bij VRT NWS) meteen als zichtbaar worden beschouwd.
     // Dit voorkomt dat afbeeldingen als blurred placeholders blijven hangen.
@@ -1378,10 +1441,12 @@ async function capturePageMobile(browser, website, timestamp) {
 
   const page = await browser.newPage();
   try {
-    await page.setViewport(CONFIG.mobileViewport);
+    await page.setViewport({ ...CONFIG.mobileViewport, isMobile: true, hasTouch: true });
 
-    // Mobiele user-agent zodat sites hun echte mobiele versie serveren (inclusief mobiele consent-flow)
-    await page.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1');
+    // Consistente mobiele user-agent (Android Chrome) zodat sites hun mobiele versie serveren
+    // zonder dat de client-hints "HeadlessChrome" verraden — voorkomt dat de DPG privacy gate
+    // op mobiel blijft staan.
+    await applyMobileUserAgent(page, browser);
 
     // Zelfde IntersectionObserver override als desktop
     await page.evaluateOnNewDocument(() => {
