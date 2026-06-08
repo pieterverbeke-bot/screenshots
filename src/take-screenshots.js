@@ -784,9 +784,9 @@ async function tryConsentBeforeRemoval(page) {
       return;
     }
 
-    // Stap 3: Probeer accept-knoppen in ALLE iframes (niet alleen bekende URL-patronen)
+    // Stap 3: Probeer accept-knoppen in waarschijnlijke consent-iframes (ad-iframes overslaan)
     for (const frame of page.frames()) {
-      if (frame === page.mainFrame()) continue;
+      if (!isPotentialConsentFrame(frame, page.mainFrame())) continue;
       try {
         const clicked = await clickAcceptButton(frame);
         if (clicked) {
@@ -1043,6 +1043,21 @@ async function dismissConsentGate(page) {
   if (removed > 0) console.log(`🔒 Consent gate verwijderd als laatste redmiddel (${removed} element(en))`);
 }
 
+// Frames die mogelijk een consent/CMP bevatten (herkenning op URL). Ad-/tracking-iframes
+// (DoubleClick, googlesyndication, …) matchen niet, zodat we niet elke — vaak tientallen —
+// ad-iframe hoeven te doorzoeken met clickAcceptButton. Dat was de hoofdoorzaak van de trage
+// captures op ad-zware sites (Nieuwsblad, GvA). about:blank/lege frames houden we wél aan,
+// want sommige CMP's renderen via srcdoc zonder herkenbare URL.
+const CONSENT_FRAME_RE = /didomi|sourcepoint|sp-prod|sp_message|privacy-mgmt|onetrust|cookiebot|cookielaw|consensu|usercentrics|trustarc|quantcast|fundingchoices|myprivacy\.dpgmedia|cdn\.privacy|consent|cmp/i;
+
+// Bepaalt of een frame de moeite waard is om op consent-knoppen te doorzoeken.
+function isPotentialConsentFrame(frame, mainFrame) {
+  if (frame === mainFrame) return false;
+  const u = frame.url() || '';
+  if (u === '' || u === 'about:blank') return true; // mogelijk srcdoc-CMP
+  return CONSENT_FRAME_RE.test(u);
+}
+
 // Generieke functie om accept-knoppen te vinden en klikken (werkt op page of frame)
 async function clickAcceptButton(context) {
   // Stap 1: Probeer via evaluate (synthetische JS click)
@@ -1217,8 +1232,9 @@ async function dismissPopups(page) {
     let clickedSomething = false;
 
     // Stap 1: Probeer consent-knoppen in iframes (Sourcepoint/Didomi renderen vaak in iframe, vooral op mobiel)
+    // Alleen waarschijnlijke consent-frames doorzoeken — ad-iframes overslaan voor snelheid.
     for (const frame of page.frames()) {
-      if (frame === page.mainFrame()) continue;
+      if (!isPotentialConsentFrame(frame, page.mainFrame())) continue;
       try {
         const clicked = await clickAcceptButton(frame);
         if (clicked) {
