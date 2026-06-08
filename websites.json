@@ -15,7 +15,8 @@
     "land": "België",
     "medium": "nieuwsmedia",
     "cluster": "België",
-    "interval": 60
+    "interval": 60,
+    "waitUntil": "domcontentloaded"
   },
   {
     "name": "humo",
