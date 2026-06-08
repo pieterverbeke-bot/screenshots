@@ -9,8 +9,10 @@ on:
         type: boolean
         default: true
 
+# Productie-runs (upload=true) blijven serieel via één groep om R2-races te vermijden;
+# test-runs (upload=false) krijgen een eigen groep zodat ze niet achter productie wachten.
 concurrency:
-  group: screenshots
+  group: screenshots-${{ inputs.upload && 'prod' || 'test' }}
   cancel-in-progress: false
 
 jobs:
