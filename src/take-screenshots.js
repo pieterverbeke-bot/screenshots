@@ -978,80 +978,36 @@ async function removeRemainingOverlays(page) {
 // 3) als de gate blijft staan: verwijder de gate-overlay/iframe zodat hij niet in beeld komt.
 // De functie is een no-op op sites zonder gate, dus veilig voor alle andere sites.
 async function dismissConsentGate(page) {
-  // Klik uitsluitend een accepteer-knop in een gegeven context (page of frame)
-  const clickAccept = async (ctx) => {
-    // Stap A: precieze Sourcepoint/DPG selectors (native click — registreert echte pointer events)
-    const acceptSelectors = [
-      'button.sp_choice_type_11',
-      'button.sp_choice_type_ACCEPT_ALL',
-      'button[title="Akkoord"]',
-      'button[aria-label="Akkoord"]',
-      'button[title="Alles accepteren"]',
-      'button[title="Alle cookies accepteren"]',
-      'button[title*="ccepteren"]',
-      'button[aria-label*="ccepteren"]',
-      '[data-testid="notice-accept-btn"]',
-      '#didomi-notice-agree-button',
-    ];
-    for (const sel of acceptSelectors) {
-      try {
-        const el = await ctx.$(sel);
-        if (!el) continue;
-        const visible = await ctx.evaluate(b => {
-          const r = b.getBoundingClientRect();
-          const s = window.getComputedStyle(b);
-          return r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden';
-        }, el).catch(() => false);
-        if (visible) { await el.click().catch(() => {}); return true; }
-      } catch { /* selector niet bruikbaar in deze context */ }
-    }
-    // Stap B: exacte tekstmatch op accepteer-knoppen (geen "instellingen"/"inloggen"/"weiger")
-    const byText = await ctx.evaluate(() => {
-      const accept = [/^akkoord$/i, /^accepteren$/i, /^alles accepteren$/i, /^alle cookies accepteren$/i, /^ik ga akkoord$/i, /^ja,? ik accepteer$/i, /^accepteer$/i];
-      const els = [...document.querySelectorAll('button, [role="button"], a, input[type="submit"], input[type="button"]')];
-      for (const el of els) {
-        const t = (el.textContent || el.value || '').trim();
-        if (!t || t.length > 40) continue;
-        if (!accept.some(p => p.test(t))) continue;
-        const r = el.getBoundingClientRect();
-        const s = window.getComputedStyle(el);
-        if (r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden') { el.click(); return true; }
-      }
-      return false;
-    }).catch(() => false);
-    return byText;
-  };
-
-  // Is er nog een consent/privacy gate zichtbaar?
+  // Is er nog een ÉCHTE DPG/Sourcepoint privacy gate zichtbaar?
+  // Bewust eng gehouden: alleen de myprivacy-redirect, de letterlijke DPG-gate-tekst of een
+  // Sourcepoint-container. NIET matchen op generieke "consent"/"cmp" iframes, want bijna elke
+  // nieuwssite (bv. Nieuwsblad met Didomi + ad-iframes) heeft die — dat zou deze (relatief dure)
+  // functie onnodig laten draaien terwijl de consent al is afgehandeld.
   const gateVisible = async () => {
     if (page.url().includes('myprivacy.dpgmedia')) return true; // nog op de DPG consent-pagina
     return page.evaluate(() => {
       const txt = document.body?.innerText || '';
-      if (/privacy-instellingen|jouw privacy|wij en onze partners vragen|geef je toestemming/i.test(txt)) return true;
-      if (document.querySelector('[id^="sp_message_container"], iframe[id^="sp_message_iframe"], [class*="message-container"]')) return true;
-      return [...document.querySelectorAll('iframe')].some(f => /sp-prod|sourcepoint|privacy-mgmt|myprivacy\.dpgmedia|consent|cmp\./i.test(f.src || ''));
+      if (/jouw privacy-instellingen/i.test(txt)) return true;
+      return !!document.querySelector('[id^="sp_message_container"], iframe[id^="sp_message_iframe"]');
     }).catch(() => false);
   };
 
-  if (!(await gateVisible())) return; // geen gate → niets doen
+  if (!(await gateVisible())) return; // geen gate → niets doen (no-op op de meeste sites)
 
-  // Probeer maximaal enkele rondes te accepteren (gate kan traag laden / opnieuw renderen)
-  for (let round = 0; round < 5; round++) {
-    let clicked = false;
-    // Main-document inclusief shadow DOM (DPG myprivacy web components) — navigeert vaak terug
+  // Accepteer via shadow-DOM-piercing op het hoofddocument (DPG myprivacy web components).
+  // Geen iteratie over alle (ad-)iframes meer: dat was traag op ad-zware sites en niet nodig,
+  // want de DPG-gate is een volledige pagina, geen iframe.
+  for (let round = 0; round < 3; round++) {
     const navP = page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 8000 }).catch(() => {});
     const deep = await clickAcceptDeep(page);
-    if (deep.clicked) { clicked = true; console.log(`🔒 Consent gate "Akkoord" geklikt (shadow): "${deep.clicked}"`); await navP; }
-    // Daarnaast consent-iframes (Sourcepoint) afhandelen
-    if (!clicked) {
-      for (const frame of page.frames()) {
-        if (frame === page.mainFrame()) continue;
-        try { if (await clickAccept(frame)) { clicked = true; break; } } catch { /* frame weg */ }
-      }
+    if (deep.clicked) {
+      console.log(`🔒 Consent gate "Akkoord" geklikt (shadow): "${deep.clicked}"`);
+      await navP;
+    } else {
+      console.log(`🔒 Consent gate geen accepteer-knop gevonden (ronde ${round + 1})`);
     }
-    if (!clicked) console.log(`🔒 Consent gate geen accepteer-knop gevonden (ronde ${round + 1})`);
-    await new Promise(r => setTimeout(r, clicked ? 2000 : 1000));
-    if (!(await gateVisible())) { if (clicked) console.log(`🔒 Consent gate verdwenen na accepteren`); return; }
+    await new Promise(r => setTimeout(r, deep.clicked ? 2000 : 800));
+    if (!(await gateVisible())) { if (deep.clicked) console.log(`🔒 Consent gate verdwenen na accepteren`); return; }
   }
 
   // Laatste redmiddel: verwijder de gate-overlay/iframe zodat hij niet in de screenshot staat
