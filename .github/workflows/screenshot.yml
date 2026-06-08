@@ -3,6 +3,11 @@ name: Website Screenshots
 on:
   # Triggeren via cron-job.org
   workflow_dispatch:
+    inputs:
+      upload:
+        description: 'Upload naar R2 + viewer bijwerken (uit = alleen artifacts, voor tests)'
+        type: boolean
+        default: true
 
 concurrency:
   group: screenshots
@@ -33,6 +38,7 @@ jobs:
         run: node src/take-screenshots.js
 
       - name: Upload to Cloudflare R2
+        if: ${{ inputs.upload }}
         env:
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -42,6 +48,7 @@ jobs:
 
       # Cleanup en index generation parallel: onafhankelijke R2 operaties
       - name: Cleanup old screenshots + Update viewer page
+        if: ${{ inputs.upload }}
         env:
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}

@@ -606,23 +606,83 @@ async function handleCloudflareChallenge(page) {
   }
 }
 
+// Klik gericht een 'Akkoord'/accepteer-knop op de pagina, ÓÓK als die in een shadow DOM zit.
+// De DPG myprivacy.dpgmedia consent-pagina is opgebouwd uit web components, waardoor de knop
+// in een shadow root zit en met een gewone querySelector niet gevonden wordt (vandaar dat de
+// eerdere pogingen "geen accepteer-knop gevonden" rapporteerden). Klikt NOOIT
+// "Instellingen"/"Inloggen"/"Weiger". Retourneert {clicked: tekst} of {clicked: null, found: [...]}.
+async function clickAcceptDeep(context) {
+  return context.evaluate(() => {
+    const acceptPatterns = [
+      /^akkoord$/i, /^akkoord en sluiten$/i, /^accepteren$/i, /^accepteer$/i,
+      /^alles accepteren$/i, /^alle cookies accepteren$/i, /^alles aanvaarden$/i,
+      /^ik ga akkoord$/i, /^ja,? ik accepteer$/i, /^doorgaan$/i, /^accept(\s|$)/i, /^agree$/i,
+    ];
+    const rejectPattern = /instelling|inloggen|log in|weiger|meer opties|beheer|aanpassen|settings|manage|opties|keuze|voorkeuren/i;
+
+    // Verzamel klikbare elementen in document + alle (open) shadow roots
+    const clickables = [];
+    const walk = (root) => {
+      try {
+        root.querySelectorAll('button, a, [role="button"], input[type="submit"], input[type="button"]').forEach(e => clickables.push(e));
+        root.querySelectorAll('*').forEach(e => { if (e.shadowRoot) walk(e.shadowRoot); });
+      } catch { /* sommige roots zijn niet toegankelijk */ }
+    };
+    walk(document);
+
+    const isVisible = (el) => {
+      const r = el.getBoundingClientRect();
+      const s = window.getComputedStyle(el);
+      return r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden' && s.opacity !== '0';
+    };
+    const labelOf = (el) => {
+      const t = (el.textContent || el.value || '').trim();
+      const a = (el.getAttribute && (el.getAttribute('aria-label') || el.getAttribute('title'))) || '';
+      return (t || a.trim());
+    };
+
+    for (const el of clickables) {
+      const label = labelOf(el);
+      if (!label || label.length > 40) continue;
+      if (rejectPattern.test(label)) continue;
+      if (acceptPatterns.some(p => p.test(label)) && isVisible(el)) {
+        el.click();
+        return { clicked: label };
+      }
+    }
+    // Niets gevonden → geef de zichtbare knoplabels terug voor diagnostiek
+    const found = [...new Set(clickables.filter(isVisible).map(labelOf).filter(Boolean))].slice(0, 25);
+    return { clicked: null, found };
+  }).catch(() => ({ clicked: null, found: [] }));
+}
+
 // Detecteer en handel DPG Media privacy gate af (redirect naar myprivacy.dpgmedia.* of iframe)
 async function handleDPGPrivacyGate(page) {
   const url = page.url();
 
-  // Case 1: Volledig geredirect naar myprivacy.dpgmedia.be of .nl consent-pagina
+  // Case 1: Volledig geredirect naar myprivacy.dpgmedia.be of .nl consent-pagina.
+  // De "Akkoord"-knop zit in een shadow DOM; met clickAcceptDeep piercen we die.
+  // Bij klik navigeert de pagina via de callbackUrl terug naar de site (consent gezet).
   if (url.includes('myprivacy.dpgmedia')) {
     console.log(`🔒 DPG privacy gate redirect detected: ${url}`);
-    // Wacht zodat de consent-pagina volledig gerenderd is
-    await new Promise(resolve => setTimeout(resolve, 3000));
-
-    // Start navigatie-wacht VOOR de klik (race condition fix: klik kan onmiddellijk redirect triggeren)
-    const navigationPromise = page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
-    const clicked = await clickAcceptButton(page);
-    if (clicked) {
-      console.log(`🔒 Clicked DPG consent: "${clicked}"`);
-      await navigationPromise;
-      await new Promise(resolve => setTimeout(resolve, 3000));
+    for (let attempt = 0; attempt < 4; attempt++) {
+      // Wacht tot de web components gerenderd zijn (eerste poging iets langer)
+      await new Promise(resolve => setTimeout(resolve, attempt === 0 ? 2500 : 1500));
+      // Start navigatie-wacht VOOR de klik (klik triggert onmiddellijk een redirect terug)
+      const navigationPromise = page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 12000 }).catch(() => {});
+      const result = await clickAcceptDeep(page);
+      if (result.clicked) {
+        console.log(`🔒 Clicked DPG consent: "${result.clicked}"`);
+        await navigationPromise;
+        await new Promise(resolve => setTimeout(resolve, 2500));
+        if (!page.url().includes('myprivacy.dpgmedia')) {
+          console.log(`🔒 Terug op site na consent (${page.url().slice(0, 60)})`);
+          return;
+        }
+        // Nog steeds op de consent-pagina → volgende poging
+      } else {
+        console.log(`🔒 DPG consent-knop niet gevonden (poging ${attempt + 1}); zichtbare knoppen: ${JSON.stringify(result.found)}`);
+      }
     }
     return;
   }
@@ -963,24 +1023,35 @@ async function dismissConsentGate(page) {
   };
 
   // Is er nog een consent/privacy gate zichtbaar?
-  const gateVisible = async () => page.evaluate(() => {
-    const txt = document.body?.innerText || '';
-    if (/privacy-instellingen|jouw privacy|wij en onze partners vragen|geef je toestemming/i.test(txt)) return true;
-    if (document.querySelector('[id^="sp_message_container"], iframe[id^="sp_message_iframe"], [class*="message-container"]')) return true;
-    return [...document.querySelectorAll('iframe')].some(f => /sp-prod|sourcepoint|privacy-mgmt|myprivacy\.dpgmedia|consent|cmp\./i.test(f.src || ''));
-  }).catch(() => false);
+  const gateVisible = async () => {
+    if (page.url().includes('myprivacy.dpgmedia')) return true; // nog op de DPG consent-pagina
+    return page.evaluate(() => {
+      const txt = document.body?.innerText || '';
+      if (/privacy-instellingen|jouw privacy|wij en onze partners vragen|geef je toestemming/i.test(txt)) return true;
+      if (document.querySelector('[id^="sp_message_container"], iframe[id^="sp_message_iframe"], [class*="message-container"]')) return true;
+      return [...document.querySelectorAll('iframe')].some(f => /sp-prod|sourcepoint|privacy-mgmt|myprivacy\.dpgmedia|consent|cmp\./i.test(f.src || ''));
+    }).catch(() => false);
+  };
 
   if (!(await gateVisible())) return; // geen gate → niets doen
 
   // Probeer maximaal enkele rondes te accepteren (gate kan traag laden / opnieuw renderen)
   for (let round = 0; round < 5; round++) {
     let clicked = false;
-    for (const frame of page.frames()) {
-      try { if (await clickAccept(frame)) { clicked = true; break; } } catch { /* frame weg */ }
+    // Main-document inclusief shadow DOM (DPG myprivacy web components) — navigeert vaak terug
+    const navP = page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 8000 }).catch(() => {});
+    const deep = await clickAcceptDeep(page);
+    if (deep.clicked) { clicked = true; console.log(`🔒 Consent gate "Akkoord" geklikt (shadow): "${deep.clicked}"`); await navP; }
+    // Daarnaast consent-iframes (Sourcepoint) afhandelen
+    if (!clicked) {
+      for (const frame of page.frames()) {
+        if (frame === page.mainFrame()) continue;
+        try { if (await clickAccept(frame)) { clicked = true; break; } } catch { /* frame weg */ }
+      }
     }
-    console.log(`🔒 Consent gate ${clicked ? 'accepteer-knop geklikt' : 'geen accepteer-knop gevonden'} (ronde ${round + 1})`);
-    await new Promise(r => setTimeout(r, clicked ? 2500 : 1200));
-    if (!(await gateVisible())) { console.log(`🔒 Consent gate verdwenen na accepteren`); return; }
+    if (!clicked) console.log(`🔒 Consent gate geen accepteer-knop gevonden (ronde ${round + 1})`);
+    await new Promise(r => setTimeout(r, clicked ? 2000 : 1000));
+    if (!(await gateVisible())) { if (clicked) console.log(`🔒 Consent gate verdwenen na accepteren`); return; }
   }
 
   // Laatste redmiddel: verwijder de gate-overlay/iframe zodat hij niet in de screenshot staat
