@@ -8,6 +8,10 @@ on:
         description: 'Upload naar R2 + viewer bijwerken (uit = alleen artifacts, voor tests)'
         type: boolean
         default: true
+      sites:
+        description: 'Alleen deze sites screenshotten (komma-gescheiden namen); leeg = normale planning'
+        type: string
+        default: ''
 
 # Productie-runs (upload=true) blijven serieel via één groep om R2-races te vermijden;
 # test-runs (upload=false) krijgen een eigen groep zodat ze niet achter productie wachten.
@@ -37,6 +41,9 @@ jobs:
         run: npx puppeteer browsers install chrome
 
       - name: Take screenshots
+        env:
+          # Optionele site-filter voor handmatige tests (leeg bij cron → normale planning)
+          SITES_FILTER: ${{ inputs.sites }}
         run: node src/take-screenshots.js
 
       - name: Upload to Cloudflare R2

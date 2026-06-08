@@ -1823,6 +1823,10 @@ async function main() {
     process.exit(0);
   }
 
+  // Handmatige test-override: SITES_FILTER=naam1,naam2 screenshot alleen die sites
+  // (omzeilt de planning). Leeg bij cron → normale planning hieronder.
+  const sitesFilter = (process.env.SITES_FILTER || '').split(',').map(s => s.trim()).filter(Boolean);
+
   // Filter websites op basis van interval en huidige tijd (Brussels-tijdzone)
   const now = new Date();
   const currentMinute = parseInt(
@@ -1836,7 +1840,12 @@ async function main() {
   const isOnTheHour = currentMinute < 15;
 
   let websites;
-  if (isOnTheHour) {
+  if (sitesFilter.length > 0) {
+    // Test-override actief: negeer de planning, neem precies de opgegeven sites
+    websites = allWebsites.filter(w => sitesFilter.includes(w.name));
+    const unknown = sitesFilter.filter(n => !allWebsites.some(w => w.name === n));
+    if (unknown.length > 0) console.log(`⚠️  Onbekende site(s) in SITES_FILTER: ${unknown.join(', ')}`);
+  } else if (isOnTheHour) {
     // Op het hele uur: alle sites (behalve halfHour-sites), filter interval > 60 op basis van uur
     websites = allWebsites.filter(w => {
       if (w.halfHour) return false; // deze draaien op het halve uur
