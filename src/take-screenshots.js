@@ -994,20 +994,30 @@ async function dismissConsentGate(page) {
 
   if (!(await gateVisible())) return; // geen gate → niets doen (no-op op de meeste sites)
 
-  // Accepteer via shadow-DOM-piercing op het hoofddocument (DPG myprivacy web components).
-  // Geen iteratie over alle (ad-)iframes meer: dat was traag op ad-zware sites en niet nodig,
-  // want de DPG-gate is een volledige pagina, geen iframe.
+  // Accepteer de gate. Twee varianten:
+  //  - DPG myprivacy-redirect: "Akkoord" zit in een shadow-DOM web component op het hoofddocument
+  //    → clickAcceptDeep(page).
+  //  - DPG desktop Sourcepoint-paygate ("Jouw privacy-instellingen", accepteren of abonneren): de
+  //    "Accepteren"-knop zit BINNEN het Sourcepoint-iframe → clickAcceptInGateFrames(page).
+  // We zijn hier al voorbij gateVisible(), dus er staat écht een DPG/Sourcepoint-gate. Daarom is het
+  // veilig (en niet traag op andere sites) om hier wél de consent-iframes te doorzoeken — anders zou
+  // een te laat geladen Sourcepoint-iframe ongeklikt blijven en de paygate in de screenshot belanden.
   for (let round = 0; round < 3; round++) {
     const navP = page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 8000 }).catch(() => {});
     const deep = await clickAcceptDeep(page);
+    let clicked = !!deep.clicked;
     if (deep.clicked) {
       console.log(`🔒 Consent gate "Akkoord" geklikt (shadow): "${deep.clicked}"`);
       await navP;
-    } else {
-      console.log(`🔒 Consent gate geen accepteer-knop gevonden (ronde ${round + 1})`);
     }
-    await new Promise(r => setTimeout(r, deep.clicked ? 2000 : 800));
-    if (!(await gateVisible())) { if (deep.clicked) console.log(`🔒 Consent gate verdwenen na accepteren`); return; }
+    // Ook de Sourcepoint-iframe proberen (DPG desktop paygate — knop zit in het iframe zelf)
+    if (!clicked) {
+      const framed = await clickAcceptInGateFrames(page);
+      if (framed) { clicked = true; console.log(`🔒 Consent gate "Accepteren" geklikt (iframe): "${framed}"`); }
+    }
+    if (!clicked) console.log(`🔒 Consent gate geen accepteer-knop gevonden (ronde ${round + 1})`);
+    await new Promise(r => setTimeout(r, clicked ? 2000 : 800));
+    if (!(await gateVisible())) { if (clicked) console.log(`🔒 Consent gate verdwenen na accepteren`); return; }
   }
 
   // Laatste redmiddel: verwijder de gate-overlay/iframe zodat hij niet in de screenshot staat
@@ -1056,6 +1066,25 @@ const CONSENT_FRAME_RE = /didomi|sourcepoint|sp-prod|sp_message|privacy-mgmt|one
 function isPotentialConsentFrame(frame, mainFrame) {
   if (frame === mainFrame) return false;
   return CONSENT_FRAME_RE.test(frame.url() || '');
+}
+
+// Klik "Accepteren" in een (Sourcepoint) consent-iframe. Alleen bedoeld om aangeroepen te worden
+// als er ÉCHT een DPG/Sourcepoint-gate zichtbaar is (zie dismissConsentGate → gateVisible). Dan is
+// het veilig om naast de CMP-URL-frames óók about:blank/lege frames te doorzoeken: Sourcepoint
+// rendert de paygate-knop soms in een srcdoc/about:blank iframe. Buiten een actieve gate zou dit de
+// (vele) ad-iframes raken, dus dáár gebruiken we het strengere isPotentialConsentFrame. Retourneert
+// de tekst van de geklikte knop, of null.
+async function clickAcceptInGateFrames(page) {
+  for (const frame of page.frames()) {
+    if (frame === page.mainFrame()) continue;
+    const u = frame.url() || '';
+    if (u !== '' && u !== 'about:blank' && !CONSENT_FRAME_RE.test(u)) continue;
+    try {
+      const clicked = await clickAcceptButton(frame);
+      if (clicked) return clicked;
+    } catch { /* frame verdwenen / cross-origin — volgende proberen */ }
+  }
+  return null;
 }
 
 // Generieke functie om accept-knoppen te vinden en klikken (werkt op page of frame)
