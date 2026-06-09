@@ -62,6 +62,7 @@
     "medium": "nieuwsmedia",
     "cluster": "RTL",
     "interval": 60,
+    "halfHour": true,
     "skipHours": [0, 1, 2, 3, 4, 5]
   },
   {
@@ -152,7 +153,8 @@
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "ADR",
-    "interval": 60
+    "interval": 60,
+    "halfHour": true
   },
   {
     "name": "tt",
@@ -161,7 +163,8 @@
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "ADR",
-    "interval": 60
+    "interval": 60,
+    "halfHour": true
   },
   {
     "name": "ad-rotterdam",
@@ -206,7 +209,8 @@
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "VTP",
-    "interval": 60
+    "interval": 60,
+    "halfHour": true
   },
   {
     "name": "trouw",
@@ -215,7 +219,8 @@
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "VTP",
-    "interval": 60
+    "interval": 60,
+    "halfHour": true
   },
   {
     "name": "parool",
@@ -224,7 +229,8 @@
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "VTP",
-    "interval": 60
+    "interval": 60,
+    "halfHour": true
   },
   {
     "name": "linda",
@@ -233,7 +239,8 @@
     "land": "Nederland",
     "medium": "Magazines",
     "cluster": "Magazines",
-    "interval": 60
+    "interval": 60,
+    "halfHour": true
   },
   {
     "name": "libelle",
@@ -242,7 +249,8 @@
     "land": "Nederland",
     "medium": "Magazines",
     "cluster": "Magazines",
-    "interval": 60
+    "interval": 60,
+    "halfHour": true
   },
   {
     "name": "margriet",
@@ -251,7 +259,8 @@
     "land": "Nederland",
     "medium": "Magazines",
     "cluster": "Magazines",
-    "interval": 60
+    "interval": 60,
+    "halfHour": true
   },
   {
     "name": "flair",
@@ -260,7 +269,8 @@
     "land": "Nederland",
     "medium": "Magazines",
     "cluster": "Magazines",
-    "interval": 60
+    "interval": 60,
+    "halfHour": true
   },
   {
     "name": "veronicasg",
@@ -269,7 +279,8 @@
     "land": "Nederland",
     "medium": "Magazines",
     "cluster": "Magazines",
-    "interval": 60
+    "interval": 60,
+    "halfHour": true
   },
   {
     "name": "story",
@@ -278,7 +289,8 @@
     "land": "Nederland",
     "medium": "Magazines",
     "cluster": "Magazines",
-    "interval": 60
+    "interval": 60,
+    "halfHour": true
   },
   {
     "name": "indebuurt-almelo",

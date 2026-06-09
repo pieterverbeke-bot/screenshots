@@ -1965,7 +1965,10 @@ async function main() {
       if (w.skipHours && w.skipHours.includes(currentHour)) return false;
       const interval = w.interval || 60;
       if (!w.halfHour && interval <= 30) return true;
-      if (w.halfHour && interval > 60) {
+      if (w.halfHour) {
+        // halfHour + interval <= 60: elk uur, maar dan op het halve uur (i.p.v. het hele uur)
+        if (interval <= 60) return true;
+        // halfHour + interval > 60 (bv. 240): elk N uur, op het halve uur
         const hourCycle = interval / 60;
         const offset = w.offset || 0;
         return ((currentHour - offset + 24) % hourCycle) === 0;
