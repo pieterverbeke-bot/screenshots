@@ -1087,35 +1087,93 @@ async function clickAcceptInGateFrames(page) {
   return null;
 }
 
-// Verwijder Sourcepoint/DPG consent-gate direct uit de DOM, recht vóór de screenshot.
-// Bedoeld voor de race-conditie waarbij de CMP de modal asynchroon injecteert NADAT
-// dismissConsentGate al klaar is maar VOOR page.screenshot() wordt aangeroepen.
-// Probeert eerst "Akkoord" te klikken (registreert consent), dan verwijdert het element hoe dan ook.
-// Geen polling, geen wachttijden — dit is een synchrone DOM-operatie.
+// Installeer een PERMANENTE CSS-regel die de Sourcepoint/DPG consent-gate verbergt, geïnjecteerd op
+// document-start (evaluateOnNewDocument) zodat hij actief is voordat de CMP iets rendert.
+//
+// Waarom verbergen i.p.v. verwijderen? Sourcepoint heeft een watchdog die de modal opnieuw injecteert
+// zodra je het element uit de DOM haalt (dat is waarom een one-shot removal vlak vóór de screenshot
+// faalde — de modal kwam terug). Door het element met `display:none` te verbergen blijft het in de DOM,
+// dus de watchdog is tevreden en her-injecteert niet — terwijl het visueel volledig weg is. Volledig
+// race-vrij: er zit geen async-stap tussen het verbergen en de screenshot.
+//
+// De content van DPG-sites laadt gewoon achter de gate, dus verbergen volstaat (geen consent nodig om
+// de pagina te tonen). De normale "Akkoord"-klik-flow blijft bestaan voor échte consent waar dat kan.
+// Selector voor de Sourcepoint/DPG consent-gate (in beide helpers hieronder gebruikt).
+const GATE_KILL_SELECTOR = [
+  'div[id^="sp_message_container"]',          // Sourcepoint first-layer message (DPG paygate)
+  'iframe[id^="sp_message_iframe"]',          // Sourcepoint message-iframe (op id)
+  'iframe[src*="privacy-mgmt"]',              // Sourcepoint message-iframe (op src, id-onafhankelijk)
+  'iframe[src*="sourcepoint"]',
+  'iframe[src*="myprivacy.dpgmedia"]',        // DPG myprivacy gate als iframe
+  '[class*="sp_veil"]',                       // Sourcepoint achtergrond-veil/backdrop
+  '[class*="message-overlay"]',
+].join(', ');
+
+async function installConsentKiller(page) {
+  await page.evaluateOnNewDocument((SEL) => {
+    // 1) Stylesheet-regel als eerste verdediging (vangt de meeste gevallen).
+    const CSS = SEL + '{display:none!important;visibility:hidden!important;opacity:0!important;pointer-events:none!important;}';
+    const ensureStyle = () => {
+      let s = document.getElementById('__dpg_gate_killer');
+      if (!s) { s = document.createElement('style'); s.id = '__dpg_gate_killer'; s.textContent = CSS; }
+      if (!s.isConnected) (document.head || document.documentElement).appendChild(s);
+    };
+    // 2) Inline !important op het element zelf — verslaat ÉLKE stylesheet-specificiteit, óók
+    //    Sourcepoint's eigen `#sp_message_container_x { ... !important }`. We VERWIJDEREN niets:
+    //    de CMP-watchdog let op DOM-aanwezigheid, dus verbergen i.p.v. verwijderen voorkomt
+    //    her-injectie (precies waarom de eerdere removal-aanpak faalde). De guard (display !== none)
+    //    voorkomt een mutation-lus.
+    const applyHide = (el) => {
+      el.style.setProperty('display', 'none', 'important');
+      el.style.setProperty('visibility', 'hidden', 'important');
+      el.style.setProperty('opacity', '0', 'important');
+      el.style.setProperty('pointer-events', 'none', 'important');
+    };
+    // Per-element attribuut-observer: als Sourcepoint ná ons zijn eigen inline-stijl schrijft om de
+    // gate weer te tonen, draaien we dat onmiddellijk terug. Scoped op het gate-element zelf, dus
+    // goedkoop (geen subtree-brede attribuut-observatie).
+    const guard = (el) => {
+      if (el.__dpgGuarded) return;
+      el.__dpgGuarded = true;
+      try {
+        new MutationObserver(() => {
+          if (el.style.getPropertyValue('display') !== 'none') applyHide(el);
+        }).observe(el, { attributes: true, attributeFilter: ['style', 'class'] });
+      } catch { /* el kan al weg zijn */ }
+    };
+    const hideInline = () => {
+      document.querySelectorAll(SEL).forEach(el => {
+        if (el.style.getPropertyValue('display') !== 'none') applyHide(el);
+        guard(el);
+      });
+    };
+    const run = () => { ensureStyle(); hideInline(); };
+    run();
+    // MutationObserver (childList) verbergt gates die later/asynchroon (her)verschijnen. De callback
+    // krijgt gebatchte mutaties, dus hij draait per microtask-batch — goedkoop genoeg voor ad-zware sites.
+    try {
+      new MutationObserver(run).observe(document.documentElement, { childList: true, subtree: true });
+    } catch { /* documentElement nog niet beschikbaar — DOMContentLoaded vangt het op */ }
+    document.addEventListener('DOMContentLoaded', run, { once: true });
+  }, GATE_KILL_SELECTOR);
+}
+
+// Laatste synchrone garantie vlak vóór page.screenshot(): verberg een eventueel nét verschenen gate
+// inline (zonder verwijderen, om her-injectie te vermijden). Geen polling, geen wachttijden.
 async function scrubGateBeforeShot(page) {
-  await page.evaluate(() => {
-    // Probeer de accepteer-knop te klikken (goede weg — geeft consent aan Sourcepoint)
-    const container = document.querySelector('[id^="sp_message_container"]');
-    if (container) {
-      const btn = container.querySelector('button[title="Akkoord"], button[title="Accepteren"]') ||
-        [...container.querySelectorAll('button, [role="button"]')]
-          .find(b => /^akkoord$|^accepteren$/i.test((b.textContent || '').trim()));
-      if (btn) btn.click();
-    }
-    // Verwijder alle Sourcepoint message containers (sowieso, ook als klik lukte)
-    document.querySelectorAll('[id^="sp_message_container"], [id^="sp_message_iframe"]').forEach(e => e.remove());
-    // Verwijder consent-iframes op basis van src
-    document.querySelectorAll('iframe').forEach(f => {
-      if (/sp-prod|sourcepoint|privacy-mgmt|myprivacy\.dpgmedia/i.test(f.src || '')) {
-        (f.parentElement || f).remove();
-      }
+  await page.evaluate((SEL) => {
+    document.querySelectorAll(SEL).forEach(el => {
+      el.style.setProperty('display', 'none', 'important');
+      el.style.setProperty('visibility', 'hidden', 'important');
+      el.style.setProperty('opacity', '0', 'important');
+      el.style.setProperty('pointer-events', 'none', 'important');
     });
     // Herstel scroll-lock die de gate soms instelt
     document.documentElement.style.overflow = '';
     document.body.style.overflow = '';
     document.documentElement.classList.remove('has-overlay', 'modal-open', 'no-scroll', 'overflow-hidden');
     document.body.classList.remove('has-overlay', 'modal-open', 'no-scroll', 'overflow-hidden');
-  }).catch(() => {});
+  }, GATE_KILL_SELECTOR).catch(() => {});
 }
 
 // Generieke functie om accept-knoppen te vinden en klikken (werkt op page of frame)
@@ -1588,6 +1646,9 @@ async function capturePage(browser, website, timestamp) {
       (document.head || document.documentElement).appendChild(style);
     });
 
+    // Permanente verberger voor de DPG/Sourcepoint privacy-gate (race-vrij, vanaf document-start)
+    await installConsentKiller(page);
+
     console.log(`📸 ${name}: Loading page...`);
     await loadAndPrepare(page, website, website.waitUntil || 'networkidle2');
 
@@ -1712,6 +1773,9 @@ async function capturePageMobile(browser, website, timestamp) {
       style.textContent = '* { content-visibility: visible !important; }';
       (document.head || document.documentElement).appendChild(style);
     });
+
+    // Permanente verberger voor de DPG/Sourcepoint privacy-gate (race-vrij, vanaf document-start)
+    await installConsentKiller(page);
 
     console.log(`📱 ${name}: Loading mobile page...`);
     await loadAndPrepare(page, website, website.waitUntil || 'networkidle2', { isMobile: true });
