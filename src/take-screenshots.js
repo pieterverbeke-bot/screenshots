@@ -994,14 +994,11 @@ async function dismissConsentGate(page) {
 
   if (!(await gateVisible())) return; // geen gate → niets doen (no-op op de meeste sites)
 
-  // Accepteer de gate. Twee varianten:
-  //  - DPG myprivacy-redirect: "Akkoord" zit in een shadow-DOM web component op het hoofddocument
-  //    → clickAcceptDeep(page).
-  //  - DPG desktop Sourcepoint-paygate ("Jouw privacy-instellingen", accepteren of abonneren): de
-  //    "Accepteren"-knop zit BINNEN het Sourcepoint-iframe → clickAcceptInGateFrames(page).
-  // We zijn hier al voorbij gateVisible(), dus er staat écht een DPG/Sourcepoint-gate. Daarom is het
-  // veilig (en niet traag op andere sites) om hier wél de consent-iframes te doorzoeken — anders zou
-  // een te laat geladen Sourcepoint-iframe ongeklikt blijven en de paygate in de screenshot belanden.
+  // Accepteer de gate. Drie methodes, in volgorde van voorkeur:
+  //  1. clickAcceptDeep(page)       — shadow-DOM traversal (DPG myprivacy-redirect)
+  //  2. clickAcceptInGateFrames(page) — Sourcepoint-iframe (DPG desktop paygate in iframe)
+  //  3. clickAcceptButton(page)     — native Puppeteer click (CDP pointer events; Sourcepoint vereist
+  //                                   soms echte pointer events i.p.v. synthetische JS el.click())
   for (let round = 0; round < 3; round++) {
     const navP = page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 8000 }).catch(() => {});
     const deep = await clickAcceptDeep(page);
@@ -1010,10 +1007,13 @@ async function dismissConsentGate(page) {
       console.log(`🔒 Consent gate "Akkoord" geklikt (shadow): "${deep.clicked}"`);
       await navP;
     }
-    // Ook de Sourcepoint-iframe proberen (DPG desktop paygate — knop zit in het iframe zelf)
     if (!clicked) {
       const framed = await clickAcceptInGateFrames(page);
       if (framed) { clicked = true; console.log(`🔒 Consent gate "Accepteren" geklikt (iframe): "${framed}"`); }
+    }
+    if (!clicked) {
+      const native = await clickAcceptButton(page);
+      if (native) { clicked = true; console.log(`🔒 Consent gate geklikt (native Puppeteer): "${native}"`); }
     }
     if (!clicked) console.log(`🔒 Consent gate geen accepteer-knop gevonden (ronde ${round + 1})`);
     await new Promise(r => setTimeout(r, clicked ? 2000 : 800));
@@ -1085,6 +1085,37 @@ async function clickAcceptInGateFrames(page) {
     } catch { /* frame verdwenen / cross-origin — volgende proberen */ }
   }
   return null;
+}
+
+// Verwijder Sourcepoint/DPG consent-gate direct uit de DOM, recht vóór de screenshot.
+// Bedoeld voor de race-conditie waarbij de CMP de modal asynchroon injecteert NADAT
+// dismissConsentGate al klaar is maar VOOR page.screenshot() wordt aangeroepen.
+// Probeert eerst "Akkoord" te klikken (registreert consent), dan verwijdert het element hoe dan ook.
+// Geen polling, geen wachttijden — dit is een synchrone DOM-operatie.
+async function scrubGateBeforeShot(page) {
+  await page.evaluate(() => {
+    // Probeer de accepteer-knop te klikken (goede weg — geeft consent aan Sourcepoint)
+    const container = document.querySelector('[id^="sp_message_container"]');
+    if (container) {
+      const btn = container.querySelector('button[title="Akkoord"], button[title="Accepteren"]') ||
+        [...container.querySelectorAll('button, [role="button"]')]
+          .find(b => /^akkoord$|^accepteren$/i.test((b.textContent || '').trim()));
+      if (btn) btn.click();
+    }
+    // Verwijder alle Sourcepoint message containers (sowieso, ook als klik lukte)
+    document.querySelectorAll('[id^="sp_message_container"], [id^="sp_message_iframe"]').forEach(e => e.remove());
+    // Verwijder consent-iframes op basis van src
+    document.querySelectorAll('iframe').forEach(f => {
+      if (/sp-prod|sourcepoint|privacy-mgmt|myprivacy\.dpgmedia/i.test(f.src || '')) {
+        (f.parentElement || f).remove();
+      }
+    });
+    // Herstel scroll-lock die de gate soms instelt
+    document.documentElement.style.overflow = '';
+    document.body.style.overflow = '';
+    document.documentElement.classList.remove('has-overlay', 'modal-open', 'no-scroll', 'overflow-hidden');
+    document.body.classList.remove('has-overlay', 'modal-open', 'no-scroll', 'overflow-hidden');
+  }).catch(() => {});
 }
 
 // Generieke functie om accept-knoppen te vinden en klikken (werkt op page of frame)
@@ -1564,6 +1595,10 @@ async function capturePage(browser, website, timestamp) {
     const filepath = join(SCREENSHOTS_DIR, filename);
 
     console.log(`📸 ${name}: Taking screenshot...`);
+    // Allerlaatste gate-scrub: Sourcepoint CMP kan asynchroon verschijnen nadat loadAndPrepare
+    // klaar was. Verwijder sp_message_container direct vóór de screenshot — geen race mogelijk.
+    await scrubGateBeforeShot(page);
+
     // Beperk hoogte om WebP dimensielimiet (16383px) te voorkomen
     const desktopScrollHeight = await page.evaluate(() => document.documentElement.scrollHeight);
     const desktopCaptureHeight = Math.min(desktopScrollHeight, CONFIG.maxHeight);
@@ -1685,6 +1720,8 @@ async function capturePageMobile(browser, website, timestamp) {
     const filepath = join(SCREENSHOTS_DIR, filename);
 
     console.log(`📱 ${name}: Taking mobile screenshot...`);
+    await scrubGateBeforeShot(page);
+
     // Beperk hoogte om WebP dimensielimiet (16383px) te voorkomen — mobiele pagina's
     // worden bij 390px breed extreem lang, waardoor Chrome een lege buffer retourneert
     const mobileScrollHeight = await page.evaluate(() => document.documentElement.scrollHeight);
