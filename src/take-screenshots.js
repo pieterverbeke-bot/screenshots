@@ -1284,52 +1284,65 @@ async function installConsentKiller(page) {
   }, GATE_KILL_SELECTOR);
 }
 
-// Laatste synchrone garantie vlak vóór page.screenshot(): verberg een eventueel nét verschenen gate
-// inline (zonder verwijderen, om her-injectie te vermijden). Geen polling, geen wachttijden.
+// Laatste synchrone garantie vlak vóór page.screenshot(): verberg ALLE modals/overlays.
+// Op screenshot-moment is élke modal ongewenst (doel = de site vastleggen), dus geen tekst-check:
+// dat dekt ook lege modal-shells waarvan de shadow-inhoud (DPG-gate op De Morgen) nog aan het
+// renderen is — de oorzaak van de run-tot-run flakiness. Verbergen i.p.v. verwijderen, om
+// re-injectie door CMP-watchdogs te vermijden. Retourneert wat verborgen werd (voor de log).
 async function scrubGateBeforeShot(page) {
-  await page.evaluate((SEL) => {
-    const hide = (el) => {
+  const hidden = await page.evaluate((SEL) => {
+    const report = [];
+    const hide = (el, label) => {
+      if (el.style.getPropertyValue('display') === 'none') return;
       el.style.setProperty('display', 'none', 'important');
       el.style.setProperty('visibility', 'hidden', 'important');
       el.style.setProperty('opacity', '0', 'important');
       el.style.setProperty('pointer-events', 'none', 'important');
+      if (label) report.push(label);
     };
-    document.querySelectorAll(SEL).forEach(hide);
-    // DPG inline privacy gate (De Morgen/Humo) — andere markup dan Sourcepoint
-    document.querySelectorAll('[data-testid*="privacy-gate"], [class*="privacy-gate"], [id*="privacy-gate"], [class*="privacy-wall"]').forEach(hide);
-    // DM/Humo: gate is een [aria-modal]-host met inhoud in een shadow root. Check de shadow-tekst
-    // per modal-host en verberg de host plus zijn fixed-overouder (backdrop/dim-laag).
-    const deepText = (root, depth = 0) => {
-      if (depth > 6) return '';
-      let txt = '';
-      try {
-        txt += root.textContent || '';
-        root.querySelectorAll('*').forEach(e => { if (e.shadowRoot) txt += ' ' + deepText(e.shadowRoot, depth + 1); });
-      } catch { /* niet-toegankelijk */ }
-      return txt;
-    };
-    const GATE_TEXT_RE = /jouw privacy-instellingen|gebruiken cookies om informatie/i;
-    for (const modal of document.querySelectorAll('[aria-modal="true"], dialog, [role="dialog"]')) {
-      if (!GATE_TEXT_RE.test(deepText(modal))) continue;
-      hide(modal);
-      // Verberg ook de fixed/absolute voorouder die als backdrop fungeert
+    const hideWithBackdrop = (modal, label) => {
+      hide(modal, label);
+      // Verberg ook de fixed/absolute voorouder die als backdrop/dim-laag fungeert
       let el = modal.parentElement;
       for (let i = 0; i < 8 && el && el !== document.body; i++) {
         const s = window.getComputedStyle(el);
-        if (s.position === 'fixed' || s.position === 'absolute') { hide(el); break; }
+        if (s.position === 'fixed' || s.position === 'absolute') { hide(el, null); break; }
         el = el.parentElement;
       }
-    }
-    // Generiek vangnet: zoek de gate-titel in een heading en verberg de overlay-voorouder.
-    // Alleen fixed/absolute voorouders groter dan 200x150 — raakt nooit gewone content.
-    const heading = [...document.querySelectorAll('h1, h2, h3, h4, strong, b')]
-      .find(h => /jouw privacy-instellingen/i.test(h.textContent || ''));
-    if (heading) {
-      let el = heading;
+    };
+    document.querySelectorAll(SEL).forEach(el => hide(el, 'sourcepoint'));
+    document.querySelectorAll('[data-testid*="privacy-gate"], [class*="privacy-gate"], [id*="privacy-gate"], [class*="privacy-wall"]').forEach(el => hide(el, 'privacy-gate'));
+    // Alle modal-hosts, ongeacht inhoud (incl. lege shells/shadow-varianten van de DPG-gate)
+    document.querySelectorAll('[aria-modal="true"], dialog[open], [role="dialog"]').forEach(el => {
+      hideWithBackdrop(el, `modal<${el.tagName.toLowerCase()}${el.id ? '#' + el.id : ''}.${(el.className || '').toString().slice(0, 40)}>`);
+    });
+    // Vangnet voor een INLINE gerenderde gate (geen modal): zoek de gate-titel in headings,
+    // ook binnen shadow roots, en verberg de licht-DOM-host + overlay-voorouder.
+    const GATE_RE = /jouw privacy-instellingen/i;
+    const findGateHost = (root, host, depth = 0) => {
+      if (depth > 6) return null;
+      try {
+        for (const h of root.querySelectorAll('h1, h2, h3, h4, strong, b')) {
+          if (GATE_RE.test(h.textContent || '')) return host || h;
+        }
+        for (const e of root.querySelectorAll('*')) {
+          if (e.shadowRoot) {
+            const found = findGateHost(e.shadowRoot, host || e, depth + 1);
+            if (found) return found;
+          }
+        }
+      } catch { /* niet-toegankelijk */ }
+      return null;
+    };
+    const gateEl = findGateHost(document, null);
+    if (gateEl) {
+      let el = gateEl;
       for (let i = 0; i < 12 && el && el !== document.body; i++) {
         const s = window.getComputedStyle(el);
         const r = el.getBoundingClientRect();
-        if ((s.position === 'fixed' || s.position === 'absolute') && r.width > 200 && r.height > 150) { hide(el); break; }
+        if ((s.position === 'fixed' || s.position === 'absolute') && r.width > 200 && r.height > 150) { hideWithBackdrop(el, 'gate-via-heading'); break; }
+        // Shadow-host van de gate: ook zonder fixed-positie verbergen (inline variant op mobiel)
+        if (i === 11 || el.parentElement === document.body) { hide(gateEl === el ? el : gateEl, 'gate-host-inline'); break; }
         el = el.parentElement;
       }
     }
@@ -1338,7 +1351,9 @@ async function scrubGateBeforeShot(page) {
     document.body.style.overflow = '';
     document.documentElement.classList.remove('has-overlay', 'modal-open', 'no-scroll', 'overflow-hidden');
     document.body.classList.remove('has-overlay', 'modal-open', 'no-scroll', 'overflow-hidden');
-  }, GATE_KILL_SELECTOR).catch(() => {});
+    return report;
+  }, GATE_KILL_SELECTOR).catch(() => []);
+  if (hidden.length > 0) console.log(`🫥 Scrub verborg vlak voor screenshot: ${hidden.join(', ')}`);
 }
 
 // Generieke functie om accept-knoppen te vinden en klikken (werkt op page of frame)
@@ -1863,13 +1878,13 @@ async function capturePage(browser, website, timestamp) {
       console.log(`🔒 ${name}: op myprivacy-pagina vlak voor screenshot — gate opnieuw afhandelen`);
       await handleDPGPrivacyGate(page);
     }
-    // Allerlaatste gate-scrub: Sourcepoint CMP kan asynchroon verschijnen nadat loadAndPrepare
-    // klaar was. Verwijder sp_message_container direct vóór de screenshot — geen race mogelijk.
-    await scrubGateBeforeShot(page);
-
     // Beperk hoogte om WebP dimensielimiet (16383px) te voorkomen
     const desktopScrollHeight = await page.evaluate(() => document.documentElement.scrollHeight);
     const desktopCaptureHeight = Math.min(desktopScrollHeight, CONFIG.maxHeight);
+
+    // Allerlaatste gate-scrub, bewust NA de scrollHeight-meting zodat er geen async-stap meer
+    // tussen de scrub en de screenshot zit (modals verschijnen soms in dat gat — DM-flakiness).
+    await scrubGateBeforeShot(page);
 
     const rawBuffer = await page.screenshot({
       clip: { x: 0, y: 0, width: CONFIG.desktopViewport.width, height: desktopCaptureHeight },
@@ -1995,12 +2010,13 @@ async function capturePageMobile(browser, website, timestamp) {
       console.log(`🔒 ${name}: op myprivacy-pagina vlak voor mobile screenshot — gate opnieuw afhandelen`);
       await handleDPGPrivacyGate(page);
     }
-    await scrubGateBeforeShot(page);
-
     // Beperk hoogte om WebP dimensielimiet (16383px) te voorkomen — mobiele pagina's
     // worden bij 390px breed extreem lang, waardoor Chrome een lege buffer retourneert
     const mobileScrollHeight = await page.evaluate(() => document.documentElement.scrollHeight);
     const mobileCaptureHeight = Math.min(mobileScrollHeight, CONFIG.maxHeight);
+
+    // Allerlaatste gate-scrub, NA de scrollHeight-meting (geen async-gat tot de screenshot)
+    await scrubGateBeforeShot(page);
 
     const rawBuffer = await page.screenshot({
       clip: { x: 0, y: 0, width: CONFIG.mobileViewport.width, height: mobileCaptureHeight },
