@@ -1155,6 +1155,57 @@ async function installConsentKiller(page) {
       new MutationObserver(run).observe(document.documentElement, { childList: true, subtree: true });
     } catch { /* documentElement nog niet beschikbaar — DOMContentLoaded vangt het op */ }
     document.addEventListener('DOMContentLoaded', run, { once: true });
+
+    // 3) In-page auto-clicker voor de DPG privacy gate (De Morgen, Humo). Deze gate gebruikt GEEN
+    //    Sourcepoint-markup (CSS-hide hierboven mist hem) en verschijnt vaak pas NA alle consent-passes
+    //    van de Node-pipeline. Omdat dit script permanent in de pagina leeft, klikt het "Akkoord" op
+    //    het moment dat de gate verschijnt — ongeacht de timing. Draait ook in iframes en op de
+    //    myprivacy.dpgmedia-redirectpagina (evaluateOnNewDocument geldt voor alle frames/navigaties).
+    const ACCEPT_RE = /^(akkoord|akkoord en sluiten|accepteren|alles accepteren|alle cookies accepteren|ik ga akkoord)$/i;
+    const REJECT_RE = /instelling|inloggen|log in|weiger|meer opties|beheer|aanpassen|voorkeuren/i;
+    const deepClickAccept = (root) => {
+      const clickables = [];
+      const walk = (r) => {
+        try {
+          r.querySelectorAll('button, a, [role="button"], input[type="submit"], input[type="button"]').forEach(e => clickables.push(e));
+          r.querySelectorAll('*').forEach(e => { if (e.shadowRoot) walk(e.shadowRoot); });
+        } catch { /* niet-toegankelijke root */ }
+      };
+      walk(root);
+      for (const el of clickables) {
+        const label = ((el.textContent || el.value || '').trim() || (el.getAttribute && (el.getAttribute('aria-label') || el.getAttribute('title'))) || '').trim();
+        if (!label || label.length > 40 || REJECT_RE.test(label) || !ACCEPT_RE.test(label)) continue;
+        const rect = el.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) { el.click(); return true; }
+      }
+      return false;
+    };
+    let lastClickScan = 0;
+    const scanForGate = () => {
+      const now = Date.now();
+      if (now - lastClickScan < 1500) return; // throttle: deep-walk is duur op grote pagina's
+      lastClickScan = now;
+      // Op de myprivacy-redirectpagina: altijd proberen (pagina is klein, volledig web components)
+      if (location.hostname.includes('myprivacy')) { deepClickAccept(document); return; }
+      // Inline gate: herkenbaar aan DPG-gate-markup of de letterlijke gate-titel in het document
+      const gateEl = document.querySelector('[data-testid*="privacy-gate"], [class*="privacy-gate"], [id*="privacy-gate"], [class*="privacy-wall"]');
+      if (gateEl) { deepClickAccept(gateEl); return; }
+      if (document.body && /jouw privacy-instellingen/i.test(document.body.textContent || '')) {
+        deepClickAccept(document);
+      }
+    };
+    const scheduleScan = (() => {
+      let pending = false;
+      return () => {
+        if (pending) return;
+        pending = true;
+        setTimeout(() => { pending = false; scanForGate(); }, 400);
+      };
+    })();
+    try {
+      new MutationObserver(scheduleScan).observe(document.documentElement, { childList: true, subtree: true });
+    } catch { /* zie boven */ }
+    document.addEventListener('DOMContentLoaded', scheduleScan, { once: true });
   }, GATE_KILL_SELECTOR);
 }
 
@@ -1162,12 +1213,28 @@ async function installConsentKiller(page) {
 // inline (zonder verwijderen, om her-injectie te vermijden). Geen polling, geen wachttijden.
 async function scrubGateBeforeShot(page) {
   await page.evaluate((SEL) => {
-    document.querySelectorAll(SEL).forEach(el => {
+    const hide = (el) => {
       el.style.setProperty('display', 'none', 'important');
       el.style.setProperty('visibility', 'hidden', 'important');
       el.style.setProperty('opacity', '0', 'important');
       el.style.setProperty('pointer-events', 'none', 'important');
-    });
+    };
+    document.querySelectorAll(SEL).forEach(hide);
+    // DPG inline privacy gate (De Morgen/Humo) — andere markup dan Sourcepoint
+    document.querySelectorAll('[data-testid*="privacy-gate"], [class*="privacy-gate"], [id*="privacy-gate"], [class*="privacy-wall"]').forEach(hide);
+    // Generiek vangnet: zoek de gate-titel in een heading en verberg de overlay-voorouder.
+    // Alleen fixed/absolute voorouders groter dan 200x150 — raakt nooit gewone content.
+    const heading = [...document.querySelectorAll('h1, h2, h3, h4, strong, b')]
+      .find(h => /jouw privacy-instellingen/i.test(h.textContent || ''));
+    if (heading) {
+      let el = heading;
+      for (let i = 0; i < 12 && el && el !== document.body; i++) {
+        const s = window.getComputedStyle(el);
+        const r = el.getBoundingClientRect();
+        if ((s.position === 'fixed' || s.position === 'absolute') && r.width > 200 && r.height > 150) { hide(el); break; }
+        el = el.parentElement;
+      }
+    }
     // Herstel scroll-lock die de gate soms instelt
     document.documentElement.style.overflow = '';
     document.body.style.overflow = '';
@@ -1461,6 +1528,13 @@ async function loadAndPrepare(page, website, waitUntil = 'networkidle2', { isMob
     timeout: CONFIG.timeout
   });
 
+  // Bij domcontentloaded (sites die networkidle2 nooit halen, zoals De Morgen) keert goto vroeg
+  // terug — geef CMP/gate-JS even de tijd om te vuren zodat de consent-passes hieronder hem zien
+  // i.p.v. dat de gate pas ná de hele pipeline verschijnt.
+  if (waitUntil === 'domcontentloaded') {
+    await new Promise(resolve => setTimeout(resolve, 3000));
+  }
+
   // Cloudflare "Verify you are human" challenge afhandelen
   await handleCloudflareChallenge(page);
 
@@ -1566,6 +1640,24 @@ async function loadAndPrepare(page, website, waitUntil = 'networkidle2', { isMob
   // ("Jouw privacy-instellingen") gericht accepteren of, als dat niet lukt, verwijderen.
   // Dit vangt de gate die te laat verschijnt om door de eerdere passes afgehandeld te worden.
   await dismissConsentGate(page);
+
+  // Bot-block detectie (Cloudflare/Akamai blokkeert GitHub-runner-IP's intermitterend, gezien op
+  // Nieuwsblad/GvA/VRT). Twee vormen: een expliciete blokpagina, of een pagina waarvan de CSS-assets
+  // geblokkeerd werden (links aanwezig maar geen enkele geladen stylesheet → ongestylede pagina).
+  // Een throw triggert de bestaande retry in takeScreenshot i.p.v. een kapotte screenshot op te slaan.
+  const blockReason = await page.evaluate(() => {
+    const txt = (document.title || '') + ' ' + (document.body ? (document.body.innerText || '').slice(0, 1500) : '');
+    if (/you have been blocked|attention required!?\s*\|\s*cloudflare|access denied|pardon our interruption/i.test(txt)) {
+      return 'bot-blokpagina';
+    }
+    const cssLinks = document.querySelectorAll('link[rel="stylesheet"]').length;
+    const loadedLinkedSheets = [...document.styleSheets].filter(s => s.href).length;
+    if (cssLinks > 0 && loadedLinkedSheets === 0) return 'stylesheets geblokkeerd (ongestylede pagina)';
+    return null;
+  }).catch(() => null);
+  if (blockReason) {
+    throw new Error(`blocked page: ${blockReason}`);
+  }
 }
 
 // Neem een desktopscreenshot op een verse pagina.
@@ -1656,6 +1748,12 @@ async function capturePage(browser, website, timestamp) {
     const filepath = join(SCREENSHOTS_DIR, filename);
 
     console.log(`📸 ${name}: Taking screenshot...`);
+    // Als de pagina ondertussen naar de DPG myprivacy-consentpagina is geredirect (gebeurt laat bij
+    // domcontentloaded-sites zoals De Morgen): gate alsnog accepteren zodat we de site screenshotten.
+    if (page.url().includes('myprivacy.dpgmedia')) {
+      console.log(`🔒 ${name}: op myprivacy-pagina vlak voor screenshot — gate opnieuw afhandelen`);
+      await handleDPGPrivacyGate(page);
+    }
     // Allerlaatste gate-scrub: Sourcepoint CMP kan asynchroon verschijnen nadat loadAndPrepare
     // klaar was. Verwijder sp_message_container direct vóór de screenshot — geen race mogelijk.
     await scrubGateBeforeShot(page);
@@ -1784,6 +1882,10 @@ async function capturePageMobile(browser, website, timestamp) {
     const filepath = join(SCREENSHOTS_DIR, filename);
 
     console.log(`📱 ${name}: Taking mobile screenshot...`);
+    if (page.url().includes('myprivacy.dpgmedia')) {
+      console.log(`🔒 ${name}: op myprivacy-pagina vlak voor mobile screenshot — gate opnieuw afhandelen`);
+      await handleDPGPrivacyGate(page);
+    }
     await scrubGateBeforeShot(page);
 
     // Beperk hoogte om WebP dimensielimiet (16383px) te voorkomen — mobiele pagina's
@@ -1848,9 +1950,9 @@ async function takeScreenshot(browser, website) {
       desktopResult = { success: true, name, filename };
       break;
     } catch (error) {
-      if (attempt < maxAttempts && error?.message?.includes('too small')) {
-        console.log(`⚠️  ${name}: Blank page detected, retrying (attempt ${attempt + 1}/${maxAttempts})...`);
-        await new Promise(r => setTimeout(r, 3000));
+      if (attempt < maxAttempts && (error?.message?.includes('too small') || error?.message?.includes('blocked page'))) {
+        console.log(`⚠️  ${name}: ${error?.message?.includes('blocked page') ? 'Block detected' : 'Blank page detected'}, retrying (attempt ${attempt + 1}/${maxAttempts})...`);
+        await new Promise(r => setTimeout(r, 5000));
         continue;
       }
       console.error(`❌ ${name}: Screenshot failed — ${error?.message}`);
@@ -1865,9 +1967,9 @@ async function takeScreenshot(browser, website) {
       mobileFilename = await capturePageMobile(browser, website, timestamp);
       break;
     } catch (error) {
-      if (attempt < maxAttempts && (error?.message?.includes('too small') || error?.message?.includes('empty buffer'))) {
+      if (attempt < maxAttempts && (error?.message?.includes('too small') || error?.message?.includes('empty buffer') || error?.message?.includes('blocked page'))) {
         console.log(`⚠️  ${name}: Mobile screenshot failed (${error?.message}), retrying (attempt ${attempt + 1}/${maxAttempts})...`);
-        await new Promise(r => setTimeout(r, 3000));
+        await new Promise(r => setTimeout(r, 5000));
         continue;
       }
       console.error(`⚠️  ${name}: Mobile screenshot failed — ${error?.message}`);
@@ -1980,9 +2082,12 @@ async function main() {
   console.log(`📋 Found ${allWebsites.length} website(s) configured, ${websites.length} scheduled this run (minute=${currentMinute}, hour=${currentHour}, ${isOnTheHour ? 'full run' : 'half-hour run'})`);
   console.log(`⚡ Concurrency: ${CONFIG.concurrency} sites per batch\n`);
 
-  // Start browser met realistische instellingen
+  // Start browser met realistische instellingen.
+  // Met een DISPLAY (xvfb in de workflow) draait Chrome headed: dat verwijdert de headless-
+  // fingerprint die Cloudflare/Akamai bot-detectie triggert (blocks op Nieuwsblad/GvA/VRT).
+  // Zonder DISPLAY (lokaal) valt hij terug op headless.
   const browser = await puppeteer.launch({
-    headless: 'new',
+    headless: process.env.DISPLAY ? false : 'new',
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',

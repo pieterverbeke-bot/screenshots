@@ -40,11 +40,14 @@ jobs:
       - name: Install Chromium
         run: npx puppeteer browsers install chrome
 
+      # xvfb laat Chrome headed draaien: dat verwijdert de headless-fingerprint waarop
+      # Cloudflare/Akamai blokkeren (Nieuwsblad/GvA "you have been blocked", VRT-blocks,
+      # geblokkeerde CSS/afbeeldingen). take-screenshots.js detecteert DISPLAY automatisch.
       - name: Take screenshots
         env:
           # Optionele site-filter voor handmatige tests (leeg bij cron → normale planning)
           SITES_FILTER: ${{ inputs.sites }}
-        run: node src/take-screenshots.js
+        run: xvfb-run -a -s "-screen 0 1920x1080x24" node src/take-screenshots.js
 
       - name: Upload to Cloudflare R2
         if: ${{ inputs.upload }}

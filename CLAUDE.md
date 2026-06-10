@@ -133,6 +133,8 @@ Change `RETENTION_DAYS` in `src/cleanup-r2.js` (currently 15 days).
 ## Important Notes
 
 - Do **not** add a `schedule:` trigger back to the workflow — cron-job.org is the reliable scheduler
+- Chrome draait **headed onder xvfb** in de workflow (`xvfb-run` in screenshot.yml; `take-screenshots.js` detecteert `DISPLAY`). Dit vermijdt de headless-fingerprint waarop Cloudflare/Akamai GitHub-runners blokkeren (Nieuwsblad/GvA/VRT-blocks, geblokkeerde CSS/afbeeldingen). Niet terugzetten naar pure headless zonder hertest
+- `installConsentKiller` injecteert op document-start een permanente Sourcepoint-verberger (CSS + inline `!important`) én een in-page auto-clicker die de DPG privacy gate ("Jouw privacy-instellingen") accepteert zodra die verschijnt — ook ná alle Node-consent-passes (De Morgen, Humo). Bot-blokpagina's en ongestylede pagina's (CSS geblokkeerd) gooien `blocked page` en triggeren een retry
 - The `screenshots/` directory is gitignored — never commit local screenshots
 - `get-refresh-token.js` is a legacy helper for Google Drive OAuth; Google Drive upload is no longer part of the active pipeline
 - The viewer (`index.html`) is generated client-side from a JSON data blob embedded in the HTML; it supports filtering by cluster, website, and date range
