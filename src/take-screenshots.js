@@ -875,8 +875,46 @@ async function removeRemainingOverlays(page) {
     const removed = await page.evaluate(() => {
       const removedElements = [];
 
+      // 0. DPG consent-gate-modals EERST accepteren i.p.v. verwijderen. Verwijderen triggert
+      // DPG's re-render (de gate komt terug, soms in een andere vorm, net vóór de screenshot —
+      // gezien op De Morgen mobiel). De gate-inhoud zit in een shadow root, dus deepText/deep-walk.
+      const deepText = (root, depth = 0) => {
+        if (depth > 6) return '';
+        let t = '';
+        try {
+          t += root.textContent || '';
+          root.querySelectorAll('*').forEach(e => { if (e.shadowRoot) t += ' ' + deepText(e.shadowRoot, depth + 1); });
+        } catch { /* niet-toegankelijk */ }
+        return t;
+      };
+      const deepClickAccept = (root, depth = 0) => {
+        if (depth > 6) return false;
+        try {
+          for (const el of root.querySelectorAll('button, a, [role="button"], input[type="submit"], input[type="button"]')) {
+            const label = ((el.textContent || el.value || '').trim() || (el.getAttribute && (el.getAttribute('aria-label') || el.getAttribute('title'))) || '').trim();
+            if (!label || label.length > 40) continue;
+            if (/instelling|inloggen|log in|weiger|meer opties|beheer|aanpassen|voorkeuren/i.test(label)) continue;
+            if (!/^(akkoord|akkoord en sluiten|accepteren|alles accepteren|alle cookies accepteren|ik ga akkoord)$/i.test(label)) continue;
+            const r = el.getBoundingClientRect();
+            if (r.width > 0 && r.height > 0) { el.click(); return true; }
+          }
+          for (const e of root.querySelectorAll('*')) {
+            if (e.shadowRoot && deepClickAccept(e.shadowRoot, depth + 1)) return true;
+          }
+        } catch { /* niet-toegankelijk */ }
+        return false;
+      };
+      const gateModals = new Set();
+      for (const modal of document.querySelectorAll('[aria-modal="true"], dialog, [role="dialog"]')) {
+        if (/jouw privacy-instellingen|gebruiken cookies om informatie/i.test(deepText(modal))) {
+          gateModals.add(modal);
+          if (deepClickAccept(modal)) removedElements.push('consent-modal geaccepteerd (Akkoord)');
+        }
+      }
+
       // 1. Sluit open <dialog> elementen
       document.querySelectorAll('dialog[open]').forEach(d => {
+        if (gateModals.has(d)) return; // consent-gate: geklikt, niet sluiten/verwijderen
         d.close();
         removedElements.push('dialog');
       });
@@ -915,6 +953,7 @@ async function removeRemainingOverlays(page) {
 
       for (const selector of overlaySelectors) {
         document.querySelectorAll(selector).forEach(el => {
+          if (gateModals.has(el)) return; // consent-gate: geklikt, niet verwijderen (voorkomt re-render)
           el.remove();
           removedElements.push(selector);
         });
@@ -938,6 +977,8 @@ async function removeRemainingOverlays(page) {
       const candidates = document.querySelectorAll(overlayTagsAndSelectors.join(','));
       const viewportArea = window.innerWidth * window.innerHeight;
       for (const el of candidates) {
+        // Consent-gates (geklikt in stap 0) niet verwijderen — dat triggert DPG's re-render
+        if (gateModals.has(el) || [...gateModals].some(g => el.contains(g) || g.contains(el))) continue;
         const style = window.getComputedStyle(el);
         const pos = style.position;
         if (pos !== 'fixed' && pos !== 'absolute') continue;
