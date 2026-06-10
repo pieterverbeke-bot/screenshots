@@ -988,7 +988,22 @@ async function dismissConsentGate(page) {
     return page.evaluate(() => {
       const txt = document.body?.innerText || '';
       if (/jouw privacy-instellingen/i.test(txt)) return true;
-      return !!document.querySelector('[id^="sp_message_container"], iframe[id^="sp_message_iframe"]');
+      if (document.querySelector('[id^="sp_message_container"], iframe[id^="sp_message_iframe"]')) return true;
+      // DM/Humo: gate-modal met inhoud in een shadow root — body.innerText ziet die tekst niet,
+      // dus per (zeldzame) modal-host de shadow-tekst checken.
+      const deepText = (root, depth = 0) => {
+        if (depth > 6) return '';
+        let t = '';
+        try {
+          t += root.textContent || '';
+          root.querySelectorAll('*').forEach(e => { if (e.shadowRoot) t += ' ' + deepText(e.shadowRoot, depth + 1); });
+        } catch { /* niet-toegankelijk */ }
+        return t;
+      };
+      for (const modal of document.querySelectorAll('[aria-modal="true"], dialog, [role="dialog"]')) {
+        if (/jouw privacy-instellingen|gebruiken cookies om informatie/i.test(deepText(modal))) return true;
+      }
+      return false;
     }).catch(() => false);
   };
 
@@ -1180,6 +1195,19 @@ async function installConsentKiller(page) {
       }
       return false;
     };
+    // Tekst van een element INCLUSIEF shadow roots. Nodig omdat de DM/Humo-gate een
+    // aria-modal-host is met de volledige inhoud (titel + knoppen) in een shadow root:
+    // gewone textContent ziet die tekst niet.
+    const deepText = (root, depth = 0) => {
+      if (depth > 6) return '';
+      let txt = '';
+      try {
+        txt += root.textContent || '';
+        root.querySelectorAll('*').forEach(e => { if (e.shadowRoot) txt += ' ' + deepText(e.shadowRoot, depth + 1); });
+      } catch { /* niet-toegankelijke root */ }
+      return txt;
+    };
+    const GATE_TEXT_RE = /jouw privacy-instellingen|gebruiken cookies om informatie/i;
     let lastClickScan = 0;
     const scanForGate = () => {
       const now = Date.now();
@@ -1190,6 +1218,12 @@ async function installConsentKiller(page) {
       // Inline gate: herkenbaar aan DPG-gate-markup of de letterlijke gate-titel in het document
       const gateEl = document.querySelector('[data-testid*="privacy-gate"], [class*="privacy-gate"], [id*="privacy-gate"], [class*="privacy-wall"]');
       if (gateEl) { deepClickAccept(gateEl); return; }
+      // DM/Humo: de gate is een [aria-modal]-host met inhoud in een shadow root. Per modal-host
+      // (zeldzaam element, dus goedkoop) de shadow-tekst checken en alleen bij gate-tekst klikken —
+      // zo klikken we nooit in nieuwsbrief- of andere modals.
+      for (const modal of document.querySelectorAll('[aria-modal="true"], dialog, [role="dialog"]')) {
+        if (GATE_TEXT_RE.test(deepText(modal))) { if (deepClickAccept(modal)) return; }
+      }
       if (document.body && /jouw privacy-instellingen/i.test(document.body.textContent || '')) {
         deepClickAccept(document);
       }
@@ -1222,6 +1256,29 @@ async function scrubGateBeforeShot(page) {
     document.querySelectorAll(SEL).forEach(hide);
     // DPG inline privacy gate (De Morgen/Humo) — andere markup dan Sourcepoint
     document.querySelectorAll('[data-testid*="privacy-gate"], [class*="privacy-gate"], [id*="privacy-gate"], [class*="privacy-wall"]').forEach(hide);
+    // DM/Humo: gate is een [aria-modal]-host met inhoud in een shadow root. Check de shadow-tekst
+    // per modal-host en verberg de host plus zijn fixed-overouder (backdrop/dim-laag).
+    const deepText = (root, depth = 0) => {
+      if (depth > 6) return '';
+      let txt = '';
+      try {
+        txt += root.textContent || '';
+        root.querySelectorAll('*').forEach(e => { if (e.shadowRoot) txt += ' ' + deepText(e.shadowRoot, depth + 1); });
+      } catch { /* niet-toegankelijk */ }
+      return txt;
+    };
+    const GATE_TEXT_RE = /jouw privacy-instellingen|gebruiken cookies om informatie/i;
+    for (const modal of document.querySelectorAll('[aria-modal="true"], dialog, [role="dialog"]')) {
+      if (!GATE_TEXT_RE.test(deepText(modal))) continue;
+      hide(modal);
+      // Verberg ook de fixed/absolute voorouder die als backdrop fungeert
+      let el = modal.parentElement;
+      for (let i = 0; i < 8 && el && el !== document.body; i++) {
+        const s = window.getComputedStyle(el);
+        if (s.position === 'fixed' || s.position === 'absolute') { hide(el); break; }
+        el = el.parentElement;
+      }
+    }
     // Generiek vangnet: zoek de gate-titel in een heading en verberg de overlay-voorouder.
     // Alleen fixed/absolute voorouders groter dan 200x150 — raakt nooit gewone content.
     const heading = [...document.querySelectorAll('h1, h2, h3, h4, strong, b')]
@@ -1653,6 +1710,17 @@ async function loadAndPrepare(page, website, waitUntil = 'networkidle2', { isMob
     const cssLinks = document.querySelectorAll('link[rel="stylesheet"]').length;
     const loadedLinkedSheets = [...document.styleSheets].filter(s => s.href).length;
     if (cssLinks > 0 && loadedLinkedSheets === 0) return 'stylesheets geblokkeerd (ongestylede pagina)';
+    // Nieuwsblad injecteert CSS via JS (geen <link>-tags), dus bovenstaande check mist het als
+    // die JS geblokkeerd is. Vangnet: tel stylesheets exclusief onze eigen geïnjecteerde styles —
+    // nul site-stylesheets betekent een kale, ongestylede pagina (geen echte site heeft géén CSS).
+    const siteSheets = [...document.styleSheets].filter(s => {
+      const n = s.ownerNode;
+      if (!n) return true;
+      if (n.id === '__dpg_gate_killer') return false;
+      if ((n.textContent || '').includes('content-visibility: visible')) return false;
+      return true;
+    }).length;
+    if (siteSheets === 0) return 'geen geladen stylesheets (ongestylede pagina)';
     return null;
   }).catch(() => null);
   if (blockReason) {
