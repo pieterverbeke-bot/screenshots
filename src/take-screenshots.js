@@ -1265,6 +1265,26 @@ async function installConsentKiller(page) {
       for (const modal of document.querySelectorAll('[aria-modal="true"], dialog, [role="dialog"]')) {
         if (GATE_TEXT_RE.test(deepText(modal))) { if (deepClickAccept(modal)) return; }
       }
+      // Algemeen vangnet: sommige sites (HLN) renderen de gate in een shadow-host die geen
+      // [aria-modal]/[role="dialog"] heeft. Zoek het diepst-geneste shadow-host element waarvan
+      // de inhoud de gate-tekst bevat (diepste match wint, zodat we niet de hele app-shell pakken).
+      const findDeepestGateHost = (root, depth = 0) => {
+        if (depth > 6) return null;
+        let result = null;
+        try {
+          root.querySelectorAll('*').forEach(e => {
+            if (result) return;
+            if (e.shadowRoot) {
+              const nested = findDeepestGateHost(e.shadowRoot, depth + 1);
+              if (nested) { result = nested; return; }
+              if (GATE_TEXT_RE.test(deepText(e.shadowRoot))) result = e;
+            }
+          });
+        } catch { /* niet-toegankelijke root */ }
+        return result;
+      };
+      const gateHost = findDeepestGateHost(document);
+      if (gateHost) { if (deepClickAccept(gateHost)) return; }
       if (document.body && /jouw privacy-instellingen/i.test(document.body.textContent || '')) {
         deepClickAccept(document);
       }
@@ -1316,6 +1336,38 @@ async function scrubGateBeforeShot(page) {
     document.querySelectorAll('[aria-modal="true"], dialog[open], [role="dialog"]').forEach(el => {
       hideWithBackdrop(el, `modal<${el.tagName.toLowerCase()}${el.id ? '#' + el.id : ''}.${(el.className || '').toString().slice(0, 40)}>`);
     });
+    // Algemeen vangnet: gate gerenderd in een shadow-host zonder [aria-modal]/[role="dialog"]
+    // (gezien op HLN). Zoek het diepst-geneste shadow-host met de gate-tekst (deepste match wint,
+    // zodat we niet de hele app-shell verbergen) en verberg die + zijn fixed/absolute voorouder.
+    const GATE_TEXT_RE_SCRUB = /jouw privacy-instellingen|gebruiken cookies om informatie/i;
+    const deepTextScrub = (root, depth = 0) => {
+      if (depth > 6) return '';
+      let txt = '';
+      try {
+        txt += root.textContent || '';
+        root.querySelectorAll('*').forEach(e => { if (e.shadowRoot) txt += ' ' + deepTextScrub(e.shadowRoot, depth + 1); });
+      } catch { /* niet-toegankelijke root */ }
+      return txt;
+    };
+    const findDeepestGateHost = (root, depth = 0) => {
+      if (depth > 6) return null;
+      let result = null;
+      try {
+        root.querySelectorAll('*').forEach(e => {
+          if (result) return;
+          if (e.shadowRoot) {
+            const nested = findDeepestGateHost(e.shadowRoot, depth + 1);
+            if (nested) { result = nested; return; }
+            if (GATE_TEXT_RE_SCRUB.test(deepTextScrub(e.shadowRoot))) result = e;
+          }
+        });
+      } catch { /* niet-toegankelijke root */ }
+      return result;
+    };
+    const gateShadowHost = findDeepestGateHost(document);
+    if (gateShadowHost) {
+      hideWithBackdrop(gateShadowHost, `gate-shadow-host<${gateShadowHost.tagName.toLowerCase()}${gateShadowHost.id ? '#' + gateShadowHost.id : ''}>`);
+    }
     // Vangnet voor een INLINE gerenderde gate (geen modal): zoek de gate-titel in headings,
     // ook binnen shadow roots, en verberg de licht-DOM-host + overlay-voorouder.
     const GATE_RE = /jouw privacy-instellingen/i;
