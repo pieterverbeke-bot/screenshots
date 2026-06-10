@@ -4,6 +4,11 @@ import { createR2Client, listAllObjects } from './r2-client.js';
 // Aantal dagen waarna screenshots verwijderd worden
 const RETENTION_DAYS = 182; // 26 weken
 
+// Vanaf deze leeftijd is het niet meer nodig om elke 30/60 min een screenshot te bewaren:
+// dan volstaat 1 screenshot per THINNING_INTERVAL_HOURS uur (per website/dag/variant)
+const THINNING_AFTER_DAYS = 15;
+const THINNING_INTERVAL_HOURS = 3;
+
 function getDateFromKey(key) {
   // Verwachte structuur: website/datum/bestand.webp (bv. hln/2026-02-05/hln_2026-02-05T10-00-00.webp)
   const parts = key.split('/');
@@ -14,6 +19,25 @@ function getDateFromKey(key) {
   if (isNaN(parsed.getTime())) return null;
 
   return parsed;
+}
+
+// Parseert website/datum/naam_YYYY-MM-DDTHH-MM-SS[_mobile].ext
+// Retourneert een groep-sleutel (per website/datum/variant) en het tijdstip van de opname
+function parseKeyInfo(key) {
+  const parts = key.split('/');
+  if (parts.length < 3) return null;
+
+  const match = parts[2].match(/^(.+?)_(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})(_mobile)?\.\w+$/);
+  if (!match) return null;
+
+  const [, namePrefix, dateStr, hh, mm, ss, mobileSuffix] = match;
+  const dateTime = new Date(`${dateStr}T${hh}:${mm}:${ss}Z`);
+  if (isNaN(dateTime.getTime())) return null;
+
+  return {
+    groupKey: `${parts[0]}/${parts[1]}/${namePrefix}${mobileSuffix || ''}`,
+    dateTime,
+  };
 }
 
 async function deleteObjects(client, bucketName, keys) {
@@ -93,6 +117,54 @@ async function main() {
     }
   }
 
+  // Thinning: voor screenshots ouder dan THINNING_AFTER_DAYS volstaat 1 opname
+  // per THINNING_INTERVAL_HOURS uur (per website/dag/variant) — overtollige tussentijdse
+  // opnames (elke 30/60 min) worden verwijderd.
+  const thinningCutoff = new Date(now);
+  thinningCutoff.setDate(thinningCutoff.getDate() - THINNING_AFTER_DAYS);
+  thinningCutoff.setHours(0, 0, 0, 0);
+
+  console.log(`📅 Thinning cutoff: ${thinningCutoff.toISOString().split('T')[0]}`);
+  console.log(`   Objects older than this date are thinned to 1 per ${THINNING_INTERVAL_HOURS}u\n`);
+
+  const keptAfterThinning = [];
+  const thinningGroups = new Map();
+
+  for (const key of toKeep) {
+    const objectDate = getDateFromKey(key);
+    if (!objectDate || objectDate >= thinningCutoff) {
+      keptAfterThinning.push(key);
+      continue;
+    }
+
+    const info = parseKeyInfo(key);
+    if (!info) {
+      // Kan geen tijdstip bepalen, behouden
+      keptAfterThinning.push(key);
+      continue;
+    }
+
+    if (!thinningGroups.has(info.groupKey)) thinningGroups.set(info.groupKey, []);
+    thinningGroups.get(info.groupKey).push({ key, dateTime: info.dateTime });
+  }
+
+  for (const items of thinningGroups.values()) {
+    items.sort((a, b) => a.dateTime - b.dateTime);
+    const seenBuckets = new Set();
+    for (const item of items) {
+      const bucket = Math.floor(item.dateTime.getUTCHours() / THINNING_INTERVAL_HOURS);
+      if (seenBuckets.has(bucket)) {
+        toDelete.push(item.key);
+      } else {
+        seenBuckets.add(bucket);
+        keptAfterThinning.push(item.key);
+      }
+    }
+  }
+
+  toKeep.length = 0;
+  toKeep.push(...keptAfterThinning);
+
   console.log(`📊 Results:`);
   console.log(`   To keep:   ${toKeep.length} object(s)`);
   console.log(`   To delete: ${toDelete.length} object(s)\n`);
@@ -108,7 +180,7 @@ async function main() {
     const parts = key.split('/');
     if (parts.length >= 2) deleteDates.add(parts[1]);
   }
-  console.log(`🗑️  Dates to remove: ${[...deleteDates].sort().join(', ')}\n`);
+  console.log(`🗑️  Dates affected (verwijdering en/of thinning): ${[...deleteDates].sort().join(', ')}\n`);
 
   // Verwijder de objecten
   console.log('Deleting old screenshots...');
