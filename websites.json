@@ -210,7 +210,8 @@
     "medium": "nieuwsmedia",
     "cluster": "VTP",
     "interval": 60,
-    "halfHour": true
+    "halfHour": true,
+    "waitUntil": "domcontentloaded"
   },
   {
     "name": "trouw",
