@@ -364,9 +364,15 @@ export default {
 
       // --- Alle overige requests: geldige sessie vereist ---
       const sessionToken = getCookie(request, SESSION_COOKIE);
-      const email = await verifySession(sessionToken, authSecret);
-      if (!email) {
+      const sessionEmail = await verifySession(sessionToken, authSecret);
+      if (!sessionEmail) {
         return loginResponse(null);
+      }
+
+      // Injecteer "ingelogd als … · Uitloggen" in de viewer-pagina
+      const wantsHtmlPage = url.pathname === '/' || url.pathname === '/index.html';
+      if (wantsHtmlPage && (request.method === 'GET' || request.method === 'HEAD')) {
+        return serveIndexWithAccountBar(env, sessionEmail, request.method);
       }
     }
 
@@ -420,6 +426,70 @@ function loginResponse(errorMessage) {
     status: 401,
     headers: { 'Content-Type': 'text/html; charset=utf-8' },
   });
+}
+
+/** Escape tekst voor veilig gebruik in HTML. */
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/** Bouw de "ingelogd als … · Uitloggen" balk en plaats die naast de
+ *  "Laatste update"-regel in de header van de viewer. */
+function injectAccountBar(html, email) {
+  const chip = `<span style="display:inline-flex;align-items:center;gap:0.55rem;font-size:0.72rem;` +
+    `background:rgba(255,255,255,0.18);padding:0.28rem 0.75rem;border-radius:999px;white-space:nowrap;">` +
+    `<span style="opacity:0.95;">${escapeHtml(email)}</span>` +
+    `<a href="/logout" style="color:#fff;text-decoration:none;font-weight:600;` +
+    `border-left:1px solid rgba(255,255,255,0.45);padding-left:0.55rem;">Uitloggen</a></span>`;
+
+  // Groepeer de bestaande "Laatste update"-paragraaf samen met de account-chip
+  // rechts in de header (deterministische anchor uit generate-index.js).
+  const datePattern = /<p>Laatste update:[^<]*<\/p>/;
+  if (datePattern.test(html)) {
+    return html.replace(datePattern, m =>
+      `<div style="display:flex;align-items:center;gap:0.9rem;">${m}${chip}</div>`);
+  }
+
+  // Fallback: geen "Laatste update"-regel gevonden → chip vast in de hoek tonen
+  return html.replace('</body>',
+    `<div style="position:fixed;top:0.6rem;right:1.5rem;z-index:200;">${chip}</div></body>`);
+}
+
+/** Haal index.html uit R2, injecteer de account-balk en stuur het terug. */
+async function serveIndexWithAccountBar(env, email, method) {
+  const object = await env.SCREENSHOTS_BUCKET.get('index.html');
+  if (!object) {
+    return new Response('Not Found', { status: 404 });
+  }
+
+  const headers = new Headers();
+  object.writeHttpMetadata(headers);
+  headers.set('etag', object.httpEtag);
+  // De pagina is per gebruiker aangepast → niet publiek cachen
+  headers.set('cache-control', 'private, no-store');
+  headers.set('content-type', 'text/html; charset=utf-8');
+
+  if (method === 'HEAD') {
+    headers.delete('content-length');
+    return new Response(null, { headers });
+  }
+
+  // Body uitlezen (eventueel gzip-gedecomprimeerd) en de account-balk injecteren
+  let stream = object.body;
+  if (headers.get('content-encoding') === 'gzip') {
+    headers.delete('content-encoding');
+    stream = stream.pipeThrough(new DecompressionStream('gzip'));
+  }
+  const original = await new Response(stream).text();
+  const modified = injectAccountBar(original, email);
+
+  headers.delete('content-length'); // lengte is gewijzigd door injectie
+  return new Response(modified, { headers });
 }
 
 /** Decodeer het JWT-payload van een Google id_token (zonder verificatie:
