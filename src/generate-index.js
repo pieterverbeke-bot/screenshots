@@ -91,20 +91,15 @@ function loadWebsitesMeta() {
   return { meta, websites };
 }
 
-// Subtiel RI&G-merkteken: afgerond vierkant in de huisstijlgradient met het
-// woordmerk in wit. Wordt zowel in de header getoond als — via een data-URI —
-// als favicon gebruikt, zodat er geen extra request nodig is.
-const RIG_LOGO_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="RI&amp;G">'
-  + '<defs><linearGradient id="rigMark" x1="0" y1="0" x2="1" y2="1">'
-  + '<stop offset="0" stop-color="#783c96"/><stop offset="0.5" stop-color="#d23278"/>'
-  + '<stop offset="0.8" stop-color="#e6463c"/><stop offset="1" stop-color="#fabb22"/>'
-  + '</linearGradient></defs>'
-  + '<rect width="32" height="32" rx="8" fill="url(#rigMark)"/>'
-  + '<text x="16" y="21" text-anchor="middle" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif"'
-  + ' font-size="10.5" font-weight="700" letter-spacing="-0.5" fill="#ffffff">RI&amp;G</text>'
-  + '</svg>';
+// Het RI&G-merkteken: vier isometrische blokken in de huisstijlkleuren.
+// Inline SVG, zodat het ook als favicon (data-URI) werkt zonder extra request.
+// De faviconvariant staat op een witte tegel en blijft zo leesbaar op een
+// donkere tabbalk.
+const RIG_LOGO_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="RI&amp;G"><polygon points="10.28,16.3 15.54,13.26 10.28,10.23 5.03,13.26" fill="#ef4b3c"/><polygon points="10.28,16.3 15.54,13.26 15.54,19.34 10.28,22.37" fill="#d33f33"/><polygon points="10.28,16.3 5.03,13.26 5.03,19.34 10.28,22.37" fill="#e6463c"/><polygon points="21.72,16.3 26.97,13.26 21.72,10.23 16.46,13.26" fill="#d8397f"/><polygon points="21.72,16.3 26.97,13.26 26.97,19.34 21.72,22.37" fill="#b92a68"/><polygon points="21.72,16.3 16.46,13.26 16.46,19.34 21.72,22.37" fill="#c93074"/><polygon points="16,13 21.26,9.96 16,6.93 10.74,9.96" fill="#fabb22"/><polygon points="16,13 21.26,9.96 21.26,16.04 16,19.07" fill="#e0a417"/><polygon points="16,13 10.74,9.96 10.74,16.04 16,19.07" fill="#f0b01d"/><polygon points="16,19.6 21.26,16.56 16,13.53 10.74,16.56" fill="#8442a3"/><polygon points="16,19.6 21.26,16.56 21.26,22.64 16,25.67" fill="#5f2d79"/><polygon points="16,19.6 10.74,16.56 10.74,22.64 16,25.67" fill="#71378f"/></svg>';
 
-const RIG_FAVICON = 'data:image/svg+xml,' + encodeURIComponent(RIG_LOGO_SVG);
+const RIG_FAVICON = 'data:image/svg+xml,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="RI&amp;G"><rect width="32" height="32" rx="7" fill="#ffffff"/><polygon points="10.28,16.3 15.54,13.26 10.28,10.23 5.03,13.26" fill="#ef4b3c"/><polygon points="10.28,16.3 15.54,13.26 15.54,19.34 10.28,22.37" fill="#d33f33"/><polygon points="10.28,16.3 5.03,13.26 5.03,19.34 10.28,22.37" fill="#e6463c"/><polygon points="21.72,16.3 26.97,13.26 21.72,10.23 16.46,13.26" fill="#d8397f"/><polygon points="21.72,16.3 26.97,13.26 26.97,19.34 21.72,22.37" fill="#b92a68"/><polygon points="21.72,16.3 16.46,13.26 16.46,19.34 21.72,22.37" fill="#c93074"/><polygon points="16,13 21.26,9.96 16,6.93 10.74,9.96" fill="#fabb22"/><polygon points="16,13 21.26,9.96 21.26,16.04 16,19.07" fill="#e0a417"/><polygon points="16,13 10.74,9.96 10.74,16.04 16,19.07" fill="#f0b01d"/><polygon points="16,19.6 21.26,16.56 16,13.53 10.74,16.56" fill="#8442a3"/><polygon points="16,19.6 21.26,16.56 21.26,22.64 16,25.67" fill="#5f2d79"/><polygon points="16,19.6 10.74,16.56 10.74,22.64 16,25.67" fill="#71378f"/></svg>'
+);
 
 function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta, allWebsites) {
   const websites = Object.keys(desktopStructure).sort();
@@ -170,12 +165,16 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
     /* Merkteken + account/afmeldknop in de header */
     .brand { display: flex; align-items: center; gap: 0.55rem; }
     .brand-mark {
-      display: block;
-      width: 22px;
-      height: 22px;
-      flex: 0 0 22px;
-      opacity: 0.95;
-      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.18));
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      flex: 0 0 24px;
+      padding: 2.5px;
+      background: #fff;
+      border-radius: 7px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
     }
     .brand-mark svg { display: block; width: 100%; height: 100%; }
 

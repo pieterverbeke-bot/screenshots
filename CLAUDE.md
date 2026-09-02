@@ -165,8 +165,11 @@ Kan ook via GitHub Actions → "Miniaturen bijwerken" (workflow_dispatch).
 - De viewer laadt bewust getemperd: miniaturen via `IntersectionObserver`, volledige
   screenshots zonder miniatuur met maximaal 2 tegelijk, en de peek-/preload-beelden pas
   nadat de hero geladen is. Zo krijgt het zichtbare beeld voorrang op de rest
-- Het RI&G-merkteken staat als inline SVG in `src/generate-index.js` (`RIG_LOGO_SVG`) én in
-  `worker/src/index.js`; het dient ook als favicon via een data-URI. Pas je het aan, doe dat
+- Het RI&G-merkteken (vier isometrische blokken) staat als inline SVG in
+  `src/generate-index.js` (`RIG_LOGO_SVG`) én in `worker/src/index.js`. `RIG_FAVICON` is
+  dezelfde tekening op een witte tegel — leesbaar op een donkere tabbalk — als data-URI.
+  In de header staat het merkteken op een wit tegeltje (`.brand-mark`), want de
+  huisstijlkleuren van het logo verdwijnen anders in de gradient. Pas je het aan, doe dat
   dan op beide plekken
 - Mobile screenshots are filtered out in `generate-index.js` (legacy `_mobile.` suffix check)
 
