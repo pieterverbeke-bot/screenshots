@@ -6,6 +6,7 @@
   "scripts": {
     "screenshots": "node src/take-screenshots.js",
     "cleanup": "node src/cleanup-r2.js",
+    "thumbs": "node src/generate-thumbs-r2.js",
     "deploy-worker": "cd worker && npx wrangler deploy"
   },
   "keywords": [

@@ -67,7 +67,8 @@ async function main() {
     return;
   }
 
-  console.log(`📸 Found ${files.length} screenshot(s) to upload`);
+  const thumbCount = files.filter(f => f.endsWith('.thumb.webp')).length;
+  console.log(`📸 Found ${files.length - thumbCount} screenshot(s) + ${thumbCount} miniatuur(en) to upload`);
   console.log(`⚡ Upload concurrency: ${UPLOAD_CONCURRENCY}\n`);
 
   // Datum voor subfolders

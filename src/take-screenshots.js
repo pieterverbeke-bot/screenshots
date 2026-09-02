@@ -3,7 +3,7 @@
 import puppeteer from 'puppeteer';
 import sharp from 'sharp';
 import { readFileSync, existsSync, mkdirSync, statSync, unlinkSync } from 'fs';
-import { dirname, join } from 'path';
+import { basename, dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -33,6 +33,11 @@ const CONFIG = {
   concurrency: 3,
   // Minimale bestandsgrootte in KB — screenshots kleiner dan dit zijn waarschijnlijk blanco pagina's
   minFileSizeKB: 10,
+  // Miniatuur voor de tijdlijn in de viewer: klein bestand (~4-8 KB) zodat de
+  // filmstrip niet de volledige screenshots (100-300 KB elk) moet downloaden
+  thumbWidth: 200,
+  thumbHeight: 130,
+  thumbQuality: 60,
   // Mobiel viewport (iPhone 14/15 formaat)
   mobileViewport: {
     width: 390,
@@ -1836,6 +1841,24 @@ async function loadAndPrepare(page, website, waitUntil = 'networkidle2', { isMob
   }
 }
 
+// Schrijf een miniatuur naast het screenshot (`naam.thumb.webp`).
+// De viewer toont in de tijdlijn 80x52px-thumbnails; zonder miniatuur wordt daar
+// het volledige screenshot (100-300 KB) gedownload, wat het openen van een site traag maakt.
+// Faalt dit, dan blijft het screenshot gewoon geldig — de viewer valt terug op het origineel.
+async function writeThumbnail(filepath) {
+  const thumbPath = filepath.replace(/\.webp$/, '.thumb.webp');
+  try {
+    await sharp(filepath)
+      .resize(CONFIG.thumbWidth, CONFIG.thumbHeight, { fit: 'cover', position: 'top' })
+      .webp({ quality: CONFIG.thumbQuality })
+      .toFile(thumbPath);
+    return thumbPath;
+  } catch (error) {
+    console.log(`⚠️  Miniatuur maken mislukt voor ${basename(filepath)}: ${error.message}`);
+    return null;
+  }
+}
+
 // Neem een desktopscreenshot op een verse pagina.
 async function capturePage(browser, website, timestamp) {
   const { name } = website;
@@ -1980,6 +2003,8 @@ async function capturePage(browser, website, timestamp) {
       throw new Error(`Screenshot too small: ${fileSizeKB} KB (likely blank page)`);
     }
 
+    await writeThumbnail(filepath);
+
     console.log(`✅ ${name}: Saved ${filename} (${fileSizeKB} KB)`);
     return filename;
   } finally {
@@ -2106,6 +2131,8 @@ async function capturePageMobile(browser, website, timestamp) {
       unlinkSync(filepath);
       throw new Error(`Mobile screenshot too small: ${fileSizeKB} KB (likely blank page)`);
     }
+
+    await writeThumbnail(filepath);
 
     console.log(`✅ ${name}: Saved mobile ${filename} (${fileSizeKB} KB)`);
     return filename;

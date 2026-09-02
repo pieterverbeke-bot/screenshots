@@ -3,17 +3,29 @@ import { readFileSync } from 'fs';
 import { gzipSync } from 'zlib';
 import { createR2Client, listAllObjects } from './r2-client.js';
 
+// Achtervoegsel van de miniaturen (zie writeThumbnail in take-screenshots.js)
+const THUMB_SUFFIX = '.thumb.webp';
+
 function buildStructure(objects) {
   // Twee structuren: desktop en mobiel
-  // { websiteName: { datum: [{ filename, key, size }] } }
+  // { websiteName: { datum: [{ filename, key, size, thumb }] } }
   const desktop = {};
   const mobile = {};
+
+  // Eerst alle beschikbare miniaturen verzamelen; screenshots van vóór de
+  // miniatuur-generatie hebben er geen en vallen terug op het volledige beeld.
+  const thumbs = new Set();
+  for (const obj of objects) {
+    if (obj.Key.endsWith(THUMB_SUFFIX)) thumbs.add(obj.Key);
+  }
 
   for (const obj of objects) {
     const parts = obj.Key.split('/');
     // Verwacht: website/datum/bestand.webp of .jpg
     if (parts.length !== 3) continue;
     if (!parts[2].endsWith('.webp') && !parts[2].endsWith('.jpg')) continue;
+    // Miniaturen zijn geen aparte screenshots
+    if (parts[2].endsWith(THUMB_SUFFIX)) continue;
 
     const [website, date, filename] = parts;
     const isMobile = /_mobile\.(webp|jpg)$/.test(filename);
@@ -21,7 +33,8 @@ function buildStructure(objects) {
 
     if (!target[website]) target[website] = {};
     if (!target[website][date]) target[website][date] = [];
-    target[website][date].push({ filename, key: obj.Key, size: obj.Size });
+    const thumb = thumbs.has(obj.Key.replace(/\.webp$/, THUMB_SUFFIX));
+    target[website][date].push({ filename, key: obj.Key, size: obj.Size, thumb });
   }
 
   // Sorteer datums oudste eerst, screenshots binnen een datum ook oudste eerst
@@ -38,14 +51,31 @@ function buildStructure(objects) {
   return { desktop, mobile };
 }
 
-// Slanke structuur voor client-side: alleen bestandsnamen per website/datum
-// (website en datum zijn al de keys, URLs worden client-side opgebouwd)
-function buildClientStructure(structure) {
+// Slanke structuur voor client-side: per website/datum enkel het tijdstip van
+// elke opname. Website, datum en de vaste extensie zitten al in de keys, dus de
+// client bouwt de bestandsnaam zelf op (decodeEntry in de viewer-script).
+// Formaat per item: [*]HH-MM-SS  — de '*' betekent "miniatuur beschikbaar".
+// Wijkt een bestandsnaam af van het vaste patroon, dan wordt hij letterlijk
+// bewaard met een '!'-prefix.
+function encodeEntry(item, website, date, isMobile) {
+  const prefix = `${website}_${date}T`;
+  const suffix = isMobile ? '_mobile.webp' : '.webp';
+  let core = '!' + item.filename;
+
+  if (item.filename.startsWith(prefix) && item.filename.endsWith(suffix)) {
+    const time = item.filename.slice(prefix.length, item.filename.length - suffix.length);
+    if (/^\d{2}-\d{2}-\d{2}$/.test(time)) core = time;
+  }
+
+  return (item.thumb ? '*' : '') + core;
+}
+
+function buildClientStructure(structure, isMobile) {
   const result = {};
   for (const [website, dates] of Object.entries(structure)) {
     result[website] = {};
     for (const [date, items] of Object.entries(dates)) {
-      result[website][date] = items.map(item => item.filename);
+      result[website][date] = items.map(item => encodeEntry(item, website, date, isMobile));
     }
   }
   return result;
@@ -61,6 +91,21 @@ function loadWebsitesMeta() {
   return { meta, websites };
 }
 
+// Subtiel RI&G-merkteken: afgerond vierkant in de huisstijlgradient met het
+// woordmerk in wit. Wordt zowel in de header getoond als — via een data-URI —
+// als favicon gebruikt, zodat er geen extra request nodig is.
+const RIG_LOGO_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="RI&amp;G">'
+  + '<defs><linearGradient id="rigMark" x1="0" y1="0" x2="1" y2="1">'
+  + '<stop offset="0" stop-color="#783c96"/><stop offset="0.5" stop-color="#d23278"/>'
+  + '<stop offset="0.8" stop-color="#e6463c"/><stop offset="1" stop-color="#fabb22"/>'
+  + '</linearGradient></defs>'
+  + '<rect width="32" height="32" rx="8" fill="url(#rigMark)"/>'
+  + '<text x="16" y="21" text-anchor="middle" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif"'
+  + ' font-size="10.5" font-weight="700" letter-spacing="-0.5" fill="#ffffff">RI&amp;G</text>'
+  + '</svg>';
+
+const RIG_FAVICON = 'data:image/svg+xml,' + encodeURIComponent(RIG_LOGO_SVG);
+
 function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta, allWebsites) {
   const websites = Object.keys(desktopStructure).sort();
   const baseUrl = '';
@@ -69,11 +114,11 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
   const metaJSON = JSON.stringify(websitesMeta);
 
   // Slanke structuur voor lazy rendering van filmstrips (alleen bestandsnamen)
-  const clientStructure = buildClientStructure(desktopStructure);
+  const clientStructure = buildClientStructure(desktopStructure, false);
   const clientStructureJSON = JSON.stringify(clientStructure);
 
   // Mobiele structuur voor client-side switching
-  const mobileClientStructure = buildClientStructure(mobileStructure);
+  const mobileClientStructure = buildClientStructure(mobileStructure, true);
   const mobileClientStructureJSON = JSON.stringify(mobileClientStructure);
 
   // Verzamel alle unieke datums (nieuwste eerst) voor het datumfilter
@@ -89,13 +134,26 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
   // Gebruik desktopStructure als primaire structuur voor server-side HTML rendering
   const structure = desktopStructure;
 
+  // URL van de hero die meteen zichtbaar is: preloaden met hoge prioriteit zodat
+  // de browser er niet mee wacht tot het script de rest van de tijdlijn opzet.
+  let firstHeroUrl = '';
+  if (websites.length > 0) {
+    const firstDates = structure[websites[0]];
+    const firstDateKeys = Object.keys(firstDates);
+    const firstItems = firstDates[firstDateKeys[firstDateKeys.length - 1]] || [];
+    const firstNewest = firstItems[firstItems.length - 1];
+    if (firstNewest) firstHeroUrl = baseUrl + '/' + firstNewest.key;
+  }
+
   return `<!DOCTYPE html>
 <html lang="nl">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RI&amp;G Screenshots</title>
+  <link rel="icon" href="${RIG_FAVICON}" type="image/svg+xml">
   <link rel="preconnect" href="${baseUrl}" crossorigin>
+  ${firstHeroUrl ? `<link rel="preload" as="image" href="${firstHeroUrl}" fetchpriority="high">` : ''}
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -108,6 +166,41 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       color: #2d2d3a;
       min-height: 100vh;
     }
+
+    /* Merkteken + account/afmeldknop in de header */
+    .brand { display: flex; align-items: center; gap: 0.55rem; }
+    .brand-mark {
+      display: block;
+      width: 22px;
+      height: 22px;
+      flex: 0 0 22px;
+      opacity: 0.95;
+      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.18));
+    }
+    .brand-mark svg { display: block; width: 100%; height: 100%; }
+
+    .header-right { display: flex; align-items: center; gap: 0.9rem; }
+
+    .account-slot {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      font-size: 0.72rem;
+      background: rgba(255, 255, 255, 0.18);
+      padding: 0.28rem 0.75rem;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+    .account-slot[hidden] { display: none; }
+    .account-slot a {
+      color: #fff;
+      text-decoration: none;
+      font-weight: 600;
+      border-left: 1px solid rgba(255, 255, 255, 0.45);
+      padding-left: 0.55rem;
+    }
+    .account-slot a:hover { text-decoration: underline; }
+    .account-slot #account-email { opacity: 0.95; }
 
     /* Modern compact header */
     header {
@@ -714,7 +807,8 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
 
     @media (max-width: 700px) {
       header { padding: 0.5rem 1rem; }
-      .header-inner { flex-direction: column; align-items: flex-start; gap: 0.1rem; }
+      .header-inner { flex-direction: column; align-items: flex-start; gap: 0.25rem; }
+      .header-right { flex-wrap: wrap; gap: 0.5rem; }
       header h1 { font-size: 0.9rem; }
       .toolbar { padding: 0.35rem 0.75rem; top: 32px; }
       .toolbar-inner { flex-wrap: wrap; gap: 0.3rem; }
@@ -734,8 +828,16 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
 <body>
   <header>
     <div class="header-inner">
-      <h1>RI&amp;G Screenshots</h1>
-      <p>Laatste update: ${new Date().toLocaleString('nl-BE', { timeZone: 'Europe/Brussels' })}</p>
+      <div class="brand">
+        <span class="brand-mark">${RIG_LOGO_SVG}</span>
+        <h1>RI&amp;G Screenshots</h1>
+      </div>
+      <div class="header-right">
+        <p>Laatste update: ${new Date().toLocaleString('nl-BE', { timeZone: 'Europe/Brussels' })}</p>
+        <!-- De Worker vult dit blok met het aangemelde account en toont het;
+             zonder login blijft het verborgen. -->
+        <span class="account-slot" id="account-slot" hidden><span id="account-email"></span><a href="/logout" id="logout-link">Afmelden</a></span>
+      </div>
     </div>
   </header>
 
@@ -812,11 +914,15 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
                 const timePart = tIdx > -1 ? item.filename.slice(tIdx+1, tIdx+9) : '';
                 const timeStr = timePart.length === 8 ? timePart.replace(/-/g, ':') : '';
                 const url = baseUrl + '/' + item.key;
+                // Miniatuur (~5 KB) i.p.v. het volledige screenshot (100-300 KB);
+                // oudere opnames zonder miniatuur vallen terug op het origineel.
+                const thumbSrc = item.thumb ? url.replace(/\.webp$/, THUMB_SUFFIX) : url;
+                const heavy = item.thumb ? '' : ' data-heavy="1"';
                 const isNewestThumb = date === lastDateKey && pairIdx === pairs.length - 1;
                 // Eager load enkel nieuwste thumb van eerste website
-                const src = isNewestThumb ? 'src="'+url+'"' : '';
+                const src = isNewestThumb ? 'src="'+thumbSrc+'" ' : '';
                 return '<div class="fs-thumb'+(isNewestThumb ? ' active' : '')+'" data-url="'+url+'" data-date="'+date+'" data-time="'+timeStr+'">'
-                  + '<img '+src+' data-src="'+url+'" alt="'+timeStr+'">'
+                  + '<img '+src+'data-src="'+thumbSrc+'"'+heavy+' decoding="async" fetchpriority="low" alt="'+timeStr+'">'
                   + '<span class="fs-time">'+timeStr+'</span>'
                   + '</div>';
               }).join('')
@@ -1068,18 +1174,57 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       }
     }
 
+    // Bestandsnaam terugbouwen uit een gecomprimeerd item: [*][!]HH-MM-SS
+    // '*' = miniatuur beschikbaar, '!' = letterlijke bestandsnaam (afwijkend patroon)
+    function decodeEntry(entry, siteKey, date) {
+      var hasThumb = entry.charAt(0) === '*';
+      var rest = hasThumb ? entry.slice(1) : entry;
+      var filename = rest.charAt(0) === '!'
+        ? rest.slice(1)
+        : siteKey + '_' + date + 'T' + rest + (isMobileMode ? '_mobile' : '') + '.webp';
+      return { filename: filename, hasThumb: hasThumb };
+    }
+
+    var THUMB_SUFFIX = '${THUMB_SUFFIX}';
+
+    // Oudere screenshots hebben nog geen miniatuur: die 100-300 KB grote beelden
+    // worden hoogstens met twee tegelijk geladen, zodat ze de zichtbare hero en
+    // de lichte miniaturen niet verdringen.
+    var HEAVY_CONCURRENCY = 2;
+    var heavyQueue = [];
+    var heavyActive = 0;
+
+    function pumpHeavyQueue() {
+      while (heavyActive < HEAVY_CONCURRENCY && heavyQueue.length > 0) {
+        var img = heavyQueue.shift();
+        if (!img.isConnected || img.getAttribute('src')) continue;
+        heavyActive++;
+        var done = function() { heavyActive--; pumpHeavyQueue(); };
+        img.addEventListener('load', done, { once: true });
+        img.addEventListener('error', done, { once: true });
+        img.src = img.dataset.src;
+      }
+    }
+
+    function loadThumbImage(img) {
+      if (!img.dataset.src || img.getAttribute('src')) return;
+      if (img.dataset.heavy === '1') {
+        heavyQueue.push(img);
+        pumpHeavyQueue();
+      } else {
+        img.src = img.dataset.src;
+      }
+    }
+
     // Lazy loading via IntersectionObserver (horizontaal scrollen in filmstrip)
     const imageObserver = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
-          const img = entry.target;
-          if (img.dataset.src && !img.getAttribute('src')) {
-            img.src = img.dataset.src;
-          }
-          imageObserver.unobserve(img);
+          loadThumbImage(entry.target);
+          imageObserver.unobserve(entry.target);
         }
       });
-    }, { rootMargin: '400px' });
+    }, { rootMargin: '600px' });
 
     // Observeer alleen de eerste (actieve) sectie bij het laden
     // Andere secties worden geobserveerd wanneer ze gerenderd worden
@@ -1116,24 +1261,30 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       var dateKeys = Object.keys(dates);
       for (var d = 0; d < dateKeys.length; d++) {
         var date = dateKeys[d];
-        var filenames = dates[date];
+        var entries = dates[date];
         html += '<div class="fs-date-group" data-date="' + date + '">';
         html += '<div class="fs-date-sep">' + date + '</div>';
         html += '<div class="fs-thumbs">';
-        for (var f = 0; f < filenames.length; f++) {
-          var filename = filenames[f];
+        for (var f = 0; f < entries.length; f++) {
+          var decoded = decodeEntry(entries[f], siteKey, date);
+          var filename = decoded.filename;
           var tIdx = filename.indexOf('T');
           var timePart = tIdx > -1 ? filename.slice(tIdx + 1, tIdx + 9) : '';
           var timeStr = timePart.length === 8 ? timePart.replace(/-/g, ':') : '';
           var url = screenshotBaseUrl + '/' + siteKey + '/' + date + '/' + filename;
+          // Miniatuur waar beschikbaar; anders het volledige beeld (getemperd geladen)
+          var thumbSrc = decoded.hasThumb ? url.replace(/\.webp$/, THUMB_SUFFIX) : url;
           html += '<div class="fs-thumb" data-url="' + url + '" data-date="' + date + '" data-time="' + timeStr + '">';
-          html += '<img data-src="' + url + '" alt="' + timeStr + '">';
+          html += '<img data-src="' + thumbSrc + '"' + (decoded.hasThumb ? '' : ' data-heavy="1"') +
+            ' decoding="async" fetchpriority="low" alt="' + timeStr + '">';
           html += '<span class="fs-time">' + timeStr + '</span>';
           html += '</div>';
         }
         html += '</div></div>';
       }
 
+      // Wachtrij van de vorige site is niet meer relevant
+      heavyQueue.length = 0;
       filmstrip.innerHTML = html;
       section.dataset.rendered = 'true';
       section.dataset.renderedMode = currentMode;
@@ -1166,7 +1317,9 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
 
       if (heroImg) {
         heroImg.classList.add('loading');
+        heroImg.setAttribute('fetchpriority', 'high');
         heroImg.onload = () => heroImg.classList.remove('loading');
+        heroImg.onerror = () => heroImg.classList.remove('loading');
         heroImg.src = url;
       }
       if (heroPlaceholder) heroPlaceholder.style.display = 'none';
@@ -1177,15 +1330,36 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       // Laad ook de miniatuur als die nog niet geladen is
       const thumbImg = thumb.querySelector('img');
       if (thumbImg && thumbImg.dataset.src && !thumbImg.getAttribute('src')) {
-        thumbImg.src = thumbImg.dataset.src;
+        loadThumbImage(thumbImg);
         imageObserver.unobserve(thumbImg);
       }
 
-      // Update peek-afbeeldingen en preload aangrenzende hero images
-      updatePeeks(section);
+      // Peek-pijlen meteen bijwerken; de zware buurbeelden pas nadat de hero
+      // binnen is, zodat die niet om bandbreedte moeten concurreren.
+      updatePeeks(section, false);
+      schedulePeeks(section);
     }
 
-    function updatePeeks(section) {
+    // Laad de peek-/preload-beelden pas na de hero (of na een korte time-out
+    // wanneer die uit cache komt of faalt).
+    let peekTimer = null;
+    function schedulePeeks(section) {
+      if (peekTimer) clearTimeout(peekTimer);
+      const heroImg = document.getElementById('hero-img-' + section.dataset.site);
+      const run = () => { peekTimer = setTimeout(() => updatePeeks(section, true), 120); };
+      if (heroImg && heroImg.getAttribute('src') && !heroImg.complete) {
+        heroImg.addEventListener('load', run, { once: true });
+        heroImg.addEventListener('error', run, { once: true });
+      } else {
+        run();
+      }
+    }
+
+    function updatePeeks(section, withImages) {
+      // Na snel wisselen van site kan een uitgestelde oproep nog binnenkomen voor
+      // een sectie die niet meer zichtbaar is — die beelden hoeven niet geladen.
+      if (withImages && !section.classList.contains('active')) return;
+
       const siteKey = section.dataset.site;
       const thumbs = [...section.querySelectorAll('.fs-thumb')];
       const activeThumb = section.querySelector('.fs-thumb.active');
@@ -1194,27 +1368,32 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       const peekLeft = document.getElementById('peek-left-' + siteKey);
       const peekRight = document.getElementById('peek-right-' + siteKey);
 
-      if (peekLeft) {
-        if (idx > 0) {
-          peekLeft.classList.remove('hidden');
-          peekLeft.querySelector('img').src = thumbs[idx - 1].dataset.url;
-        } else {
-          peekLeft.classList.add('hidden');
+      const setPeek = (peek, neighbour) => {
+        if (!peek) return;
+        if (!neighbour) {
+          peek.classList.add('hidden');
+          return;
         }
-      }
+        peek.classList.remove('hidden');
+        const img = peek.querySelector('img');
+        if (!img) return;
+        if (withImages) img.src = neighbour.dataset.url;
+        else if (img.getAttribute('src') !== neighbour.dataset.url) img.removeAttribute('src');
+      };
 
-      if (peekRight) {
-        if (idx >= 0 && idx < thumbs.length - 1) {
-          peekRight.classList.remove('hidden');
-          peekRight.querySelector('img').src = thumbs[idx + 1].dataset.url;
-        } else {
-          peekRight.classList.add('hidden');
-        }
-      }
+      setPeek(peekLeft, idx > 0 ? thumbs[idx - 1] : null);
+      setPeek(peekRight, idx >= 0 && idx < thumbs.length - 1 ? thumbs[idx + 1] : null);
 
-      // Preload nog een stap verder voor sneller swipen
-      if (idx > 1) { var p = new Image(); p.src = thumbs[idx - 2].dataset.url; }
-      if (idx < thumbs.length - 2) { var p2 = new Image(); p2.src = thumbs[idx + 2].dataset.url; }
+      if (!withImages) return;
+
+      // Preload nog een stap verder voor sneller swipen — enkel wanneer de
+      // browser toch niets beters te doen heeft.
+      const preloadFurther = () => {
+        if (idx > 1) { var p = new Image(); p.src = thumbs[idx - 2].dataset.url; }
+        if (idx < thumbs.length - 2) { var p2 = new Image(); p2.src = thumbs[idx + 2].dataset.url; }
+      };
+      if (window.requestIdleCallback) requestIdleCallback(preloadFurther, { timeout: 2000 });
+      else setTimeout(preloadFurther, 400);
     }
 
     function initSectionHero(section, instant) {

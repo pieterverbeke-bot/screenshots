@@ -13,13 +13,15 @@ screenshots/
 │   ├── upload-to-r2.js       # Batch upload screenshots to Cloudflare R2
 │   ├── cleanup-r2.js         # Delete R2 objects older than retention period
 │   ├── generate-index.js     # Build and upload index.html viewer to R2
+│   ├── generate-thumbs-r2.js # One-off backfill of thumbnails for existing R2 objects
 │   └── r2-client.js          # Shared R2/S3 client factory + listAllObjects helper
 ├── worker/
 │   ├── src/index.js          # Cloudflare Worker: auth + R2 proxy
 │   └── wrangler.toml         # Wrangler config (R2 binding, worker name)
 ├── .github/
 │   └── workflows/
-│       └── screenshot.yml    # GitHub Actions workflow (workflow_dispatch only)
+│       ├── screenshot.yml    # GitHub Actions workflow (workflow_dispatch only)
+│       └── thumbnails.yml    # Manual thumbnail backfill (workflow_dispatch only)
 ├── websites.json             # List of websites to screenshot
 ├── get-refresh-token.js      # One-time helper for Google Drive OAuth (unused in main flow)
 └── package.json              # ESM project, Node 20+
@@ -42,10 +44,15 @@ The workflow runs these steps sequentially:
 
 ### R2 Object Key Structure
 ```
-{websiteName}/{YYYY-MM-DD}/{websiteName}_{timestamp}.webp
+{websiteName}/{YYYY-MM-DD}/{websiteName}_{timestamp}.webp        # volledig screenshot
+{websiteName}/{YYYY-MM-DD}/{websiteName}_{timestamp}.thumb.webp  # miniatuur (tijdlijn)
 ```
 Example: `hln/2026-03-05/hln_2026-03-05T10-00-00.webp`
 
+- Elke opname heeft een miniatuur van 200x130px (~5 KB) naast het volledige beeld.
+  De viewer laadt die in de tijdlijn; ontbreekt de miniatuur (oudere opnames), dan
+  valt hij terug op het volledige screenshot. `cleanup-r2.js` verwijdert een miniatuur
+  samen met zijn bronscreenshot — miniaturen worden nooit apart uitgedund
 - `index.html` at the bucket root is the viewer page (excluded from cleanup)
 - Images get `cache-control: public, max-age=31536000, immutable` (timestamp in filename = immutable)
 - `index.html` gets `cache-control: public, max-age=300, s-maxage=60`
@@ -58,6 +65,7 @@ Key constants in the `CONFIG` object:
 - `maxHeight`: 8000px (cap on full-page height)
 - `concurrency`: 3 (parallel browser tabs, tuned for GitHub Actions 2-core runners)
 - `minFileSizeKB`: 10 (screenshots below this threshold are treated as blank/failed)
+- `thumbWidth`/`thumbHeight`/`thumbQuality`: 200x130px, kwaliteit 60 (miniatuur voor de tijdlijn)
 - `timezone`: `Europe/Brussels` (all timestamps use Belgian time)
 
 ### websites.json Schema
@@ -104,6 +112,11 @@ Located in `worker/`. Deployed separately from the main workflow.
 - Access is restricted to verified Google accounts on the `persgroep.net` domain (`ALLOWED_DOMAIN` in `worker/src/index.js`)
 - OAuth uses the authorization code flow with PKCE; on success an HMAC-signed session cookie (HttpOnly) is set, living 30 days
 - Requires three secrets: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AUTH_SECRET` (via `npx wrangler secret put ...`); if any is missing, the viewer is public
+- Afmelden gebeurt via `/logout` (of `/afmelden`): beide cookies worden gewist en de
+  loginpagina toont "Je bent afgemeld". De viewer bevat daarvoor een verborgen blok
+  `#account-slot`; de Worker vult het e-mailadres in en maakt het zichtbaar
+- Afbeeldingen worden in de edge-cache (`caches.default`) bewaard, zodat herhaalde
+  bezoeken niet telkens R2 aanspreken
 - Google Cloud Console: create a "Web application" OAuth client with redirect URI `https://<worker-domain>/auth/callback`
 - Deploy: `npm run deploy-worker` (runs `cd worker && npx wrangler deploy`)
 - R2 binding name in wrangler.toml: `SCREENSHOTS_BUCKET`
@@ -125,6 +138,13 @@ Edit `websites.json` — add a new object following the schema above. The `name`
 ### Adjusting Retention
 Change `RETENTION_DAYS` in `src/cleanup-r2.js` (currently 15 days).
 
+### Backfilling Thumbnails
+Nieuwe screenshots krijgen hun miniatuur automatisch. Voor bestaande R2-objecten:
+```bash
+npm run thumbs -- --days 30   # of --days 0 voor alles, --dry-run om te tellen
+```
+Kan ook via GitHub Actions → "Miniaturen bijwerken" (workflow_dispatch).
+
 ### Triggering the Workflow
 - **Primary**: cron-job.org POSTs to the GitHub API `workflow_dispatch` endpoint every hour
 - **Fallback**: Manual trigger via GitHub Actions UI ("Run workflow")
@@ -138,6 +158,16 @@ Change `RETENTION_DAYS` in `src/cleanup-r2.js` (currently 15 days).
 - The `screenshots/` directory is gitignored — never commit local screenshots
 - `get-refresh-token.js` is a legacy helper for Google Drive OAuth; Google Drive upload is no longer part of the active pipeline
 - The viewer (`index.html`) is generated client-side from a JSON data blob embedded in the HTML; it supports filtering by cluster, website, and date range
+- Die JSON-blob bewaart per website/datum enkel het tijdstip (`HH-MM-SS`) van elke opname;
+  de client bouwt de bestandsnaam op in `decodeEntry()`. Een `*`-prefix betekent
+  "miniatuur beschikbaar", een `!`-prefix "letterlijke bestandsnaam" (afwijkend patroon).
+  Wijzigt het bestandsnaampatroon, pas dan `encodeEntry()` én `decodeEntry()` samen aan
+- De viewer laadt bewust getemperd: miniaturen via `IntersectionObserver`, volledige
+  screenshots zonder miniatuur met maximaal 2 tegelijk, en de peek-/preload-beelden pas
+  nadat de hero geladen is. Zo krijgt het zichtbare beeld voorrang op de rest
+- Het RI&G-merkteken staat als inline SVG in `src/generate-index.js` (`RIG_LOGO_SVG`) én in
+  `worker/src/index.js`; het dient ook als favicon via een data-URI. Pas je het aan, doe dat
+  dan op beide plekken
 - Mobile screenshots are filtered out in `generate-index.js` (legacy `_mobile.` suffix check)
 
 ## Lazy Loading & Image Loading Strategy (`src/take-screenshots.js`)
