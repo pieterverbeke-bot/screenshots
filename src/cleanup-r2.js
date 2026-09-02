@@ -1,6 +1,9 @@
 import { DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import { createR2Client, listAllObjects } from './r2-client.js';
 
+// Achtervoegsel van de miniaturen die de viewer in de tijdlijn toont
+const THUMB_SUFFIX = '.thumb.webp';
+
 // Aantal dagen waarna screenshots verwijderd worden
 const RETENTION_DAYS = 182; // 26 weken
 
@@ -92,11 +95,16 @@ async function main() {
   const objects = await listAllObjects(client, bucketName);
   console.log(`   Found ${objects.length} total object(s)\n`);
 
+  // Miniaturen (`*.thumb.webp`) volgen hun bronscreenshot: ze worden pas na de
+  // retentie- en thinning-beslissing behandeld, zodat er nooit wezen achterblijven.
+  const thumbKeys = objects.filter(obj => obj.Key.endsWith(THUMB_SUFFIX)).map(obj => obj.Key);
+  const sourceObjects = objects.filter(obj => !obj.Key.endsWith(THUMB_SUFFIX));
+
   // Filter objecten ouder dan de cutoff datum
   const toDelete = [];
   const toKeep = [];
 
-  for (const obj of objects) {
+  for (const obj of sourceObjects) {
     // Sla index.html over
     if (obj.Key === 'index.html') {
       toKeep.push(obj.Key);
@@ -164,6 +172,22 @@ async function main() {
 
   toKeep.length = 0;
   toKeep.push(...keptAfterThinning);
+
+  // Miniaturen blijven enkel bestaan zolang hun bronscreenshot bewaard blijft
+  const keptSources = new Set(toKeep);
+  let orphanThumbs = 0;
+  for (const thumbKey of thumbKeys) {
+    const sourceKey = thumbKey.slice(0, -THUMB_SUFFIX.length) + '.webp';
+    if (keptSources.has(sourceKey)) {
+      toKeep.push(thumbKey);
+    } else {
+      toDelete.push(thumbKey);
+      orphanThumbs++;
+    }
+  }
+  if (orphanThumbs > 0) {
+    console.log(`🖼️  ${orphanThumbs} miniatuur(en) zonder bewaard screenshot worden mee verwijderd\n`);
+  }
 
   console.log(`📊 Results:`);
   console.log(`   To keep:   ${toKeep.length} object(s)`);

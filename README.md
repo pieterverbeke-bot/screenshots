@@ -66,18 +66,37 @@
 screenshots/
 ├── hln/
 │   ├── 2024-01-15/
-│   │   └── hln_2024-01-15T10-00-00.jpg
+│   │   ├── hln_2024-01-15T10-00-00.webp        # volledig screenshot
+│   │   └── hln_2024-01-15T10-00-00.thumb.webp  # miniatuur voor de tijdlijn
 │   └── 2024-01-16/
 │       └── ...
 ├── ad/
 │   ├── 2024-01-15/
-│   │   └── ad_2024-01-15T10-00-00.jpg
+│   │   └── ad_2024-01-15T10-00-00.webp
 │   └── ...
 └── vk/
     └── ...
 ```
 
 Collega's kunnen screenshots bekijken via: `https://pub-abc123.r2.dev/hln/2024-01-15/`
+
+### Miniaturen
+
+Bij elk screenshot wordt een miniatuur van 200x130px (~5 KB) bewaard. De tijdlijn in
+de viewer toont die miniaturen in plaats van de volledige screenshots (100-300 KB),
+waardoor een site openen vrijwel meteen gaat in plaats van 10-15 seconden.
+
+Screenshots van vóór deze wijziging hebben nog geen miniatuur. Die haal je in met:
+
+```bash
+npm run thumbs -- --days 30      # laatste 30 dagen
+npm run thumbs -- --days 0       # volledige geschiedenis
+npm run thumbs -- --dry-run      # enkel tellen
+```
+
+Of via GitHub Actions → **Miniaturen bijwerken** → *Run workflow* (die werkt daarna
+ook meteen de viewer bij). Zonder miniatuur valt de viewer terug op het volledige
+screenshot, dus de tijdlijn blijft altijd werken.
 
 ## Websites aanpassen
 

@@ -192,6 +192,31 @@ const PAGE_STYLE = `
       transform: translateY(-1px);
     }
     .gsi-button svg { width: 18px; height: 18px; }
+    .brand { display: flex; align-items: center; gap: 0.55rem; }
+    .brand-mark {
+      display: block;
+      width: 22px;
+      height: 22px;
+      flex: 0 0 22px;
+      opacity: 0.95;
+      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.18));
+    }
+    .brand-mark svg, .login-mark svg { display: block; width: 100%; height: 100%; }
+    .login-mark {
+      display: block;
+      width: 40px;
+      height: 40px;
+      margin: 0 auto 0.9rem;
+    }
+    .notice-box {
+      background: #f0ebf5;
+      color: #6a4a8a;
+      padding: 0.6rem 1rem;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      margin-bottom: 1.2rem;
+      line-height: 1.4;
+    }
     .error-box {
       background: #fee2e2;
       color: #b91c1c;
@@ -204,10 +229,27 @@ const PAGE_STYLE = `
 
 const GOOGLE_LOGO = `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>`;
 
+// Subtiel RI&G-merkteken (identiek aan de viewer in src/generate-index.js):
+// afgerond vierkant in de huisstijlgradient met het woordmerk in wit.
+const RIG_LOGO_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="RI&amp;G">'
+  + '<defs><linearGradient id="rigMark" x1="0" y1="0" x2="1" y2="1">'
+  + '<stop offset="0" stop-color="#783c96"/><stop offset="0.5" stop-color="#d23278"/>'
+  + '<stop offset="0.8" stop-color="#e6463c"/><stop offset="1" stop-color="#fabb22"/>'
+  + '</linearGradient></defs>'
+  + '<rect width="32" height="32" rx="8" fill="url(#rigMark)"/>'
+  + '<text x="16" y="21" text-anchor="middle" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif"'
+  + ' font-size="10.5" font-weight="700" letter-spacing="-0.5" fill="#ffffff">RI&amp;G</text>'
+  + '</svg>';
+
+const RIG_FAVICON = 'data:image/svg+xml,' + encodeURIComponent(RIG_LOGO_SVG);
+
 /** Loginpagina met "Inloggen met Google" knop. */
-function loginPage(errorMessage) {
+function loginPage(errorMessage, noticeMessage) {
   const errorHtml = errorMessage
     ? `<div class="error-box">${errorMessage}</div>`
+    : '';
+  const noticeHtml = noticeMessage
+    ? `<div class="notice-box">${noticeMessage}</div>`
     : '';
 
   return `<!DOCTYPE html>
@@ -216,6 +258,7 @@ function loginPage(errorMessage) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login — RI&amp;G Screenshots</title>
+  <link rel="icon" href="${RIG_FAVICON}" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -224,13 +267,18 @@ function loginPage(errorMessage) {
 <body>
   <header>
     <div class="header-inner">
-      <h1>RI&amp;G Screenshots</h1>
+      <div class="brand">
+        <span class="brand-mark">${RIG_LOGO_SVG}</span>
+        <h1>RI&amp;G Screenshots</h1>
+      </div>
     </div>
   </header>
   <div class="login-wrap">
     <div class="login-card">
+      <span class="login-mark">${RIG_LOGO_SVG}</span>
       <h2>Aanmelden</h2>
       <p>Log in met je <strong>@${ALLOWED_DOMAIN}</strong> account om de screenshots te bekijken.</p>
+      ${noticeHtml}
       ${errorHtml}
       <a class="gsi-button" href="/auth/login">${GOOGLE_LOGO}<span>Inloggen met Google</span></a>
     </div>
@@ -244,7 +292,7 @@ function loginPage(errorMessage) {
  * ------------------------------------------------------------------------- */
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const clientId = env.GOOGLE_CLIENT_ID;
     const clientSecret = env.GOOGLE_CLIENT_SECRET;
@@ -351,22 +399,20 @@ export default {
         return new Response(null, { status: 302, headers });
       }
 
-      // --- Uitloggen ---
-      if (url.pathname === '/logout') {
-        return new Response(null, {
-          status: 302,
-          headers: {
-            'Location': '/',
-            'Set-Cookie': buildSetCookie(SESSION_COOKIE, '', 0),
-          },
-        });
+      // --- Uitloggen (zowel /logout als /afmelden) ---
+      if (url.pathname === '/logout' || url.pathname === '/afmelden') {
+        const headers = new Headers({ 'Location': '/?afgemeld=1' });
+        headers.append('Set-Cookie', buildSetCookie(SESSION_COOKIE, '', 0));
+        headers.append('Set-Cookie', buildSetCookie(STATE_COOKIE, '', 0));
+        return new Response(null, { status: 302, headers });
       }
 
       // --- Alle overige requests: geldige sessie vereist ---
       const sessionToken = getCookie(request, SESSION_COOKIE);
       const sessionEmail = await verifySession(sessionToken, authSecret);
       if (!sessionEmail) {
-        return loginResponse(null);
+        const justLoggedOut = url.searchParams.get('afgemeld') === '1';
+        return loginResponse(null, justLoggedOut ? 'Je bent afgemeld.' : null);
       }
 
       // Injecteer "ingelogd als … · Uitloggen" in de viewer-pagina
@@ -383,6 +429,18 @@ export default {
       return new Response('Method Not Allowed', { status: 405 });
     }
 
+    // Afbeeldingen zijn immutable (bestandsnaam bevat timestamp): bewaar ze in
+    // de edge-cache van Cloudflare. Zonder dit gaat elk verzoek — ook van een
+    // collega die dezelfde screenshots bekijkt — opnieuw naar R2.
+    const isImage = /\.(webp|jpg|jpeg|png)$/i.test(key);
+    const cache = caches.default;
+    const cacheable = isImage && request.method === 'GET';
+
+    if (cacheable) {
+      const cached = await cache.match(request);
+      if (cached) return cached;
+    }
+
     const object = await env.SCREENSHOTS_BUCKET.get(key);
 
     if (!object) {
@@ -393,9 +451,7 @@ export default {
     object.writeHttpMetadata(headers);
     headers.set('etag', object.httpEtag);
 
-    // Afbeeldingen zijn immutable (bestandsnaam bevat timestamp), lang cachen
     // index.html wijzigt regelmatig, kort cachen
-    const isImage = /\.(webp|jpg|jpeg|png)$/i.test(key);
     if (isImage) {
       headers.set('cache-control', 'public, max-age=31536000, immutable');
     } else {
@@ -416,13 +472,19 @@ export default {
       body = body.pipeThrough(new DecompressionStream('gzip'));
     }
 
-    return new Response(body, { headers });
+    const response = new Response(body, { headers });
+
+    if (cacheable && ctx) {
+      ctx.waitUntil(cache.put(request, response.clone()));
+    }
+
+    return response;
   },
 };
 
-/** Bouw een 401-response met de loginpagina (en optionele foutmelding). */
-function loginResponse(errorMessage) {
-  return new Response(loginPage(errorMessage), {
+/** Bouw een 401-response met de loginpagina (en optionele fout-/statusmelding). */
+function loginResponse(errorMessage, noticeMessage) {
+  return new Response(loginPage(errorMessage, noticeMessage), {
     status: 401,
     headers: { 'Content-Type': 'text/html; charset=utf-8' },
   });
@@ -438,14 +500,24 @@ function escapeHtml(text) {
     .replace(/'/g, '&#39;');
 }
 
-/** Bouw de "ingelogd als … · Uitloggen" balk en plaats die naast de
- *  "Laatste update"-regel in de header van de viewer. */
+/** Toon "ingelogd als … · Afmelden" in de header van de viewer.
+ *  De viewer bevat daarvoor een verborgen blok (#account-slot); dat wordt hier
+ *  gevuld en zichtbaar gemaakt. Oudere index.html-versies zonder dat blok
+ *  krijgen de chip via de fallbacks eronder. */
 function injectAccountBar(html, email) {
+  const slot = '<span class="account-slot" id="account-slot" hidden>';
+  if (html.includes(slot)) {
+    return html
+      .replace(slot, '<span class="account-slot" id="account-slot">')
+      .replace('<span id="account-email"></span>',
+        `<span id="account-email">${escapeHtml(email)}</span>`);
+  }
+
   const chip = `<span style="display:inline-flex;align-items:center;gap:0.55rem;font-size:0.72rem;` +
     `background:rgba(255,255,255,0.18);padding:0.28rem 0.75rem;border-radius:999px;white-space:nowrap;">` +
     `<span style="opacity:0.95;">${escapeHtml(email)}</span>` +
     `<a href="/logout" style="color:#fff;text-decoration:none;font-weight:600;` +
-    `border-left:1px solid rgba(255,255,255,0.45);padding-left:0.55rem;">Uitloggen</a></span>`;
+    `border-left:1px solid rgba(255,255,255,0.45);padding-left:0.55rem;">Afmelden</a></span>`;
 
   // Groepeer de bestaande "Laatste update"-paragraaf samen met de account-chip
   // rechts in de header (deterministische anchor uit generate-index.js).
@@ -470,8 +542,9 @@ async function serveIndexWithAccountBar(env, email, method) {
   const headers = new Headers();
   object.writeHttpMetadata(headers);
   headers.set('etag', object.httpEtag);
-  // De pagina is per gebruiker aangepast → niet publiek cachen
-  headers.set('cache-control', 'private, no-store');
+  // De pagina is per gebruiker aangepast → enkel in de browser van die gebruiker
+  // cachen, en kort: de screenshots vernieuwen om het half uur.
+  headers.set('cache-control', 'private, max-age=60');
   headers.set('content-type', 'text/html; charset=utf-8');
 
   if (method === 'HEAD') {
