@@ -298,31 +298,161 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
     .cluster-select:hover { background-color: #ebe4f0; border-color: #c0b0d0; }
     .cluster-select:focus { outline: none; border-color: #783c96; box-shadow: 0 0 0 2px rgba(120,60,150,0.12); }
 
-    /* Date dropdown instead of chips row */
+    /* Cluster- en website-keuzelijsten */
     .date-select-wrap {
       position: relative;
       display: flex;
       align-items: center;
     }
 
-    .date-select {
-      appearance: none;
-      -webkit-appearance: none;
-      padding: 0.2rem 1.4rem 0.2rem 0.5rem;
+    /* Kalender: één popover voor beide datumvelden (tijdlijn en vergelijkpagina).
+       Dagen zonder opnames blijven staan maar zijn niet klikbaar — zo zie je in
+       één oogopslag welke dagen er wél zijn. */
+    .cal-trigger {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.2rem 0.6rem 0.2rem 0.5rem;
       border: 1px solid #e0dae6;
       border-radius: 999px;
-      background: #f8f5fa url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236a5a7a' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 0.45rem center;
+      background: #f8f5fa;
       color: #6a5a7a;
-      cursor: pointer;
       font-family: inherit;
       font-size: 0.65rem;
       font-weight: 500;
-      transition: all 0.15s ease;
       line-height: 1.3;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-variant-numeric: tabular-nums;
     }
 
-    .date-select:hover { background-color: #ebe4f0; border-color: #c0b0d0; }
-    .date-select:focus { outline: none; border-color: #783c96; box-shadow: 0 0 0 2px rgba(120,60,150,0.12); }
+    .cal-trigger::before {
+      content: "";
+      width: 11px;
+      height: 11px;
+      flex: 0 0 11px;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%236a5a7a' stroke-width='1.4'%3E%3Crect x='2' y='3.5' width='12' height='11' rx='2'/%3E%3Cpath d='M2 7h12M5.5 1.8v3M10.5 1.8v3' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat center / contain;
+    }
+
+    .cal-trigger:hover { background: #ebe4f0; border-color: #c0b0d0; }
+    .cal-trigger:focus-visible { outline: none; border-color: #783c96; box-shadow: 0 0 0 2px rgba(120,60,150,0.12); }
+    .cal-trigger[aria-expanded="true"] { background: #783c96; border-color: #783c96; color: #fff; }
+    .cal-trigger[aria-expanded="true"]::before { filter: brightness(0) invert(1); }
+
+    .cal-pop {
+      position: fixed;
+      z-index: 300;
+      width: 236px;
+      padding: 0.6rem;
+      background: #fff;
+      border: 1px solid #e6dfec;
+      border-radius: 12px;
+      box-shadow: 0 12px 32px rgba(60, 30, 80, 0.18);
+    }
+
+    .cal-pop[hidden] { display: none; }
+
+    .cal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.3rem;
+      margin-bottom: 0.45rem;
+    }
+
+    .cal-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #3d2d4a;
+      text-transform: capitalize;
+    }
+
+    .cal-nav {
+      width: 24px;
+      height: 24px;
+      flex: 0 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #e6dfec;
+      border-radius: 50%;
+      background: #fff;
+      color: #6a5a7a;
+      font-size: 0.95rem;
+      line-height: 1;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .cal-nav:hover:not(:disabled) { background: #f0ebf6; border-color: #c0b0d0; }
+    .cal-nav:disabled { opacity: 0.25; cursor: default; }
+
+    .cal-grid {
+      display: grid;
+      /* minmax(0, 1fr): zonder die 0 leidt Chrome de kolombreedte af uit de
+         aspect-ratio van de dagknoppen en wordt de kalender metersbreed */
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 2px;
+    }
+
+    .cal-weekday {
+      text-align: center;
+      font-size: 0.58rem;
+      font-weight: 700;
+      color: #a898b8;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding-bottom: 0.2rem;
+    }
+
+    .cal-day {
+      aspect-ratio: 1;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      border-radius: 7px;
+      background: #f6f2f9;
+      color: #4a3a5a;
+      font-family: inherit;
+      font-size: 0.7rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.12s ease;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .cal-day:hover:not(:disabled) { background: #e3d6ee; }
+    /* Dag zonder opnames: wel zichtbaar, niet klikbaar */
+    .cal-day.off { background: none; color: #cfc4d8; cursor: default; }
+    .cal-day.today { box-shadow: inset 0 0 0 1px #c0b0d0; }
+    .cal-day.active { background: #783c96; color: #fff; }
+    .cal-day.active:hover { background: #6a3485; }
+
+    .cal-foot { margin-top: 0.5rem; }
+
+    .cal-foot-btn {
+      width: 100%;
+      padding: 0.3rem;
+      border: 1px solid #e6dfec;
+      border-radius: 8px;
+      background: #faf8fc;
+      color: #783c96;
+      font-family: inherit;
+      font-size: 0.66rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .cal-foot-btn:hover { background: #f0ebf6; border-color: #c0b0d0; }
+    .cal-foot-btn[hidden] { display: none; }
+
+    /* Ruimere tikvlakken op een telefoon */
+    @media (max-width: 720px) {
+      .cal-pop { width: 282px; }
+    }
 
     /* Website select dropdown - replaces horizontal tabs for better navigation */
     .site-select {
@@ -716,19 +846,7 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       flex-wrap: wrap;
     }
 
-    .cmp-date {
-      font-family: inherit;
-      font-size: 0.7rem;
-      font-weight: 600;
-      color: #5a4a6a;
-      padding: 0.22rem 0.5rem;
-      border: 1px solid #e0dae6;
-      border-radius: 999px;
-      background: #f8f5fa;
-      cursor: pointer;
-    }
-
-    .cmp-date:focus { outline: none; border-color: #783c96; box-shadow: 0 0 0 2px rgba(120,60,150,0.12); }
+    .cmp-date { font-size: 0.7rem; font-weight: 600; color: #5a4a6a; padding: 0.24rem 0.65rem 0.24rem 0.55rem; }
 
     .cmp-nav {
       width: 26px;
@@ -1106,11 +1224,7 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       <div class="toolbar-divider toolbar-hideable"></div>
       <div class="toolbar-section toolbar-hideable">
         <span class="toolbar-label">Datum</span>
-        <div class="date-select-wrap">
-          <select class="date-select" id="filter-date">
-            <option value="">Spring naar...</option>
-          </select>
-        </div>
+        <button class="cal-trigger" type="button" id="filter-date" aria-haspopup="dialog" aria-expanded="false">Kies datum</button>
       </div>
       <div class="toolbar-divider"></div>
       <div class="toolbar-section">
@@ -1253,7 +1367,7 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
   <div class="website-section" data-site="__vergelijk__">
     <div class="cmp-bar">
       <div class="cmp-row">
-        <input type="date" class="cmp-date" id="cmp-date">
+        <button class="cal-trigger cmp-date" type="button" id="cmp-date" aria-haspopup="dialog" aria-expanded="false">Kies datum</button>
         <button class="cmp-nav" id="cmp-prev" title="Vorig moment">&#8249;</button>
         <div class="cmp-moment">
           <span class="cmp-moment-time" id="cmp-moment-time">--:--</span>
@@ -1272,6 +1386,16 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       <div class="cmp-row" id="cmp-chips"></div>
     </div>
     <div class="cmp-grid" id="cmp-grid"></div>
+  </div>
+
+  <div class="cal-pop" id="cal-pop" hidden role="dialog" aria-label="Kies een datum">
+    <div class="cal-head">
+      <button class="cal-nav" type="button" id="cal-prev" title="Vorige maand">&#8249;</button>
+      <span class="cal-title" id="cal-title"></span>
+      <button class="cal-nav" type="button" id="cal-next" title="Volgende maand">&#8250;</button>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+    <div class="cal-foot"><button class="cal-foot-btn" type="button" id="cal-foot" hidden></button></div>
   </div>
 
   <div class="lightbox" id="lightbox">
@@ -1399,37 +1523,206 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       }
     });
 
-    // Datum-select: navigeren naar die datum in de actieve filmstrip
-    (function buildDateSelect() {
-      const select = document.getElementById('filter-date');
-      const vandaagOption = document.createElement('option');
-      vandaagOption.value = '__vandaag__';
-      vandaagOption.textContent = 'Vandaag';
-      select.appendChild(vandaagOption);
-      allDates.forEach(date => {
-        const option = document.createElement('option');
-        option.value = date;
-        option.textContent = date;
-        select.appendChild(option);
+    // ---- Kalender -----------------------------------------------------------
+    // Eén popover voor beide datumvelden: de tijdlijn en de vergelijkpagina.
+    // De aanroeper geeft door welke dagen opnames hebben; de rest van de maand
+    // blijft staan maar is niet klikbaar.
+    var CAL_MONTHS = ['januari', 'februari', 'maart', 'april', 'mei', 'juni',
+      'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
+    var CAL_WEEKDAYS = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'];
+
+    var calState = { open: false, trigger: null, year: 0, month: 0, dates: {}, min: null, max: null,
+      selected: null, onPick: null, onFoot: null };
+
+    function calPad(n) { return (n < 10 ? '0' : '') + n; }
+    function calKey(year, month, day) { return year + '-' + calPad(month + 1) + '-' + calPad(day); }
+    function calMonthStart(key) { return key.slice(0, 8) + '01'; }
+
+    function calRender() {
+      var title = document.getElementById('cal-title');
+      var grid = document.getElementById('cal-grid');
+      if (!title || !grid) return;
+
+      title.textContent = CAL_MONTHS[calState.month] + ' ' + calState.year;
+
+      var html = '';
+      for (var w = 0; w < 7; w++) html += '<span class="cal-weekday">' + CAL_WEEKDAYS[w] + '</span>';
+
+      // Maandag als eerste kolom (getDay geeft zondag = 0)
+      var offset = (new Date(calState.year, calState.month, 1).getDay() + 6) % 7;
+      for (var b = 0; b < offset; b++) html += '<span class="cal-blank"></span>';
+
+      var now = new Date();
+      var todayKey = calKey(now.getFullYear(), now.getMonth(), now.getDate());
+      var days = new Date(calState.year, calState.month + 1, 0).getDate();
+      for (var d = 1; d <= days; d++) {
+        var key = calKey(calState.year, calState.month, d);
+        var has = calState.dates[key];
+        var cls = 'cal-day' + (has ? '' : ' off') +
+          (key === calState.selected ? ' active' : '') +
+          (key === todayKey ? ' today' : '');
+        html += '<button type="button" class="' + cls + '" data-date="' + key + '"' +
+          (has ? '' : ' disabled') + '>' + d + '</button>';
+      }
+      grid.innerHTML = html;
+
+      var viewStart = calKey(calState.year, calState.month, 1);
+      var prev = document.getElementById('cal-prev');
+      var next = document.getElementById('cal-next');
+      if (prev) prev.disabled = !calState.min || viewStart <= calMonthStart(calState.min);
+      if (next) next.disabled = !calState.max || viewStart >= calMonthStart(calState.max);
+    }
+
+    function calShift(delta) {
+      var month = calState.month + delta;
+      calState.year += Math.floor(month / 12);
+      calState.month = ((month % 12) + 12) % 12;
+      calRender();
+    }
+
+    function calPlace() {
+      var pop = document.getElementById('cal-pop');
+      if (!pop || !calState.trigger) return;
+      var rect = calState.trigger.getBoundingClientRect();
+      var left = Math.min(rect.left, window.innerWidth - pop.offsetWidth - 8);
+      pop.style.left = Math.max(8, left) + 'px';
+      // Onder de knop, tenzij daar geen plaats is
+      var below = rect.bottom + 6;
+      pop.style.top = (below + pop.offsetHeight > window.innerHeight
+        ? Math.max(8, rect.top - pop.offsetHeight - 6)
+        : below) + 'px';
+    }
+
+    function calOpen(trigger, options) {
+      var pop = document.getElementById('cal-pop');
+      if (!pop) return;
+
+      var list = (options.dates || []).slice().sort();
+      calState.dates = {};
+      for (var i = 0; i < list.length; i++) calState.dates[list[i]] = true;
+      calState.min = list[0] || null;
+      calState.max = list[list.length - 1] || null;
+      calState.selected = options.selected || null;
+      calState.onPick = options.onPick || null;
+      calState.onFoot = options.onFoot || null;
+      calState.trigger = trigger;
+
+      // Open op de gekozen dag, anders op de laatste dag met opnames
+      var start = (calState.selected && calState.dates[calState.selected]) ? calState.selected : calState.max;
+      if (start) {
+        calState.year = parseInt(start.slice(0, 4), 10);
+        calState.month = parseInt(start.slice(5, 7), 10) - 1;
+      } else {
+        var now = new Date();
+        calState.year = now.getFullYear();
+        calState.month = now.getMonth();
+      }
+
+      var foot = document.getElementById('cal-foot');
+      if (foot) {
+        foot.textContent = options.footLabel || '';
+        foot.hidden = !options.footLabel;
+      }
+
+      calRender();
+      pop.hidden = false;
+      calState.open = true;
+      trigger.setAttribute('aria-expanded', 'true');
+      calPlace();
+    }
+
+    function calClose() {
+      var pop = document.getElementById('cal-pop');
+      if (pop) pop.hidden = true;
+      if (calState.trigger) calState.trigger.setAttribute('aria-expanded', 'false');
+      calState.open = false;
+      calState.trigger = null;
+    }
+
+    // Een tweede klik op dezelfde knop sluit de kalender weer
+    function calToggle(trigger, options) {
+      if (calState.open && calState.trigger === trigger) { calClose(); return; }
+      calOpen(trigger, options);
+    }
+
+    (function bindCalendar() {
+      var pop = document.getElementById('cal-pop');
+      if (!pop) return;
+
+      document.getElementById('cal-prev').addEventListener('click', function() { calShift(-1); });
+      document.getElementById('cal-next').addEventListener('click', function() { calShift(1); });
+
+      document.getElementById('cal-grid').addEventListener('click', function(e) {
+        var day = e.target.closest('.cal-day[data-date]');
+        if (!day || day.disabled) return;
+        var pick = calState.onPick;
+        var date = day.dataset.date;
+        calClose();
+        if (pick) pick(date);
       });
-      select.addEventListener('change', () => {
-        if (select.value === '__vandaag__') {
-          const activeSection = document.querySelector('.website-section.active');
-          if (activeSection && !isVirtualSite(activeSection.dataset.site)) {
-            const thumbs = [...activeSection.querySelectorAll('.fs-thumb')];
-            const lastThumb = thumbs[thumbs.length - 1];
-            if (lastThumb) {
-              activateThumb(lastThumb);
-              const filmstrip = activeSection.querySelector('.filmstrip');
-              if (filmstrip) filmstrip.scrollTo({ left: filmstrip.scrollWidth, behavior: 'smooth' });
-            }
-          }
-          setTimeout(() => { select.value = ''; }, 600);
-        } else if (select.value) {
-          scrollFilmstripToDate(select.value);
-          // Reset naar placeholder na navigatie
-          setTimeout(() => { select.value = ''; }, 600);
-        }
+
+      document.getElementById('cal-foot').addEventListener('click', function() {
+        var run = calState.onFoot;
+        calClose();
+        if (run) run();
+      });
+
+      // Klik buiten de kalender (en buiten de knop die hem opende) sluit hem
+      document.addEventListener('click', function(e) {
+        if (!calState.open) return;
+        if (pop.contains(e.target)) return;
+        if (calState.trigger && calState.trigger.contains(e.target)) return;
+        calClose();
+      });
+
+      // Meebewegen in plaats van dichtklappen: de tijdlijn en de kolommen
+      // scrollen zelf ook, en daar hoeft de kalender niet van te verdwijnen.
+      window.addEventListener('resize', function() { if (calState.open) calPlace(); });
+      window.addEventListener('scroll', function() { if (calState.open) calPlace(); }, true);
+    })();
+
+    // Datumknop van de tijdlijn: de kalender toont de dagen van de actieve site
+    function jumpToNewest() {
+      const activeSection = document.querySelector('.website-section.active');
+      if (!activeSection || isVirtualSite(activeSection.dataset.site)) return;
+      const thumbs = [...activeSection.querySelectorAll('.fs-thumb')];
+      const lastThumb = thumbs[thumbs.length - 1];
+      if (!lastThumb) return;
+      activateThumb(lastThumb);
+      const filmstrip = activeSection.querySelector('.filmstrip');
+      if (filmstrip) filmstrip.scrollTo({ left: filmstrip.scrollWidth, behavior: 'smooth' });
+    }
+
+    function activeSiteDates() {
+      const section = document.querySelector('.website-section.active');
+      const site = section ? section.dataset.site : null;
+      const data = getActiveData();
+      if (site && data[site]) return Object.keys(data[site]);
+      return allDates;
+    }
+
+    // De knop toont welke dag je bekijkt; zonder keuze de uitnodiging
+    function refreshDateTrigger() {
+      const trigger = document.getElementById('filter-date');
+      if (!trigger) return;
+      const section = document.querySelector('.website-section.active');
+      const thumb = section ? section.querySelector('.fs-thumb.active') : null;
+      trigger.textContent = thumb && thumb.dataset.date ? thumb.dataset.date : 'Kies datum';
+    }
+
+    (function bindDateTrigger() {
+      const trigger = document.getElementById('filter-date');
+      if (!trigger) return;
+      trigger.addEventListener('click', () => {
+        const section = document.querySelector('.website-section.active');
+        const thumb = section ? section.querySelector('.fs-thumb.active') : null;
+        calToggle(trigger, {
+          dates: activeSiteDates(),
+          selected: thumb ? thumb.dataset.date : null,
+          footLabel: 'Nieuwste opname',
+          onFoot: jumpToNewest,
+          onPick: (date) => { scrollFilmstripToDate(date); refreshDateTrigger(); },
+        });
       });
     })();
 
@@ -1630,6 +1923,7 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       // binnen is, zodat die niet om bandbreedte moeten concurreren.
       updatePeeks(section, false);
       schedulePeeks(section);
+      refreshDateTrigger();
     }
 
     // Laad de peek-/preload-beelden pas na de hero (of na een korte time-out
@@ -1736,6 +2030,7 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       const toolbar = document.getElementById('toolbar');
       if (toolbar) toolbar.classList.toggle('cmp-mode', isCompare);
       document.body.classList.toggle('cmp-open', isCompare);
+      refreshDateTrigger();
       // Sync de website dropdown
       if (siteSelect) siteSelect.value = tab.dataset.site;
     }
@@ -2033,14 +2328,19 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
     }
 
     function cmpRenderDate() {
-      var input = document.getElementById('cmp-date');
-      if (!input) return;
-      var dates = cmpAvailableDates(cmpState.sites.length ? cmpState.sites : cmpSitesWithMobile(null));
-      if (dates.length) {
-        input.min = dates[0];
-        input.max = dates[dates.length - 1];
-      }
-      input.value = cmpState.date || '';
+      var trigger = document.getElementById('cmp-date');
+      if (trigger) trigger.textContent = cmpState.date || 'Kies datum';
+    }
+
+    function cmpDates() {
+      return cmpAvailableDates(cmpState.sites.length ? cmpState.sites : cmpSitesWithMobile(null));
+    }
+
+    function cmpSetDate(date) {
+      if (!date || date === cmpState.date) return;
+      cmpState.date = date;
+      cmpRefresh(true);
+      updateUrl();
     }
 
     // Herbouw de momenten en teken alles opnieuw. resetIndex: spring naar het
@@ -2114,11 +2414,16 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
         ? urlParams.date
         : (dates[dates.length - 1] || null);
 
-      var dateInput = document.getElementById('cmp-date');
-      if (dateInput) dateInput.addEventListener('change', function() {
-        cmpState.date = this.value || null;
-        cmpRefresh(true);
-        updateUrl();
+      var dateTrigger = document.getElementById('cmp-date');
+      if (dateTrigger) dateTrigger.addEventListener('click', function() {
+        var dates = cmpDates();
+        calToggle(dateTrigger, {
+          dates: dates,
+          selected: cmpState.date,
+          footLabel: 'Nieuwste dag',
+          onFoot: function() { cmpSetDate(dates[dates.length - 1]); },
+          onPick: cmpSetDate,
+        });
       });
 
       var slider = document.getElementById('cmp-slider');
@@ -2444,6 +2749,12 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       // Negeer toetsen als een inputveld of select actief is
       const tag = document.activeElement && document.activeElement.tagName;
       if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+
+      // Staat de kalender open, dan gaat Escape daarover
+      if (calState.open) {
+        if (e.key === 'Escape') calClose();
+        return;
+      }
 
       if (lightbox.classList.contains('open')) {
         if (e.key === 'Escape') closeLightbox();

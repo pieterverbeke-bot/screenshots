@@ -169,6 +169,12 @@ Kan ook via GitHub Actions → "Miniaturen bijwerken" (workflow_dispatch).
   opname in dat venster. Vensters die volledig in een ander venster passen, vallen weg.
   Wie `isVirtualSite()` uitbreidt, moet ook de plekken nalopen die een tijdlijn of hero
   verwachten (`renderFilmstrip`, `initSectionHero`, `navigateHero`, de mobielknop)
+- De datumkeuze is één kalender-popover (`calOpen()`/`calToggle()`, markup `#cal-pop`) die
+  zowel de tijdlijn als de vergelijkpagina bedient. De aanroeper geeft de dagen mee die
+  opnames hebben; de rest van de maand blijft staan maar is niet klikbaar. De dagknoppen
+  hebben `aspect-ratio: 1`, dus de grid-kolommen moeten `minmax(0, 1fr)` zijn en lege
+  cellen een gewone `.cal-blank` — anders blaast de automatische minimumbreedte de
+  kalender op
 - Die JSON-blob bewaart per website/datum enkel het tijdstip (`HH-MM-SS`) van elke opname;
   de client bouwt de bestandsnaam op in `decodeEntry()`. Een `*`-prefix betekent
   "miniatuur beschikbaar", een `!`-prefix "letterlijke bestandsnaam" (afwijkend patroon).

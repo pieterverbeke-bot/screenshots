@@ -116,6 +116,8 @@ merken naast elkaar, telkens de opname die het dichtst bij hetzelfde moment ligt
   chips voeg je er titels aan toe of haal je ze weg (maximum acht)
 - Pijltjestoetsen, de schuifbalk en de pijlknoppen springen naar het vorige/volgende
   moment; "samen scrollen" houdt alle kolommen op dezelfde diepte
+- De datumknop opent een kalender (dezelfde als in de tijdlijn): dagen zonder opnames
+  staan er grijs bij en zijn niet klikbaar
 - De link is deelbaar: `?view=vergelijk&cmp=hln,dm,humo&date=2026-03-05`
 
 ## Websites aanpassen
