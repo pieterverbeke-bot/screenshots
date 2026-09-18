@@ -153,8 +153,7 @@
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "ADR",
-    "interval": 60,
-    "halfHour": true
+    "interval": 60
   },
   {
     "name": "tt",
@@ -163,8 +162,7 @@
     "land": "Nederland",
     "medium": "nieuwsmedia",
     "cluster": "ADR",
-    "interval": 60,
-    "halfHour": true
+    "interval": 60
   },
   {
     "name": "ad-rotterdam",
