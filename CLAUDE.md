@@ -80,11 +80,25 @@ Each entry has:
   "land": "België",       // Country
   "medium": "nieuwsmedia",// Media type
   "cluster": "België",    // Grouping in viewer
-  "interval": 30          // Screenshot interval in minutes (30 or 60)
+  "interval": 30,         // Screenshot interval in minutes (30, 60, 120, 180, 240)
+  "halfHour": true,       // Optioneel: draai op het halve uur i.p.v. het hele
+  "skipHours": [0, 1],    // Optioneel: sla deze uren over (Brusselse tijd)
+  "offset": 1             // Optioneel: faseverschuiving voor interval > 60
 }
 ```
 - `name` must be **lowercase, URL-safe** (used in filenames and R2 keys)
-- `interval: 30` means "every run"; `interval: 60` means "every other run" (skipped in odd-numbered runs)
+- De planning zit in `main()` van `take-screenshots.js`. Elke run is een **hele-uur-run**
+  (minuut < 15) of een **halve-uur-run**:
+  - `interval: 30` → beide runs
+  - `interval: 60` → één run per uur: het hele uur, of het halve uur met `halfHour: true`
+  - `interval > 60` → enkel als `(uur - offset) % (interval / 60) === 0`
+- **`halfHour` is het verdeelmechanisme**: het verplaatst werk van de ene run naar de
+  andere zonder het dagtotaal te wijzigen. Piek nu: 21 sites op het hele uur, 30 op het
+  halve uur (de 34 indebuurt-sites komen om de vier uur samen binnen, met `offset: 1`)
+- **Twee titels zijn enkel vergelijkbaar als ze in dezelfde run zitten.** Daarom staan alle
+  ADR-titels op het hele uur; zet een nieuwe ADR-titel dus niet op `halfHour`
+- De Schema-pagina in de viewer toont per site het interval én het moment, zodat dit
+  afleesbaar is zonder websites.json te openen
 
 ### Concurrency Patterns
 - Screenshot capture: `concurrency: 3` parallel Puppeteer tabs via manual batching

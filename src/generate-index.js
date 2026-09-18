@@ -1366,6 +1366,9 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       Pas de frequentie per site aan via het <code>interval</code>-veld in <code>websites.json</code>.
       Geldige waarden: <strong>30</strong> (2x/uur), <strong>60</strong> (1x/uur),
       <strong>120</strong> (1x/2u), <strong>180</strong> (1x/3u), <strong>240</strong> (1x/4u) minuten.
+      Met <code>halfHour: true</code> draait een site op het halve uur in plaats van het hele —
+      zo blijft het werk verdeeld over twee runs. Enkel sites die in dezelfde run zitten,
+      kan je naast elkaar leggen op de vergelijkpagina.
       Na aanpassen: commit &amp; push naar GitHub, de volgende run gebruikt direct de nieuwe instelling.
     </div>
     ${(() => {
@@ -1379,7 +1382,7 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
     <div class="schema-group">
       <div class="schema-group-title">${cluster}</div>
       <table class="schema-table">
-        <thead><tr><th>Site</th><th>URL</th><th>Interval</th><th>Frequentie</th></tr></thead>
+        <thead><tr><th>Site</th><th>URL</th><th>Interval</th><th>Frequentie</th><th>Moment</th></tr></thead>
         <tbody>
           ${sites.map(w => {
             const interval = w.interval || 60;
@@ -1388,11 +1391,20 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
               : interval === 120 ? '1x per 2 uur'
               : interval === 180 ? '1x per 3 uur'
               : `1x per ${interval / 60} uur`;
+            // Wanneer een site draait bepaalt of je hem naast een andere titel kan
+            // leggen: twee sites vergelijken lukt enkel als ze in dezelfde run zitten.
+            const moment = interval <= 30 ? 'heel + half uur'
+              : w.halfHour ? 'op het halve uur'
+              : 'op het hele uur';
+            const skip = w.skipHours && w.skipHours.length
+              ? ` · niet om ${w.skipHours.join(', ')}u`
+              : '';
             return `<tr>
               <td class="site-label">${w.label}</td>
               <td style="color:#8a7a9a;font-size:0.78rem">${w.url}</td>
               <td><span class="interval-badge interval-${interval}">${interval} min</span></td>
               <td style="color:#6a5a7a">${freq}</td>
+              <td style="color:#6a5a7a">${moment}${skip}</td>
             </tr>`;
           }).join('')}
         </tbody>
