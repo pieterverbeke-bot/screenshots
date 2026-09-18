@@ -345,6 +345,8 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
     .site-select:hover { background-color: #ebe4f0; border-color: #c0b0d0; }
     .site-select:focus { outline: none; border-color: #783c96; box-shadow: 0 0 0 2px rgba(120,60,150,0.12); }
 
+    .toolbar.cmp-mode .toolbar-hideable { display: none; }
+
     /* Hidden tabs container - keeps DOM for JS compatibility but not displayed */
     .tabs-scroll {
       display: none;
@@ -693,6 +695,256 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       pointer-events: none;
     }
 
+    /* Vergelijk titels: mobiele opnames van meerdere merken naast elkaar.
+       Enkel mobiel — die beelden zijn smal genoeg om er zes te laten passen. */
+    /* De vergelijkpagina staat buiten .content en gebruikt de volle breedte:
+       zo passen er meer kolommen naast elkaar. */
+    .website-section[data-site="__vergelijk__"] { padding: 0.6rem 1rem 0.8rem; }
+    body.cmp-open .content { display: none; }
+
+    .cmp-bar {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+      margin-bottom: 0.7rem;
+    }
+
+    .cmp-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+    }
+
+    .cmp-date {
+      font-family: inherit;
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: #5a4a6a;
+      padding: 0.22rem 0.5rem;
+      border: 1px solid #e0dae6;
+      border-radius: 999px;
+      background: #f8f5fa;
+      cursor: pointer;
+    }
+
+    .cmp-date:focus { outline: none; border-color: #783c96; box-shadow: 0 0 0 2px rgba(120,60,150,0.12); }
+
+    .cmp-nav {
+      width: 26px;
+      height: 26px;
+      flex: 0 0 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #e0dae6;
+      border-radius: 50%;
+      background: #fff;
+      color: #6a5a7a;
+      font-size: 1rem;
+      line-height: 1;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .cmp-nav:hover:not(:disabled) { background: #f0ebf6; border-color: #c0b0d0; }
+    .cmp-nav:disabled { opacity: 0.3; cursor: default; }
+
+    .cmp-moment {
+      display: flex;
+      align-items: baseline;
+      gap: 0.4rem;
+      min-width: 170px;
+    }
+
+    .cmp-moment-time {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #3d2d4a;
+      letter-spacing: -0.01em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .cmp-moment-meta {
+      font-size: 0.65rem;
+      color: #9a8aaa;
+      white-space: nowrap;
+    }
+
+    .cmp-slider {
+      flex: 1 1 140px;
+      min-width: 110px;
+      accent-color: #783c96;
+      cursor: pointer;
+    }
+
+    .cmp-tol {
+      appearance: none;
+      -webkit-appearance: none;
+      padding: 0.2rem 1.3rem 0.2rem 0.5rem;
+      border: 1px solid #e0dae6;
+      border-radius: 999px;
+      background: #f8f5fa url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236a5a7a' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 0.4rem center;
+      color: #6a5a7a;
+      font-family: inherit;
+      font-size: 0.65rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .cmp-sync {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.65rem;
+      color: #6a5a7a;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .cmp-sync input { accent-color: #783c96; cursor: pointer; }
+
+    .cmp-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.2rem 0.3rem 0.2rem 0.6rem;
+      border: 1px solid #ddd0e8;
+      border-radius: 999px;
+      background: #f3edf8;
+      color: #5a4a6a;
+      font-size: 0.64rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .cmp-chip button {
+      border: none;
+      background: transparent;
+      color: #9a8aaa;
+      font-size: 0.8rem;
+      line-height: 1;
+      padding: 0 0.15rem;
+      cursor: pointer;
+      border-radius: 50%;
+    }
+
+    .cmp-chip button:hover { color: #d23278; background: rgba(210,50,120,0.1); }
+
+    .cmp-add {
+      appearance: none;
+      -webkit-appearance: none;
+      padding: 0.22rem 0.7rem;
+      border: 1px dashed #c8b8d8;
+      border-radius: 999px;
+      background: #fff;
+      color: #783c96;
+      font-family: inherit;
+      font-size: 0.64rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .cmp-add:disabled { opacity: 0.4; cursor: default; }
+
+    .cmp-hint { font-size: 0.65rem; color: #9a8aaa; }
+
+    .cmp-grid {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(215px, 1fr);
+      gap: 0.5rem;
+      overflow-x: auto;
+      padding-bottom: 0.4rem;
+    }
+
+    .cmp-col {
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 220px);
+      min-height: 320px;
+      min-width: 0;
+      border: 1px solid #e6dfec;
+      border-radius: 10px;
+      background: #fff;
+      overflow: hidden;
+      box-shadow: 0 1px 6px rgba(120,60,150,0.06);
+    }
+
+    .cmp-col-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0.4rem;
+      padding: 0.35rem 0.55rem;
+      border-bottom: 1px solid #f0ebf4;
+      background: #faf8fc;
+    }
+
+    .cmp-col-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #3d2d4a;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .cmp-col-time {
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: #783c96;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    /* Wijkt de opname meer dan een paar minuten af van de rest van het moment,
+       dan verdient dat een waarschuwing in plaats van stille misleiding. */
+    .cmp-col-time.drift { color: #d23278; }
+    .cmp-col-time.missing { color: #a898b8; font-weight: 500; }
+
+    .cmp-shot {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      background: #f7f5f9;
+      cursor: zoom-in;
+    }
+
+    .cmp-shot img { display: block; width: 100%; height: auto; }
+
+    .cmp-missing {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 1rem;
+      color: #a898b8;
+      font-size: 0.7rem;
+      line-height: 1.5;
+      background: repeating-linear-gradient(45deg, #faf8fc, #faf8fc 8px, #f4f0f8 8px, #f4f0f8 16px);
+    }
+
+    .cmp-empty {
+      text-align: center;
+      color: #a898b8;
+      padding: 3rem 2rem;
+      font-size: 0.85rem;
+      line-height: 1.7;
+    }
+
+    @media (max-width: 720px) {
+      .website-section[data-site="__vergelijk__"] { padding: 0.5rem 0.6rem 0.8rem; }
+      /* Schuifbalk op een eigen regel, anders loopt de rij van het scherm af */
+      .cmp-slider { flex-basis: 100%; }
+      .cmp-grid { grid-auto-columns: minmax(180px, 76vw); }
+      .cmp-col { height: calc(100vh - 260px); }
+    }
+
     /* Schema tab - hidden, navigated via dropdown */
 
     .schema-intro {
@@ -851,8 +1103,8 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
           </select>
         </div>
       </div>
-      <div class="toolbar-divider"></div>
-      <div class="toolbar-section">
+      <div class="toolbar-divider toolbar-hideable"></div>
+      <div class="toolbar-section toolbar-hideable">
         <span class="toolbar-label">Datum</span>
         <div class="date-select-wrap">
           <select class="date-select" id="filter-date">
@@ -868,8 +1120,8 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
           </select>
         </div>
       </div>
-      <div class="toolbar-divider"></div>
-      <div class="toolbar-section">
+      <div class="toolbar-divider toolbar-hideable"></div>
+      <div class="toolbar-section toolbar-hideable">
         <button class="mobile-toggle" id="mobile-toggle" title="Schakelen tussen desktop en mobiele screenshots">Mobiele versie</button>
       </div>
       <div class="tabs-scroll" id="tabs">
@@ -878,6 +1130,7 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
           const label = m ? m.label : w;
           return `<button class="tab${i === 0 ? ' active' : ''}" data-site="${w}" data-cluster="${m ? m.cluster : ''}">${label}</button>`;
         }).join('\n        ')}
+        <button class="tab tab-vergelijk" data-site="__vergelijk__" data-cluster="">Vergelijk titels</button>
         <button class="tab tab-schema" data-site="__schema__" data-cluster="">Schema</button>
       </div>
     </div>
@@ -997,6 +1250,30 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
     })()}
   </div>
 
+  <div class="website-section" data-site="__vergelijk__">
+    <div class="cmp-bar">
+      <div class="cmp-row">
+        <input type="date" class="cmp-date" id="cmp-date">
+        <button class="cmp-nav" id="cmp-prev" title="Vorig moment">&#8249;</button>
+        <div class="cmp-moment">
+          <span class="cmp-moment-time" id="cmp-moment-time">--:--</span>
+          <span class="cmp-moment-meta" id="cmp-moment-meta"></span>
+        </div>
+        <button class="cmp-nav" id="cmp-next" title="Volgend moment">&#8250;</button>
+        <input type="range" class="cmp-slider" id="cmp-slider" min="0" max="0" value="0" title="Schuif door de momenten van deze dag">
+        <select class="cmp-tol" id="cmp-tol" title="Hoeveel mogen de tijdstippen van elkaar afwijken?">
+          <option value="5">max 5 min</option>
+          <option value="10">max 10 min</option>
+          <option value="15" selected>max 15 min</option>
+          <option value="30">max 30 min</option>
+        </select>
+        <label class="cmp-sync"><input type="checkbox" id="cmp-sync" checked>samen scrollen</label>
+      </div>
+      <div class="cmp-row" id="cmp-chips"></div>
+    </div>
+    <div class="cmp-grid" id="cmp-grid"></div>
+  </div>
+
   <div class="lightbox" id="lightbox">
     <span class="lightbox-close" id="lightbox-close">&times;</span>
     <span class="lightbox-nav prev" id="lightbox-prev">&#8249;</span>
@@ -1015,6 +1292,10 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
     let isMobileMode = false;
     function getActiveData() { return isMobileMode ? mobileScreenshotData : screenshotData; }
 
+    // Naast de websites staan er twee vaste pagina's in dezelfde navigatie
+    var VIRTUAL_SITES = { '__schema__': 'Schema', '__vergelijk__': 'Vergelijk titels' };
+    function isVirtualSite(site) { return Object.prototype.hasOwnProperty.call(VIRTUAL_SITES, site); }
+
     const filterState = { cluster: null };
 
     // URL query parameters parsen voor deelbare links
@@ -1026,6 +1307,8 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
         site: params.get('site'),
         date: params.get('date'),
         mobile: params.get('mobile'),
+        view: params.get('view'),
+        cmp: params.get('cmp'),
       };
     }
 
@@ -1033,8 +1316,13 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       const params = new URLSearchParams();
       if (filterState.cluster) params.set('cluster', filterState.cluster);
       const activeTab = document.querySelector('.tab.active');
-      if (activeTab && activeTab.dataset.site !== '__schema__') {
-        params.set('site', activeTab.dataset.site);
+      const activeSite = activeTab ? activeTab.dataset.site : '';
+      if (activeSite === '__vergelijk__') {
+        params.set('view', 'vergelijk');
+        if (cmpState.sites.length) params.set('cmp', cmpState.sites.join(','));
+        if (cmpState.date) params.set('date', cmpState.date);
+      } else if (activeTab && !isVirtualSite(activeSite)) {
+        params.set('site', activeSite);
       }
       if (isMobileMode) params.set('mobile', '1');
       const qs = params.toString();
@@ -1061,6 +1349,9 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       filterState.cluster = clusterSelect.value || null;
       applyClusterFilter();
       updateSiteSelect();
+      // In de vergelijkweergave bepaalt het cluster welke titels je naast elkaar legt
+      const openTab = document.querySelector('.tab.active');
+      if (openTab && openTab.dataset.site === '__vergelijk__') cmpSetCluster();
       updateUrl();
     });
 
@@ -1078,14 +1369,14 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       // Voeg zichtbare websites toe als opties
       let hasActive = false;
       tabs.forEach(tab => {
-        const isSchema = tab.dataset.site === '__schema__';
+        const isVirtual = isVirtualSite(tab.dataset.site);
         const cluster = tab.dataset.cluster;
-        const visible = isSchema || !filterState.cluster || cluster === filterState.cluster;
+        const visible = isVirtual || !filterState.cluster || cluster === filterState.cluster;
         if (!visible) return;
 
         const option = document.createElement('option');
         option.value = tab.dataset.site;
-        option.textContent = isSchema ? 'Schema' : (meta[tab.dataset.site] ? meta[tab.dataset.site].label : tab.dataset.site);
+        option.textContent = isVirtual ? VIRTUAL_SITES[tab.dataset.site] : (meta[tab.dataset.site] ? meta[tab.dataset.site].label : tab.dataset.site);
         if (tab.dataset.site === activeSite) {
           option.selected = true;
           hasActive = true;
@@ -1124,7 +1415,7 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       select.addEventListener('change', () => {
         if (select.value === '__vandaag__') {
           const activeSection = document.querySelector('.website-section.active');
-          if (activeSection && activeSection.dataset.site !== '__schema__') {
+          if (activeSection && !isVirtualSite(activeSection.dataset.site)) {
             const thumbs = [...activeSection.querySelectorAll('.fs-thumb')];
             const lastThumb = thumbs[thumbs.length - 1];
             if (lastThumb) {
@@ -1162,10 +1453,10 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
 
       tabs.forEach(tab => {
         const cluster = tab.dataset.cluster;
-        const isSchema = tab.dataset.site === '__schema__';
-        const visible = isSchema || !filterState.cluster || cluster === filterState.cluster;
+        const isVirtual = isVirtualSite(tab.dataset.site);
+        const visible = isVirtual || !filterState.cluster || cluster === filterState.cluster;
         tab.classList.toggle('hidden', !visible);
-        if (visible && !isSchema && !firstVisible) firstVisible = tab;
+        if (visible && !isVirtual && !firstVisible) firstVisible = tab;
         if (visible && tab.classList.contains('active')) activeIsVisible = true;
       });
 
@@ -1176,12 +1467,13 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
 
     // Bestandsnaam terugbouwen uit een gecomprimeerd item: [*][!]HH-MM-SS
     // '*' = miniatuur beschikbaar, '!' = letterlijke bestandsnaam (afwijkend patroon)
-    function decodeEntry(entry, siteKey, date) {
+    function decodeEntry(entry, siteKey, date, forceMobile) {
+      var mobile = forceMobile === undefined ? isMobileMode : forceMobile;
       var hasThumb = entry.charAt(0) === '*';
       var rest = hasThumb ? entry.slice(1) : entry;
       var filename = rest.charAt(0) === '!'
         ? rest.slice(1)
-        : siteKey + '_' + date + 'T' + rest + (isMobileMode ? '_mobile' : '') + '.webp';
+        : siteKey + '_' + date + 'T' + rest + (mobile ? '_mobile' : '') + '.webp';
       return { filename: filename, hasThumb: hasThumb };
     }
 
@@ -1432,11 +1724,18 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       if (section) {
         section.classList.add('active');
         // Toolbar always visible since navigation is via dropdown
-        if (tab.dataset.site !== '__schema__') {
+        if (!isVirtualSite(tab.dataset.site)) {
           renderFilmstrip(tab.dataset.site);
           initSectionHero(section);
+        } else if (tab.dataset.site === '__vergelijk__') {
+          cmpRefresh(false);
         }
       }
+      // Datum- en mobielknop zijn niet van toepassing op de vergelijkweergave
+      const isCompare = tab.dataset.site === '__vergelijk__';
+      const toolbar = document.getElementById('toolbar');
+      if (toolbar) toolbar.classList.toggle('cmp-mode', isCompare);
+      document.body.classList.toggle('cmp-open', isCompare);
       // Sync de website dropdown
       if (siteSelect) siteSelect.value = tab.dataset.site;
     }
@@ -1451,6 +1750,403 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       if (firstSection) initSectionHero(firstSection, true);
     })();
 
+    // ---- Vergelijk titels ---------------------------------------------------
+    // Meerdere merken naast elkaar op hetzelfde moment. Bewust enkel mobiele
+    // opnames: die zijn smal genoeg om er vijf of zes naast elkaar te leggen.
+    // Sites draaien niet synchroon, dus exact gelijke tijdstippen bestaan amper.
+    // Een "moment" is daarom een groepje opnames dat hoogstens cmpState.tol
+    // minuten uit elkaar ligt (standaard 15).
+    var CMP_MAX_SITES = 8;
+    var CMP_DEFAULT_SITES = 5;
+    var CMP_DRIFT_MIN = 5;
+
+    var cmpState = { sites: [], date: null, tol: 15, index: 0, moments: [], sync: true };
+
+    // Alle sites met mobiele opnames, gesorteerd op label, eventueel binnen cluster
+    function cmpSitesWithMobile(cluster) {
+      return Object.keys(mobileScreenshotData).filter(function(site) {
+        if (!meta[site]) return false;
+        return !cluster || meta[site].cluster === cluster;
+      }).sort(function(a, b) {
+        return (meta[a].label || a).localeCompare(meta[b].label || b);
+      });
+    }
+
+    function cmpAvailableDates(sites) {
+      var set = {};
+      for (var i = 0; i < sites.length; i++) {
+        var dates = mobileScreenshotData[sites[i]];
+        if (!dates) continue;
+        for (var date in dates) set[date] = true;
+      }
+      return Object.keys(set).sort();
+    }
+
+    // Tijdstip uit een gecomprimeerd item halen: HH-MM-SS -> minuten sinds middernacht
+    function cmpEntryTime(entry, site, date) {
+      var filename = decodeEntry(entry, site, date, true).filename;
+      var tIdx = filename.indexOf('T');
+      var part = tIdx > -1 ? filename.slice(tIdx + 1, tIdx + 9) : '';
+      if (part.length !== 8) return null;
+      var bits = part.split('-');
+      var hh = parseInt(bits[0], 10), mm = parseInt(bits[1], 10), ss = parseInt(bits[2], 10);
+      if (isNaN(hh) || isNaN(mm) || isNaN(ss)) return null;
+      return { site: site, filename: filename, time: bits[0] + ':' + bits[1], minutes: hh * 60 + mm + ss / 60 };
+    }
+
+    // Groepeer de opnames van de gekozen titels in momenten: vensters waarin alle
+    // opnames hoogstens tol minuten van elkaar liggen. Per titel telt de eerste
+    // opname in het venster; vensters die volledig in een ander venster passen,
+    // voegen niets toe en vallen weg.
+    function cmpBuildMoments() {
+      var sites = cmpState.sites, date = cmpState.date, tol = cmpState.tol;
+      if (!date || sites.length < 2) return [];
+
+      var all = [];
+      for (var i = 0; i < sites.length; i++) {
+        var dates = mobileScreenshotData[sites[i]];
+        var entries = dates && dates[date];
+        if (!entries) continue;
+        for (var j = 0; j < entries.length; j++) {
+          var shot = cmpEntryTime(entries[j], sites[i], date);
+          if (shot) all.push(shot);
+        }
+      }
+      all.sort(function(a, b) { return a.minutes - b.minutes; });
+
+      var windows = [], seen = {};
+      for (var s = 0; s < all.length; s++) {
+        var picked = [], taken = {};
+        for (var e = s; e < all.length && all[e].minutes - all[s].minutes <= tol; e++) {
+          if (taken[all[e].site]) continue;
+          taken[all[e].site] = true;
+          picked.push(all[e]);
+        }
+        if (picked.length < 2) continue;
+        var sig = picked.map(function(p) { return p.site + '@' + p.time; }).join('|');
+        if (seen[sig]) continue;
+        seen[sig] = true;
+        windows.push({ shots: picked, start: picked[0].minutes, end: picked[picked.length - 1].minutes, keys: sig.split('|') });
+      }
+
+      var sets = windows.map(function(w) {
+        var set = {};
+        for (var k = 0; k < w.keys.length; k++) set[w.keys[k]] = true;
+        return set;
+      });
+
+      var result = [];
+      for (var w = 0; w < windows.length; w++) {
+        var covered = false;
+        for (var o = 0; o < windows.length && !covered; o++) {
+          if (o === w || windows[o].shots.length <= windows[w].shots.length) continue;
+          covered = windows[w].keys.every(function(key) { return sets[o][key]; });
+        }
+        if (!covered) result.push(windows[w]);
+      }
+      return result;
+    }
+
+    function cmpRenderChips() {
+      var wrap = document.getElementById('cmp-chips');
+      if (!wrap) return;
+      var html = '';
+      for (var i = 0; i < cmpState.sites.length; i++) {
+        var site = cmpState.sites[i];
+        var label = meta[site] ? meta[site].label : site;
+        html += '<span class="cmp-chip">' + label +
+          '<button type="button" data-remove="' + site + '" title="Verwijder uit de vergelijking">&times;</button></span>';
+      }
+
+      var remaining = cmpSitesWithMobile(null).filter(function(site) { return cmpState.sites.indexOf(site) === -1; });
+      var full = cmpState.sites.length >= CMP_MAX_SITES;
+      html += '<select class="cmp-add" id="cmp-add"' + (full || !remaining.length ? ' disabled' : '') + '>';
+      html += '<option value="">+ titel</option>';
+      var clusters = {};
+      for (var r = 0; r < remaining.length; r++) {
+        var cluster = meta[remaining[r]].cluster || 'Overig';
+        if (!clusters[cluster]) clusters[cluster] = [];
+        clusters[cluster].push(remaining[r]);
+      }
+      var clusterNames = Object.keys(clusters).sort();
+      for (var c = 0; c < clusterNames.length; c++) {
+        html += '<optgroup label="' + clusterNames[c] + '">';
+        var sites = clusters[clusterNames[c]];
+        for (var t = 0; t < sites.length; t++) {
+          html += '<option value="' + sites[t] + '">' + (meta[sites[t]].label || sites[t]) + '</option>';
+        }
+        html += '</optgroup>';
+      }
+      html += '</select>';
+
+      if (full) html += '<span class="cmp-hint">maximum ' + CMP_MAX_SITES + ' titels</span>';
+      else if (cmpState.sites.length < 2) html += '<span class="cmp-hint">kies minstens twee titels</span>';
+
+      wrap.innerHTML = html;
+
+      var add = document.getElementById('cmp-add');
+      if (add) add.addEventListener('change', function() {
+        if (!this.value || cmpState.sites.indexOf(this.value) > -1) return;
+        cmpState.sites.push(this.value);
+        cmpRefresh(false);
+        updateUrl();
+      });
+
+      wrap.querySelectorAll('button[data-remove]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var site = btn.dataset.remove;
+          cmpState.sites = cmpState.sites.filter(function(s) { return s !== site; });
+          cmpRefresh(false);
+          updateUrl();
+        });
+      });
+    }
+
+    function cmpRenderGrid() {
+      var grid = document.getElementById('cmp-grid');
+      if (!grid) return;
+
+      if (cmpState.sites.length < 2) {
+        grid.style.display = 'block';
+        grid.innerHTML = '<div class="cmp-empty">Kies minstens twee titels om naast elkaar te leggen.</div>';
+        return;
+      }
+
+      var moment = cmpState.moments[cmpState.index];
+      if (!moment) {
+        grid.style.display = 'block';
+        grid.innerHTML = '<div class="cmp-empty">Geen vergelijkbare momenten op ' + (cmpState.date || 'deze dag') + '.' +
+          '<br>Probeer een andere dag, een ruimere marge of andere titels.</div>';
+        return;
+      }
+
+      grid.style.display = '';
+      var byShot = {};
+      for (var i = 0; i < moment.shots.length; i++) byShot[moment.shots[i].site] = moment.shots[i];
+      var midpoint = (moment.start + moment.end) / 2;
+
+      var html = '';
+      for (var s = 0; s < cmpState.sites.length; s++) {
+        var site = cmpState.sites[s];
+        var label = meta[site] ? meta[site].label : site;
+        var shot = byShot[site];
+        html += '<div class="cmp-col">';
+        html += '<div class="cmp-col-head"><span class="cmp-col-label">' + label + '</span>';
+        if (shot) {
+          var drift = Math.abs(shot.minutes - midpoint) > CMP_DRIFT_MIN ? ' drift' : '';
+          var url = screenshotBaseUrl + '/' + site + '/' + cmpState.date + '/' + shot.filename;
+          html += '<span class="cmp-col-time' + drift + '">' + shot.time + '</span></div>';
+          html += '<div class="cmp-shot" data-url="' + url + '" data-time="' + shot.time + '">';
+          html += '<img src="' + url + '" decoding="async" alt="' + label + ' ' + shot.time + '">';
+          html += '</div>';
+        } else {
+          html += '<span class="cmp-col-time missing">geen opname</span></div>';
+          html += '<div class="cmp-missing">Geen opname binnen ' + cmpState.tol + ' min van dit moment</div>';
+        }
+        html += '</div>';
+      }
+      // Scrolldiepte vasthouden bij het wisselen van moment: je wil dezelfde
+      // hoogte van de pagina blijven vergelijken, niet telkens opnieuw bovenaan.
+      var keep = 0;
+      var open = grid.querySelector('.cmp-shot');
+      if (open) keep = open.scrollTop;
+
+      grid.innerHTML = html;
+
+      if (keep > 0) {
+        grid.querySelectorAll('.cmp-shot').forEach(function(shot) {
+          shot.scrollTop = keep;
+          var img = shot.querySelector('img');
+          // Pas als het beeld binnen is, is de kolom hoog genoeg om ver te scrollen
+          if (img && !img.complete) img.addEventListener('load', function() { shot.scrollTop = keep; }, { once: true });
+        });
+      }
+
+      cmpBindScrollSync();
+      cmpPreloadNeighbour();
+    }
+
+    // Kolommen samen laten scrollen: zo vergelijk je dezelfde diepte van de pagina
+    var cmpScrollLock = false;
+    function cmpBindScrollSync() {
+      var shots = [].slice.call(document.querySelectorAll('#cmp-grid .cmp-shot'));
+      shots.forEach(function(shot) {
+        shot.addEventListener('scroll', function() {
+          if (!cmpState.sync || cmpScrollLock) return;
+          cmpScrollLock = true;
+          var top = shot.scrollTop;
+          for (var i = 0; i < shots.length; i++) {
+            if (shots[i] !== shot && Math.abs(shots[i].scrollTop - top) > 1) shots[i].scrollTop = top;
+          }
+          requestAnimationFrame(function() { cmpScrollLock = false; });
+        }, { passive: true });
+      });
+    }
+
+    // Het volgende moment vast ophalen, maar enkel als de browser niets beters doet
+    function cmpPreloadNeighbour() {
+      var next = cmpState.moments[cmpState.index + 1];
+      if (!next) return;
+      var run = function() {
+        for (var i = 0; i < next.shots.length; i++) {
+          var shot = next.shots[i];
+          var img = new Image();
+          img.src = screenshotBaseUrl + '/' + shot.site + '/' + cmpState.date + '/' + shot.filename;
+        }
+      };
+      if (window.requestIdleCallback) requestIdleCallback(run, { timeout: 3000 });
+      else setTimeout(run, 600);
+    }
+
+    function cmpRenderMoment() {
+      var timeEl = document.getElementById('cmp-moment-time');
+      var metaEl = document.getElementById('cmp-moment-meta');
+      var slider = document.getElementById('cmp-slider');
+      var prev = document.getElementById('cmp-prev');
+      var next = document.getElementById('cmp-next');
+      var total = cmpState.moments.length;
+      var moment = cmpState.moments[cmpState.index];
+
+      if (timeEl) {
+        if (!moment) timeEl.textContent = '--:--';
+        else {
+          var from = moment.shots[0].time;
+          var to = moment.shots[moment.shots.length - 1].time;
+          timeEl.textContent = from === to ? from : from + '-' + to;
+        }
+      }
+      if (metaEl) {
+        if (!moment) metaEl.textContent = '';
+        else {
+          var spread = Math.round(moment.end - moment.start);
+          metaEl.textContent = moment.shots.length + '/' + cmpState.sites.length + ' titels · spreiding ' +
+            spread + ' min · moment ' + (cmpState.index + 1) + '/' + total;
+        }
+      }
+      if (slider) {
+        slider.max = String(Math.max(0, total - 1));
+        slider.value = String(cmpState.index);
+        slider.disabled = total < 2;
+      }
+      if (prev) prev.disabled = cmpState.index <= 0;
+      if (next) next.disabled = cmpState.index >= total - 1;
+    }
+
+    function cmpRenderDate() {
+      var input = document.getElementById('cmp-date');
+      if (!input) return;
+      var dates = cmpAvailableDates(cmpState.sites.length ? cmpState.sites : cmpSitesWithMobile(null));
+      if (dates.length) {
+        input.min = dates[0];
+        input.max = dates[dates.length - 1];
+      }
+      input.value = cmpState.date || '';
+    }
+
+    // Herbouw de momenten en teken alles opnieuw. resetIndex: spring naar het
+    // laatste (nieuwste) moment, anders de dichtstbijzijnde bij het huidige.
+    function cmpRefresh(resetIndex) {
+      var previous = cmpState.moments[cmpState.index];
+      cmpState.moments = cmpBuildMoments();
+
+      if (!cmpState.moments.length) cmpState.index = 0;
+      else if (resetIndex || !previous) {
+        // Het nieuwste moment waarop zoveel mogelijk titels samen in beeld komen:
+        // de laatste opnames van een dag vallen zelden nog samen.
+        var fullest = 0, cover = 0;
+        for (var f = 0; f < cmpState.moments.length; f++) {
+          if (cmpState.moments[f].shots.length >= cover) { cover = cmpState.moments[f].shots.length; fullest = f; }
+        }
+        cmpState.index = fullest;
+      } else {
+        // Zoek het moment dat het dichtst bij het vorige tijdstip ligt
+        var best = 0, bestDelta = Infinity;
+        for (var i = 0; i < cmpState.moments.length; i++) {
+          var delta = Math.abs(cmpState.moments[i].start - previous.start);
+          if (delta < bestDelta) { bestDelta = delta; best = i; }
+        }
+        cmpState.index = best;
+      }
+
+      cmpRenderDate();
+      cmpRenderChips();
+      cmpRenderMoment();
+      cmpRenderGrid();
+    }
+
+    function cmpGoto(index) {
+      if (index < 0 || index >= cmpState.moments.length || index === cmpState.index) return;
+      cmpState.index = index;
+      cmpRenderMoment();
+      cmpRenderGrid();
+    }
+
+    // Pijltjestoetsen in de vergelijkweergave: vorig/volgend moment
+    function cmpHandleKey(e) {
+      if (e.key === 'ArrowLeft') { e.preventDefault(); cmpGoto(cmpState.index - 1); return true; }
+      if (e.key === 'ArrowRight') { e.preventDefault(); cmpGoto(cmpState.index + 1); return true; }
+      return false;
+    }
+
+    // Standaardselectie: de eerste titels van het actieve cluster met mobiele opnames
+    function cmpDefaultSites() {
+      var sites = cmpSitesWithMobile(filterState.cluster);
+      if (sites.length < 2) sites = cmpSitesWithMobile(null);
+      return sites.slice(0, CMP_DEFAULT_SITES);
+    }
+
+    function cmpSetCluster() {
+      cmpState.sites = cmpDefaultSites();
+      var dates = cmpAvailableDates(cmpState.sites);
+      if (!cmpState.date || dates.indexOf(cmpState.date) === -1) cmpState.date = dates[dates.length - 1] || null;
+      cmpRefresh(true);
+    }
+
+    function cmpInit() {
+      // Selectie en datum uit de URL, anders het actieve cluster van vandaag
+      var fromUrl = (urlParams.cmp || '').split(',').filter(function(site) {
+        return site && mobileScreenshotData[site] && meta[site];
+      });
+      cmpState.sites = fromUrl.length ? fromUrl.slice(0, CMP_MAX_SITES) : cmpDefaultSites();
+
+      var dates = cmpAvailableDates(cmpState.sites);
+      cmpState.date = (urlParams.date && dates.indexOf(urlParams.date) > -1)
+        ? urlParams.date
+        : (dates[dates.length - 1] || null);
+
+      var dateInput = document.getElementById('cmp-date');
+      if (dateInput) dateInput.addEventListener('change', function() {
+        cmpState.date = this.value || null;
+        cmpRefresh(true);
+        updateUrl();
+      });
+
+      var slider = document.getElementById('cmp-slider');
+      if (slider) slider.addEventListener('input', function() { cmpGoto(parseInt(this.value, 10)); });
+
+      var prev = document.getElementById('cmp-prev');
+      if (prev) prev.addEventListener('click', function() { cmpGoto(cmpState.index - 1); });
+      var next = document.getElementById('cmp-next');
+      if (next) next.addEventListener('click', function() { cmpGoto(cmpState.index + 1); });
+
+      var tol = document.getElementById('cmp-tol');
+      if (tol) tol.addEventListener('change', function() {
+        cmpState.tol = parseInt(this.value, 10) || 15;
+        cmpRefresh(false);
+      });
+
+      var sync = document.getElementById('cmp-sync');
+      if (sync) sync.addEventListener('change', function() { cmpState.sync = this.checked; });
+
+      var grid = document.getElementById('cmp-grid');
+      if (grid) grid.addEventListener('click', function(e) {
+        var shot = e.target.closest('.cmp-shot');
+        if (shot) openLightbox(shot);
+      });
+
+      cmpRefresh(true);
+    }
+
     // Standaard cluster selecteren bij openen (URL param overschrijft default)
     (function() {
       const defaultCluster = urlParams.cluster || 'AD Regiosites';
@@ -1459,8 +2155,19 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       applyClusterFilter();
       updateSiteSelect();
 
+      // Vergelijkweergave klaarzetten: titels uit de URL of uit het actieve cluster
+      cmpInit();
+
+      // Openen via ?view=vergelijk of via het pad /vergelijk
+      const wantsCompare = urlParams.view === 'vergelijk' ||
+        window.location.pathname.indexOf('/vergelijk') === 0;
+      if (wantsCompare) {
+        const cmpTab = document.querySelector('.tab[data-site="__vergelijk__"]');
+        if (cmpTab) activateTab(cmpTab);
+      }
+
       // Als een specifieke site via URL is meegegeven, activeer die tab
-      if (urlParams.site) {
+      if (urlParams.site && !wantsCompare) {
         const targetTab = document.querySelector('.tab[data-site="' + urlParams.site + '"]');
         if (targetTab && !targetTab.classList.contains('hidden')) {
           activateTab(targetTab);
@@ -1473,14 +2180,14 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
         document.getElementById('mobile-toggle').classList.add('active');
         // Herrender de actieve sectie in mobiele modus
         var activeSec = document.querySelector('.website-section.active');
-        if (activeSec && activeSec.dataset.site !== '__schema__') {
+        if (activeSec && !isVirtualSite(activeSec.dataset.site)) {
           renderFilmstrip(activeSec.dataset.site, true);
           initSectionHero(activeSec, true);
         }
       }
 
       // Als een datum via URL is meegegeven, navigeer daarheen
-      if (urlParams.date) {
+      if (urlParams.date && !wantsCompare) {
         // Wacht tot filmstrip gerenderd is
         requestAnimationFrame(() => {
           scrollFilmstripToDate(urlParams.date);
@@ -1497,14 +2204,14 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
 
       // Markeer alle secties als niet-gerenderd zodat ze herrenderd worden
       document.querySelectorAll('.website-section').forEach(function(s) {
-        if (s.dataset.site !== '__schema__') {
+        if (!isVirtualSite(s.dataset.site)) {
           s.dataset.rendered = 'false';
         }
       });
 
       // Herrender de actieve sectie
       var activeSection = document.querySelector('.website-section.active');
-      if (activeSection && activeSection.dataset.site !== '__schema__') {
+      if (activeSection && !isVirtualSite(activeSection.dataset.site)) {
         renderFilmstrip(activeSection.dataset.site, true);
         initSectionHero(activeSection, true);
       }
@@ -1548,15 +2255,24 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
     function getVisibleThumbs() {
       const activeSection = document.querySelector('.website-section.active');
       if (!activeSection) return [];
+      // In de vergelijkweergave loopt de lichtbak over de kolommen van dit moment
+      if (activeSection.dataset.site === '__vergelijk__') {
+        return [...activeSection.querySelectorAll('.cmp-shot[data-url]')];
+      }
       return [...activeSection.querySelectorAll('.fs-thumb')];
     }
 
-    function openLightbox() {
+    // Enkel de tijdlijn kent een actief beeld; kolommen in de vergelijkweergave niet
+    function syncLightboxSelection(thumb) {
+      if (thumb && thumb.classList.contains('fs-thumb')) activateThumb(thumb);
+    }
+
+    function openLightbox(target) {
       const activeSection = document.querySelector('.website-section.active');
       if (!activeSection) return;
       lightboxThumbs = getVisibleThumbs();
-      const activeThumb = activeSection.querySelector('.fs-thumb.active');
-      lightboxIndex = activeThumb ? lightboxThumbs.indexOf(activeThumb) : 0;
+      const activeThumb = target || activeSection.querySelector('.fs-thumb.active');
+      lightboxIndex = activeThumb ? Math.max(0, lightboxThumbs.indexOf(activeThumb)) : 0;
       showLightboxAt(lightboxIndex);
       lightbox.classList.add('open');
     }
@@ -1682,7 +2398,7 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       if (lightboxIndex > 0) {
         showLightboxAt(--lightboxIndex);
         // Sync met filmstrip
-        if (lightboxThumbs[lightboxIndex]) activateThumb(lightboxThumbs[lightboxIndex]);
+        syncLightboxSelection(lightboxThumbs[lightboxIndex]);
       }
     });
 
@@ -1691,7 +2407,7 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       if (lightboxIndex < lightboxThumbs.length - 1) {
         showLightboxAt(++lightboxIndex);
         // Sync met filmstrip
-        if (lightboxThumbs[lightboxIndex]) activateThumb(lightboxThumbs[lightboxIndex]);
+        syncLightboxSelection(lightboxThumbs[lightboxIndex]);
       }
     });
 
@@ -1713,7 +2429,7 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
     // Navigeer naar vorige/volgende screenshot in de hero view
     function navigateHero(direction) {
       const activeSection = document.querySelector('.website-section.active');
-      if (!activeSection || activeSection.dataset.site === '__schema__') return;
+      if (!activeSection || isVirtualSite(activeSection.dataset.site)) return;
       const thumbs = [...activeSection.querySelectorAll('.fs-thumb')];
       const activeThumb = activeSection.querySelector('.fs-thumb.active');
       const idx = activeThumb ? thumbs.indexOf(activeThumb) : -1;
@@ -1733,12 +2449,19 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
         if (e.key === 'Escape') closeLightbox();
         if (e.key === 'ArrowLeft' && lightboxIndex > 0) {
           showLightboxAt(--lightboxIndex);
-          if (lightboxThumbs[lightboxIndex]) activateThumb(lightboxThumbs[lightboxIndex]);
+          syncLightboxSelection(lightboxThumbs[lightboxIndex]);
         }
         if (e.key === 'ArrowRight' && lightboxIndex < lightboxThumbs.length - 1) {
           showLightboxAt(++lightboxIndex);
-          if (lightboxThumbs[lightboxIndex]) activateThumb(lightboxThumbs[lightboxIndex]);
+          syncLightboxSelection(lightboxThumbs[lightboxIndex]);
         }
+        return;
+      }
+
+      // In de vergelijkweergave springen de pijltjes tussen de momenten
+      const openSection = document.querySelector('.website-section.active');
+      if (openSection && openSection.dataset.site === '__vergelijk__') {
+        cmpHandleKey(e);
         return;
       }
 

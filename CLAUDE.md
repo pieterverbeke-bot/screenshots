@@ -117,6 +117,9 @@ Located in `worker/`. Deployed separately from the main workflow.
   `#account-slot`; de Worker vult het e-mailadres in en maakt het zichtbaar
 - Afbeeldingen worden in de edge-cache (`caches.default`) bewaard, zodat herhaalde
   bezoeken niet telkens R2 aanspreken
+- `isViewerPath()` bepaalt welke paden dezelfde `index.html` uit R2 serveren: `/`,
+  `/index.html` en `/vergelijk` (`/vergelijken`). Een nieuw pad hoort daar thuis, niet
+  als apart object in de bucket
 - Google Cloud Console: create a "Web application" OAuth client with redirect URI `https://<worker-domain>/auth/callback`
 - Deploy: `npm run deploy-worker` (runs `cd worker && npx wrangler deploy`)
 - R2 binding name in wrangler.toml: `SCREENSHOTS_BUCKET`
@@ -158,6 +161,14 @@ Kan ook via GitHub Actions → "Miniaturen bijwerken" (workflow_dispatch).
 - The `screenshots/` directory is gitignored — never commit local screenshots
 - `get-refresh-token.js` is a legacy helper for Google Drive OAuth; Google Drive upload is no longer part of the active pipeline
 - The viewer (`index.html`) is generated client-side from a JSON data blob embedded in the HTML; it supports filtering by cluster, website, and date range
+- De pagina **Vergelijk titels** (`__vergelijk__`, net als `__schema__` een vaste pagina in
+  dezelfde navigatie, ook bereikbaar op `/vergelijk`) legt meerdere merken naast elkaar.
+  Enkel mobiele opnames — die passen met vijf of zes naast elkaar. `cmpBuildMoments()`
+  groepeert de opnames van de gekozen titels in "momenten": vensters waarin alle opnames
+  hoogstens `cmpState.tol` minuten (standaard 15) uit elkaar liggen, per titel de eerste
+  opname in dat venster. Vensters die volledig in een ander venster passen, vallen weg.
+  Wie `isVirtualSite()` uitbreidt, moet ook de plekken nalopen die een tijdlijn of hero
+  verwachten (`renderFilmstrip`, `initSectionHero`, `navigateHero`, de mobielknop)
 - Die JSON-blob bewaart per website/datum enkel het tijdstip (`HH-MM-SS`) van elke opname;
   de client bouwt de bestandsnaam op in `decodeEntry()`. Een `*`-prefix betekent
   "miniatuur beschikbaar", een `!`-prefix "letterlijke bestandsnaam" (afwijkend patroon).
@@ -171,7 +182,8 @@ Kan ook via GitHub Actions → "Miniaturen bijwerken" (workflow_dispatch).
   In de header staat het merkteken op een wit tegeltje (`.brand-mark`), want de
   huisstijlkleuren van het logo verdwijnen anders in de gradient. Pas je het aan, doe dat
   dan op beide plekken
-- Mobile screenshots are filtered out in `generate-index.js` (legacy `_mobile.` suffix check)
+- `generate-index.js` bouwt twee datastructuren: desktop en mobiel (`_mobile.`-suffix).
+  De knop "Mobiele versie" wisselt ertussen; de vergelijkpagina gebruikt altijd de mobiele
 
 ## Lazy Loading & Image Loading Strategy (`src/take-screenshots.js`)
 
