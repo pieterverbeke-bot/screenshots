@@ -417,14 +417,15 @@ export default {
       }
 
       // Injecteer "ingelogd als … · Uitloggen" in de viewer-pagina
-      const wantsHtmlPage = url.pathname === '/' || url.pathname === '/index.html';
+      const wantsHtmlPage = isViewerPath(url.pathname);
       if (wantsHtmlPage && (request.method === 'GET' || request.method === 'HEAD')) {
         return serveIndexWithAccountBar(env, sessionEmail, request.method);
       }
     }
 
     // --- Bestaande proxy-logica ---
-    const key = url.pathname.slice(1) || 'index.html';
+    // /vergelijk is geen apart bestand in R2: de viewer opent zelf die pagina
+    const key = isViewerPath(url.pathname) ? 'index.html' : url.pathname.slice(1);
 
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       return new Response('Method Not Allowed', { status: 405 });
@@ -531,6 +532,13 @@ function injectAccountBar(html, email) {
   // Fallback: geen "Laatste update"-regel gevonden → chip vast in de hoek tonen
   return html.replace('</body>',
     `<div style="position:fixed;top:0.6rem;right:1.5rem;z-index:200;">${chip}</div></body>`);
+}
+
+/** De viewer wordt op meerdere paden geserveerd: de startpagina en de
+ *  vergelijkpagina (/vergelijk) zijn dezelfde index.html uit R2. */
+function isViewerPath(pathname) {
+  return pathname === '/' || pathname === '/index.html' ||
+    pathname === '/vergelijk' || pathname === '/vergelijken';
 }
 
 /** Haal index.html uit R2, injecteer de account-balk en stuur het terug. */

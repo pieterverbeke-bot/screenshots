@@ -98,6 +98,26 @@ Of via GitHub Actions → **Miniaturen bijwerken** → *Run workflow* (die werkt
 ook meteen de viewer bij). Zonder miniatuur valt de viewer terug op het volledige
 screenshot, dus de tijdlijn blijft altijd werken.
 
+## Vergelijk titels
+
+De viewer heeft naast de tijdlijn per site een tweede pagina: **Vergelijk titels**
+(via de Website-keuzelijst, of rechtstreeks op `/vergelijk`). Daar liggen meerdere
+merken naast elkaar, telkens de opname die het dichtst bij hetzelfde moment ligt.
+
+- Enkel **mobiele** screenshots: die zijn smal genoeg om er vijf of zes te laten passen
+- Een *moment* is een groepje opnames dat hoogstens **15 minuten** uit elkaar ligt
+  (instelbaar op 5, 10, 15 of 30). Sites draaien niet synchroon, dus exact gelijke
+  tijdstippen bestaan amper
+- Boven elke kolom staat het echte tijdstip van die opname; wijkt het meer dan vijf
+  minuten af van het midden van het moment, dan kleurt het roze
+- Heeft een titel geen opname binnen de marge, dan blijft die kolom leeg in plaats van
+  een beeld van een ander uur te tonen
+- Het cluster in de werkbalk bepaalt welke titels standaard naast elkaar komen; met de
+  chips voeg je er titels aan toe of haal je ze weg (maximum acht)
+- Pijltjestoetsen, de schuifbalk en de pijlknoppen springen naar het vorige/volgende
+  moment; "samen scrollen" houdt alle kolommen op dezelfde diepte
+- De link is deelbaar: `?view=vergelijk&cmp=hln,dm,humo&date=2026-03-05`
+
 ## Websites aanpassen
 
 Bewerk `websites.json`:
