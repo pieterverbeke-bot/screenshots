@@ -1453,6 +1453,11 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
     let isMobileMode = false;
     function getActiveData() { return isMobileMode ? mobileScreenshotData : screenshotData; }
 
+    // Standaardweergave bij openen: AD.nl in de tijdlijn, en op de vergelijkpagina
+    // AD, NU, VK en HLN naast elkaar. Titels zonder (mobiele) opnames vallen weg.
+    var DEFAULT_SITE = 'ad';
+    var DEFAULT_COMPARE = ['ad', 'nu', 'vk', 'hln'];
+
     // Naast de websites staan er twee vaste pagina's in dezelfde navigatie
     var VIRTUAL_SITES = { '__schema__': 'Schema', '__vergelijk__': 'Vergelijk titels' };
     function isVirtualSite(site) { return Object.prototype.hasOwnProperty.call(VIRTUAL_SITES, site); }
@@ -2465,15 +2470,24 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       return false;
     }
 
-    // Standaardselectie: de eerste titels van het actieve cluster met mobiele opnames
-    function cmpDefaultSites() {
+    // De eerste titels van het actieve cluster met mobiele opnames
+    function cmpClusterSites() {
       var sites = cmpSitesWithMobile(filterState.cluster);
       if (sites.length < 2) sites = cmpSitesWithMobile(null);
       return sites.slice(0, CMP_DEFAULT_SITES);
     }
 
+    // Standaardselectie bij openen: de vaste vier, over de clusters heen.
+    // Zijn die er niet (nog geen mobiele opnames), dan toch maar het cluster.
+    function cmpDefaultSites() {
+      var preset = DEFAULT_COMPARE.filter(function(site) {
+        return mobileScreenshotData[site] && meta[site];
+      });
+      return preset.length >= 2 ? preset.slice(0, CMP_MAX_SITES) : cmpClusterSites();
+    }
+
     function cmpSetCluster() {
-      cmpState.sites = cmpDefaultSites();
+      cmpState.sites = cmpClusterSites();
       var dates = cmpAvailableDates(cmpState.sites);
       if (!cmpState.date || dates.indexOf(cmpState.date) === -1) cmpState.date = dates[dates.length - 1] || null;
       cmpRefresh(true);
@@ -2531,7 +2545,8 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
 
     // Standaard cluster selecteren bij openen (URL param overschrijft default)
     (function() {
-      const defaultCluster = urlParams.cluster || 'AD Regiosites';
+      const defaultCluster = urlParams.cluster ||
+        (meta[DEFAULT_SITE] ? meta[DEFAULT_SITE].cluster : 'AD Regiosites');
       clusterSelect.value = defaultCluster;
       filterState.cluster = defaultCluster;
       applyClusterFilter();
@@ -2548,9 +2563,18 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
         if (cmpTab) activateTab(cmpTab);
       }
 
-      // Als een specifieke site via URL is meegegeven, activeer die tab
-      if (urlParams.site && !wantsCompare) {
-        const targetTab = document.querySelector('.tab[data-site="' + urlParams.site + '"]');
+      // Site uit de URL, anders de standaardsite
+      const wantedSite = urlParams.site || DEFAULT_SITE;
+      if (wantedSite && !wantsCompare) {
+        // Een gedeelde link naar een site uit een ander cluster moet ook werken:
+        // zonder cluster in de URL volgt het filter de site.
+        if (urlParams.site && !urlParams.cluster && meta[urlParams.site]) {
+          clusterSelect.value = meta[urlParams.site].cluster;
+          filterState.cluster = meta[urlParams.site].cluster;
+          applyClusterFilter();
+          updateSiteSelect();
+        }
+        const targetTab = document.querySelector('.tab[data-site="' + wantedSite + '"]');
         if (targetTab && !targetTab.classList.contains('hidden')) {
           activateTab(targetTab);
         }

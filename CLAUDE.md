@@ -167,6 +167,11 @@ Kan ook via GitHub Actions → "Miniaturen bijwerken" (workflow_dispatch).
 - The `screenshots/` directory is gitignored — never commit local screenshots
 - `get-refresh-token.js` is a legacy helper for Google Drive OAuth; Google Drive upload is no longer part of the active pipeline
 - The viewer (`index.html`) is generated client-side from a JSON data blob embedded in the HTML; it supports filtering by cluster, website, and date range
+- De standaardweergave staat bovenaan het viewer-script: `DEFAULT_SITE` (`ad`, en het
+  clusterfilter volgt de cluster van die site) en `DEFAULT_COMPARE`
+  (`ad, nu, vk, hln` op de vergelijkpagina). Een `site`- of `cmp`-parameter in de URL
+  wint daarvan; een `site` zonder `cluster` zet het clusterfilter mee om, zodat een
+  gedeelde link over clusters heen werkt
 - De werkbalkknop `#view-toggle` springt heen en terug tussen de tijdlijn en de
   vergelijkpagina en onthoudt in `lastSiteTab` waar je vandaan kwam; hij blijft
   zichtbaar in `cmp-mode` (in tegenstelling tot de `.toolbar-hideable`-secties)

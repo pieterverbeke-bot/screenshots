@@ -112,8 +112,9 @@ merken naast elkaar, telkens de opname die het dichtst bij hetzelfde moment ligt
   minuten af van het midden van het moment, dan kleurt het roze
 - Heeft een titel geen opname binnen de marge, dan blijft die kolom leeg in plaats van
   een beeld van een ander uur te tonen
-- Het cluster in de werkbalk bepaalt welke titels standaard naast elkaar komen; met de
-  chips voeg je er titels aan toe of haal je ze weg (maximum acht)
+- Standaard staan **AD, NU.nl, VK en HLN** naast elkaar; kies je een cluster in de
+  werkbalk, dan neemt hij de titels van dat cluster. Met de chips voeg je titels toe of
+  haal je ze weg (maximum acht)
 - Pijltjestoetsen, de schuifbalk en de pijlknoppen springen naar het vorige/volgende
   moment; "samen scrollen" houdt alle kolommen op dezelfde diepte
 - De datumknop opent een kalender (dezelfde als in de tijdlijn): dagen zonder opnames
