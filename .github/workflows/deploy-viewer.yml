@@ -1,0 +1,53 @@
+name: Viewer publiceren
+
+# index.html wordt bij elke screenshot-run opnieuw gebouwd, maar na een
+# wijziging aan de viewer wil je niet tot het volgende uur wachten. Deze
+# workflow zet enkel index.html opnieuw in R2 — geen screenshots, geen cleanup.
+on:
+  push:
+    # De standaardbranch — hernoem je die, pas dit dan mee aan
+    branches:
+      - claude/website-screenshot-monitor-554Cn
+      - main
+    paths:
+      - 'src/generate-index.js'
+      - 'websites.json'
+      - '.github/workflows/deploy-viewer.yml'
+  workflow_dispatch:
+
+# Zelfde groep als de screenshot-run: die schrijft index.html ook, dus ze
+# wachten netjes op elkaar in plaats van door elkaar te lopen.
+concurrency:
+  group: screenshots-prod
+  cancel-in-progress: false
+
+jobs:
+  viewer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        # generate-index.js heeft enkel de R2-client nodig; de Chrome-download
+        # van Puppeteer is hier verloren tijd.
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: 'true'
+        run: npm ci
+
+      - name: Update viewer page
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
+        run: node src/generate-index.js

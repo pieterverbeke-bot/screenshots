@@ -694,6 +694,7 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
     .hero-carousel {
       display: flex;
       align-items: stretch;
+      justify-content: center;
       gap: 4px;
     }
 
@@ -1168,6 +1169,38 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       white-space: nowrap;
     }
     .mobile-toggle:hover { background: #ebe4f0; border-color: #c0b0d0; }
+
+    /* Snelknop naar de vergelijkpagina (en terug), altijd zichtbaar */
+    .view-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.2rem 0.7rem;
+      border: 1px solid #783c96;
+      border-radius: 999px;
+      background: #fff;
+      color: #783c96;
+      font-family: inherit;
+      font-size: 0.65rem;
+      font-weight: 700;
+      line-height: 1.3;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+
+    .view-toggle::before {
+      content: "";
+      width: 11px;
+      height: 11px;
+      flex: 0 0 11px;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23783c96' stroke-width='1.5'%3E%3Crect x='1.6' y='2.4' width='5' height='11.2' rx='1.4'/%3E%3Crect x='9.4' y='2.4' width='5' height='11.2' rx='1.4'/%3E%3C/svg%3E") no-repeat center / contain;
+    }
+
+    .view-toggle:hover { background: #f3edf8; }
+    .view-toggle.active { background: #783c96; color: #fff; }
+    .view-toggle.active::before { filter: brightness(0) invert(1); }
+    .view-toggle.active:hover { background: #6a3485; }
     .mobile-toggle.active {
       background: #783c96;
       color: #fff;
@@ -1237,6 +1270,10 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       <div class="toolbar-divider toolbar-hideable"></div>
       <div class="toolbar-section toolbar-hideable">
         <button class="mobile-toggle" id="mobile-toggle" title="Schakelen tussen desktop en mobiele screenshots">Mobiele versie</button>
+      </div>
+      <div class="toolbar-divider"></div>
+      <div class="toolbar-section">
+        <button class="view-toggle" id="view-toggle" title="Meerdere titels naast elkaar op hetzelfde moment">Vergelijk titels</button>
       </div>
       <div class="tabs-scroll" id="tabs">
         ${websites.map((w, i) => {
@@ -2031,9 +2068,49 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       if (toolbar) toolbar.classList.toggle('cmp-mode', isCompare);
       document.body.classList.toggle('cmp-open', isCompare);
       refreshDateTrigger();
+      if (!isVirtualSite(tab.dataset.site)) lastSiteTab = tab;
+      refreshViewToggle();
       // Sync de website dropdown
       if (siteSelect) siteSelect.value = tab.dataset.site;
     }
+
+    // Knop in de werkbalk: heen naar de vergelijkpagina, terug naar de tijdlijn
+    var lastSiteTab = null;
+
+    function refreshViewToggle() {
+      var btn = document.getElementById('view-toggle');
+      if (!btn) return;
+      var active = document.querySelector('.tab.active');
+      var onCompare = !!active && active.dataset.site === '__vergelijk__';
+      btn.textContent = onCompare ? 'Terug naar tijdlijn' : 'Vergelijk titels';
+      btn.classList.toggle('active', onCompare);
+    }
+
+    (function bindViewToggle() {
+      var btn = document.getElementById('view-toggle');
+      if (!btn) return;
+      btn.addEventListener('click', function() {
+        var active = document.querySelector('.tab.active');
+        var target;
+        if (active && active.dataset.site === '__vergelijk__') {
+          target = (lastSiteTab && !lastSiteTab.classList.contains('hidden'))
+            ? lastSiteTab
+            : document.querySelector('.tab:not(.hidden):not(.tab-vergelijk):not(.tab-schema)');
+          if (!target) {
+            // Geen enkele site zichtbaar binnen dit cluster (je kwam hier via een
+            // directe link): dan maar het clusterfilter opheffen
+            clusterSelect.value = '';
+            filterState.cluster = null;
+            applyClusterFilter();
+            updateSiteSelect();
+            target = document.querySelector('.tab:not(.hidden):not(.tab-vergelijk):not(.tab-schema)');
+          }
+        } else {
+          target = document.querySelector('.tab[data-site="__vergelijk__"]');
+        }
+        if (target) { activateTab(target); updateUrl(); }
+      });
+    })();
 
     document.querySelectorAll('.tab').forEach(tab => {
       tab.addEventListener('click', () => { activateTab(tab); updateUrl(); });
