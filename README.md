@@ -112,13 +112,38 @@ merken naast elkaar, telkens de opname die het dichtst bij hetzelfde moment ligt
   minuten af van het midden van het moment, dan kleurt het roze
 - Heeft een titel geen opname binnen de marge, dan blijft die kolom leeg in plaats van
   een beeld van een ander uur te tonen
-- Het cluster in de werkbalk bepaalt welke titels standaard naast elkaar komen; met de
-  chips voeg je er titels aan toe of haal je ze weg (maximum acht)
+- Standaard staan **AD, NU.nl, VK en HLN** naast elkaar; kies je een cluster in de
+  werkbalk, dan neemt hij de titels van dat cluster. Met de chips voeg je titels toe of
+  haal je ze weg (maximum acht)
 - Pijltjestoetsen, de schuifbalk en de pijlknoppen springen naar het vorige/volgende
   moment; "samen scrollen" houdt alle kolommen op dezelfde diepte
 - De datumknop opent een kalender (dezelfde als in de tijdlijn): dagen zonder opnames
   staan er grijs bij en zijn niet klikbaar
 - De link is deelbaar: `?view=vergelijk&cmp=hln,dm,humo&date=2026-03-05`
+
+## Automatisch publiceren
+
+Twee workflows zetten een wijziging meteen live, allebei ook handmatig te starten
+via Actions → *Run workflow*:
+
+| Workflow | Draait bij een push naar de standaardbranch die raakt aan | Doet |
+|----------|-----------------------------------------------------------|------|
+| **Viewer publiceren** | `src/generate-index.js`, `websites.json` | zet `index.html` opnieuw in R2 |
+| **Worker publiceren** | `worker/**` | `wrangler deploy` naar Cloudflare |
+
+De Worker-workflow heeft twee extra GitHub-secrets nodig
+(*Settings → Secrets and variables → Actions → New repository secret*):
+
+- **`CLOUDFLARE_API_TOKEN`** — maak je op
+  [dash.cloudflare.com/profile/api-tokens](https://dash.cloudflare.com/profile/api-tokens)
+  → *Create Token* → sjabloon **"Edit Cloudflare Workers"** → bij *Account Resources*
+  je eigen account kiezen → *Continue* → *Create Token*. Het token is daarna één keer
+  zichtbaar, dus meteen kopiëren.
+- **`CLOUDFLARE_ACCOUNT_ID`** — dezelfde waarde als `R2_ACCOUNT_ID`; staat ook rechts op
+  de Workers & Pages-overzichtspagina in het Cloudflare-dashboard.
+
+Een deploy overschrijft de Worker-code, maar laat de secrets die met
+`wrangler secret put` zijn gezet (Google-login) ongemoeid.
 
 ## Websites aanpassen
 

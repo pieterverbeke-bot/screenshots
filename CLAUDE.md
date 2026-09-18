@@ -20,8 +20,10 @@ screenshots/
 │   └── wrangler.toml         # Wrangler config (R2 binding, worker name)
 ├── .github/
 │   └── workflows/
-│       ├── screenshot.yml    # GitHub Actions workflow (workflow_dispatch only)
-│       └── thumbnails.yml    # Manual thumbnail backfill (workflow_dispatch only)
+│       ├── screenshot.yml     # GitHub Actions workflow (workflow_dispatch only)
+│       ├── thumbnails.yml     # Manual thumbnail backfill (workflow_dispatch only)
+│       ├── deploy-viewer.yml  # Publiceert index.html na een viewer-wijziging
+│       └── deploy-worker.yml  # Publiceert de Worker na een wijziging in worker/
 ├── websites.json             # List of websites to screenshot
 ├── get-refresh-token.js      # One-time helper for Google Drive OAuth (unused in main flow)
 └── package.json              # ESM project, Node 20+
@@ -103,6 +105,8 @@ Each entry has:
 | `R2_SECRET_ACCESS_KEY` | R2 API token Secret Key |
 | `R2_BUCKET_NAME` | R2 bucket name (e.g. `screenshots`) |
 | `R2_PUBLIC_URL` | Public R2 URL (e.g. `https://pub-xxx.r2.dev`) — used by generate-index.js |
+| `CLOUDFLARE_API_TOKEN` | API-token met "Edit Cloudflare Workers" — enkel voor deploy-worker.yml |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare Account ID (zelfde waarde als `R2_ACCOUNT_ID`) |
 
 ## Cloudflare Worker
 
@@ -121,7 +125,9 @@ Located in `worker/`. Deployed separately from the main workflow.
   `/index.html` en `/vergelijk` (`/vergelijken`). Een nieuw pad hoort daar thuis, niet
   als apart object in de bucket
 - Google Cloud Console: create a "Web application" OAuth client with redirect URI `https://<worker-domain>/auth/callback`
-- Deploy: `npm run deploy-worker` (runs `cd worker && npx wrangler deploy`)
+- Deploy: automatisch via `.github/workflows/deploy-worker.yml` bij elke push naar de
+  standaardbranch die `worker/**` raakt; handmatig met `npm run deploy-worker`
+  (`cd worker && npx wrangler deploy`). Een deploy laat de secrets in Cloudflare staan
 - R2 binding name in wrangler.toml: `SCREENSHOTS_BUCKET`
 
 ## Development Workflow
@@ -161,6 +167,14 @@ Kan ook via GitHub Actions → "Miniaturen bijwerken" (workflow_dispatch).
 - The `screenshots/` directory is gitignored — never commit local screenshots
 - `get-refresh-token.js` is a legacy helper for Google Drive OAuth; Google Drive upload is no longer part of the active pipeline
 - The viewer (`index.html`) is generated client-side from a JSON data blob embedded in the HTML; it supports filtering by cluster, website, and date range
+- De standaardweergave staat bovenaan het viewer-script: `DEFAULT_SITE` (`ad`, en het
+  clusterfilter volgt de cluster van die site) en `DEFAULT_COMPARE`
+  (`ad, nu, vk, hln` op de vergelijkpagina). Een `site`- of `cmp`-parameter in de URL
+  wint daarvan; een `site` zonder `cluster` zet het clusterfilter mee om, zodat een
+  gedeelde link over clusters heen werkt
+- De werkbalkknop `#view-toggle` springt heen en terug tussen de tijdlijn en de
+  vergelijkpagina en onthoudt in `lastSiteTab` waar je vandaan kwam; hij blijft
+  zichtbaar in `cmp-mode` (in tegenstelling tot de `.toolbar-hideable`-secties)
 - De pagina **Vergelijk titels** (`__vergelijk__`, net als `__schema__` een vaste pagina in
   dezelfde navigatie, ook bereikbaar op `/vergelijk`) legt meerdere merken naast elkaar.
   Enkel mobiele opnames — die passen met vijf of zes naast elkaar. `cmpBuildMoments()`

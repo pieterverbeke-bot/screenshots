@@ -694,6 +694,7 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
     .hero-carousel {
       display: flex;
       align-items: stretch;
+      justify-content: center;
       gap: 4px;
     }
 
@@ -1168,6 +1169,38 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       white-space: nowrap;
     }
     .mobile-toggle:hover { background: #ebe4f0; border-color: #c0b0d0; }
+
+    /* Snelknop naar de vergelijkpagina (en terug), altijd zichtbaar */
+    .view-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.2rem 0.7rem;
+      border: 1px solid #783c96;
+      border-radius: 999px;
+      background: #fff;
+      color: #783c96;
+      font-family: inherit;
+      font-size: 0.65rem;
+      font-weight: 700;
+      line-height: 1.3;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+
+    .view-toggle::before {
+      content: "";
+      width: 11px;
+      height: 11px;
+      flex: 0 0 11px;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23783c96' stroke-width='1.5'%3E%3Crect x='1.6' y='2.4' width='5' height='11.2' rx='1.4'/%3E%3Crect x='9.4' y='2.4' width='5' height='11.2' rx='1.4'/%3E%3C/svg%3E") no-repeat center / contain;
+    }
+
+    .view-toggle:hover { background: #f3edf8; }
+    .view-toggle.active { background: #783c96; color: #fff; }
+    .view-toggle.active::before { filter: brightness(0) invert(1); }
+    .view-toggle.active:hover { background: #6a3485; }
     .mobile-toggle.active {
       background: #783c96;
       color: #fff;
@@ -1237,6 +1270,10 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       <div class="toolbar-divider toolbar-hideable"></div>
       <div class="toolbar-section toolbar-hideable">
         <button class="mobile-toggle" id="mobile-toggle" title="Schakelen tussen desktop en mobiele screenshots">Mobiele versie</button>
+      </div>
+      <div class="toolbar-divider"></div>
+      <div class="toolbar-section">
+        <button class="view-toggle" id="view-toggle" title="Meerdere titels naast elkaar op hetzelfde moment">Vergelijk titels</button>
       </div>
       <div class="tabs-scroll" id="tabs">
         ${websites.map((w, i) => {
@@ -1415,6 +1452,11 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
 
     let isMobileMode = false;
     function getActiveData() { return isMobileMode ? mobileScreenshotData : screenshotData; }
+
+    // Standaardweergave bij openen: AD.nl in de tijdlijn, en op de vergelijkpagina
+    // AD, NU, VK en HLN naast elkaar. Titels zonder (mobiele) opnames vallen weg.
+    var DEFAULT_SITE = 'ad';
+    var DEFAULT_COMPARE = ['ad', 'nu', 'vk', 'hln'];
 
     // Naast de websites staan er twee vaste pagina's in dezelfde navigatie
     var VIRTUAL_SITES = { '__schema__': 'Schema', '__vergelijk__': 'Vergelijk titels' };
@@ -2031,9 +2073,49 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       if (toolbar) toolbar.classList.toggle('cmp-mode', isCompare);
       document.body.classList.toggle('cmp-open', isCompare);
       refreshDateTrigger();
+      if (!isVirtualSite(tab.dataset.site)) lastSiteTab = tab;
+      refreshViewToggle();
       // Sync de website dropdown
       if (siteSelect) siteSelect.value = tab.dataset.site;
     }
+
+    // Knop in de werkbalk: heen naar de vergelijkpagina, terug naar de tijdlijn
+    var lastSiteTab = null;
+
+    function refreshViewToggle() {
+      var btn = document.getElementById('view-toggle');
+      if (!btn) return;
+      var active = document.querySelector('.tab.active');
+      var onCompare = !!active && active.dataset.site === '__vergelijk__';
+      btn.textContent = onCompare ? 'Terug naar tijdlijn' : 'Vergelijk titels';
+      btn.classList.toggle('active', onCompare);
+    }
+
+    (function bindViewToggle() {
+      var btn = document.getElementById('view-toggle');
+      if (!btn) return;
+      btn.addEventListener('click', function() {
+        var active = document.querySelector('.tab.active');
+        var target;
+        if (active && active.dataset.site === '__vergelijk__') {
+          target = (lastSiteTab && !lastSiteTab.classList.contains('hidden'))
+            ? lastSiteTab
+            : document.querySelector('.tab:not(.hidden):not(.tab-vergelijk):not(.tab-schema)');
+          if (!target) {
+            // Geen enkele site zichtbaar binnen dit cluster (je kwam hier via een
+            // directe link): dan maar het clusterfilter opheffen
+            clusterSelect.value = '';
+            filterState.cluster = null;
+            applyClusterFilter();
+            updateSiteSelect();
+            target = document.querySelector('.tab:not(.hidden):not(.tab-vergelijk):not(.tab-schema)');
+          }
+        } else {
+          target = document.querySelector('.tab[data-site="__vergelijk__"]');
+        }
+        if (target) { activateTab(target); updateUrl(); }
+      });
+    })();
 
     document.querySelectorAll('.tab').forEach(tab => {
       tab.addEventListener('click', () => { activateTab(tab); updateUrl(); });
@@ -2388,15 +2470,24 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       return false;
     }
 
-    // Standaardselectie: de eerste titels van het actieve cluster met mobiele opnames
-    function cmpDefaultSites() {
+    // De eerste titels van het actieve cluster met mobiele opnames
+    function cmpClusterSites() {
       var sites = cmpSitesWithMobile(filterState.cluster);
       if (sites.length < 2) sites = cmpSitesWithMobile(null);
       return sites.slice(0, CMP_DEFAULT_SITES);
     }
 
+    // Standaardselectie bij openen: de vaste vier, over de clusters heen.
+    // Zijn die er niet (nog geen mobiele opnames), dan toch maar het cluster.
+    function cmpDefaultSites() {
+      var preset = DEFAULT_COMPARE.filter(function(site) {
+        return mobileScreenshotData[site] && meta[site];
+      });
+      return preset.length >= 2 ? preset.slice(0, CMP_MAX_SITES) : cmpClusterSites();
+    }
+
     function cmpSetCluster() {
-      cmpState.sites = cmpDefaultSites();
+      cmpState.sites = cmpClusterSites();
       var dates = cmpAvailableDates(cmpState.sites);
       if (!cmpState.date || dates.indexOf(cmpState.date) === -1) cmpState.date = dates[dates.length - 1] || null;
       cmpRefresh(true);
@@ -2454,7 +2545,8 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
 
     // Standaard cluster selecteren bij openen (URL param overschrijft default)
     (function() {
-      const defaultCluster = urlParams.cluster || 'AD Regiosites';
+      const defaultCluster = urlParams.cluster ||
+        (meta[DEFAULT_SITE] ? meta[DEFAULT_SITE].cluster : 'AD Regiosites');
       clusterSelect.value = defaultCluster;
       filterState.cluster = defaultCluster;
       applyClusterFilter();
@@ -2471,9 +2563,18 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
         if (cmpTab) activateTab(cmpTab);
       }
 
-      // Als een specifieke site via URL is meegegeven, activeer die tab
-      if (urlParams.site && !wantsCompare) {
-        const targetTab = document.querySelector('.tab[data-site="' + urlParams.site + '"]');
+      // Site uit de URL, anders de standaardsite
+      const wantedSite = urlParams.site || DEFAULT_SITE;
+      if (wantedSite && !wantsCompare) {
+        // Een gedeelde link naar een site uit een ander cluster moet ook werken:
+        // zonder cluster in de URL volgt het filter de site.
+        if (urlParams.site && !urlParams.cluster && meta[urlParams.site]) {
+          clusterSelect.value = meta[urlParams.site].cluster;
+          filterState.cluster = meta[urlParams.site].cluster;
+          applyClusterFilter();
+          updateSiteSelect();
+        }
+        const targetTab = document.querySelector('.tab[data-site="' + wantedSite + '"]');
         if (targetTab && !targetTab.classList.contains('hidden')) {
           activateTab(targetTab);
         }
