@@ -219,12 +219,19 @@ Kan ook via GitHub Actions → "Miniaturen bijwerken" (workflow_dispatch).
 - `generate-index.js` bouwt twee datastructuren: desktop en mobiel (`_mobile.`-suffix).
   De knop "Mobiele versie" wisselt ertussen; de vergelijkpagina gebruikt altijd de mobiele
 - **Deeplinks** zijn het koppelvlak met de Nieuwsmonitor (chef.rigby.be, repo
-  `superchef`): `?site=&cluster=&date=&t=&view=vergelijk&cmp=&mobile=`. `t` (alias
-  `tijd`) is een tijdstip, geen opname: `parseClock()` leest `14:35`, `14:35:07`,
-  `14-35-00` en `1435`, en `jumpToMoment()` (tijdlijn) resp. `cmpGotoTime()`
-  (vergelijkpagina) kiest wat er het dichtst bij ligt. Onleesbaar of ontbrekend →
-  het oude gedrag (eerste opname van de dag / nieuwste opname). Wijzigt dit contract,
-  pas dan ook `screenshots.ts` in de superchef-repo aan, die deze links bouwt
+  `superchef`): `?site=&cluster=&date=&t=&view=vergelijk&cmp=&plus=&mobile=`. `t`
+  (alias `tijd`) is een tijdstip, geen opname: `parseClock()` leest `14:35`,
+  `14:35:07`, `14-35-00` en `1435`, en `jumpToMoment()` (tijdlijn) resp.
+  `cmpGotoTime()` (vergelijkpagina) kiest wat er het dichtst bij ligt. Onleesbaar of
+  ontbrekend → het oude gedrag (eerste opname van de dag / nieuwste opname). Wijzigt
+  dit contract, pas dan ook `screenshots.ts` in de superchef-repo aan, die deze
+  links bouwt
+- `site` + `view=vergelijk` zónder `cmp` bouwt de selectie zelf op: `cmpSitesAround()`
+  zet die titel vooraan en vult aan uit haar cluster (`plus=` eerst, dan het cluster,
+  en bij een cluster van één titel de `DEFAULT_COMPARE`-vier). Zo hoeft de
+  Nieuwsmonitor enkel "dit is mijn titel" te sturen en blijft de clusterindeling in
+  `websites.json` staan. Een expliciete `cmp` wint. Het clusterfilter volgt `site`
+  ook op de vergelijkpagina (`siteCluster` in het init-blok)
 - `updateUrl()` schrijft in de tijdlijn nu óók `date` en `t` van de getoonde opname,
   zodat het adres in de balk altijd terugleidt naar dat beeld; `activateThumb()` doet
   dat via `scheduleUrlUpdate()` (250 ms debounce, anders schrijft elke pijltjestoets)

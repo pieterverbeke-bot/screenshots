@@ -1512,6 +1512,7 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
         mobile: params.get('mobile'),
         view: params.get('view'),
         cmp: params.get('cmp'),
+        plus: params.get('plus'),
         t: params.get('t') || params.get('tijd'),
       };
     }
@@ -2594,6 +2595,28 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       return preset.length >= 2 ? preset.slice(0, CMP_MAX_SITES) : cmpClusterSites();
     }
 
+    // De vergelijking rond één titel: die titel staat er altijd in en vooraan,
+    // de rest komt uit haar cluster. Zo opent een link vanuit de Nieuwsmonitor
+    // op de eigen titel van de chef, naast de titels waar hij zich mee meet.
+    // 'plus' zijn titels die er hoe dan ook bij horen — het merk waarvan hij de
+    // regel aanklikte, dat in een ander cluster kan zitten dan het zijne.
+    // Staat een titel alleen in haar cluster (NU.nl, RTL), dan vullen de vaste
+    // vier aan: met één kolom valt er niets te vergelijken.
+    function cmpSitesAround(site, plus) {
+      if (!site || !meta[site] || !mobileScreenshotData[site]) return null;
+      var sites = [site];
+      function voegToe(kandidaten) {
+        for (var i = 0; i < kandidaten.length && sites.length < CMP_DEFAULT_SITES; i++) {
+          var s = kandidaten[i];
+          if (meta[s] && mobileScreenshotData[s] && sites.indexOf(s) === -1) sites.push(s);
+        }
+      }
+      voegToe((plus || []).filter(Boolean));
+      voegToe(cmpSitesWithMobile(meta[site].cluster));
+      if (sites.length < 2) voegToe(DEFAULT_COMPARE);
+      return sites;
+    }
+
     function cmpSetCluster() {
       cmpState.sites = cmpClusterSites();
       var dates = cmpAvailableDates(cmpState.sites);
@@ -2606,7 +2629,12 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       var fromUrl = (urlParams.cmp || '').split(',').filter(function(site) {
         return site && mobileScreenshotData[site] && meta[site];
       });
-      cmpState.sites = fromUrl.length ? fromUrl.slice(0, CMP_MAX_SITES) : cmpDefaultSites();
+      // Zonder cmp maar mét een titel: de vergelijking wordt rond die titel
+      // gebouwd. Dat is wat een link uit de Nieuwsmonitor meegeeft — alleen de
+      // titel van de chef, niet de hele selectie, want welke titels bij elkaar
+      // horen staat hier (in websites.json) en niet daar.
+      var around = cmpSitesAround(urlParams.site, (urlParams.plus || '').split(','));
+      cmpState.sites = fromUrl.length ? fromUrl.slice(0, CMP_MAX_SITES) : (around || cmpDefaultSites());
 
       var dates = cmpAvailableDates(cmpState.sites);
       cmpState.date = (urlParams.date && dates.indexOf(urlParams.date) > -1)
@@ -2655,7 +2683,12 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
 
     // Standaard cluster selecteren bij openen (URL param overschrijft default)
     (function() {
-      const defaultCluster = urlParams.cluster ||
+      // Een gedeelde link naar een titel uit een ander cluster moet werken:
+      // zonder cluster in de URL volgt het filter de titel. Dat geldt ook op de
+      // vergelijkpagina, waar die titel het anker van de vergelijking is.
+      const siteCluster = urlParams.site && !urlParams.cluster && meta[urlParams.site]
+        ? meta[urlParams.site].cluster : null;
+      const defaultCluster = urlParams.cluster || siteCluster ||
         (meta[DEFAULT_SITE] ? meta[DEFAULT_SITE].cluster : 'AD Regiosites');
       clusterSelect.value = defaultCluster;
       filterState.cluster = defaultCluster;
@@ -2676,14 +2709,6 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       // Site uit de URL, anders de standaardsite
       const wantedSite = urlParams.site || DEFAULT_SITE;
       if (wantedSite && !wantsCompare) {
-        // Een gedeelde link naar een site uit een ander cluster moet ook werken:
-        // zonder cluster in de URL volgt het filter de site.
-        if (urlParams.site && !urlParams.cluster && meta[urlParams.site]) {
-          clusterSelect.value = meta[urlParams.site].cluster;
-          filterState.cluster = meta[urlParams.site].cluster;
-          applyClusterFilter();
-          updateSiteSelect();
-        }
         const targetTab = document.querySelector('.tab[data-site="' + wantedSite + '"]');
         if (targetTab && !targetTab.classList.contains('hidden')) {
           activateTab(targetTab);
