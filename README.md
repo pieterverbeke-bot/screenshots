@@ -134,8 +134,17 @@ precies dat beeld. Andersom kan een andere tool er ook een bouwen.
 | `date` | de dag (`YYYY-MM-DD`) | `date=2026-09-02` |
 | `t` | het **tijdstip** waar de link naar wijst | `t=14:35` |
 | `view` | `vergelijk` opent de vergelijkpagina (net als het pad `/vergelijk`) | `view=vergelijk` |
-| `cmp` | de titels op de vergelijkpagina, met komma's | `cmp=ad,nu,vk,hln` |
+| `cmp` | de titels op de vergelijkpagina, met komma's — een volledige selectie | `cmp=ad,nu,vk,hln` |
+| `plus` | titels die er sowieso bij moeten, naast de titel uit `site` | `plus=nos` |
 | `mobile` | `1` opent de mobiele opnames | `mobile=1` |
+
+**Een vergelijking rond één titel.** `site` + `view=vergelijk` zonder `cmp` bouwt de
+selectie zelf op: die titel staat vooraan, de rest komt uit haar cluster (maximaal
+vijf kolommen). Zo hoeft de verwijzende tool niet te weten welke titels bij elkaar
+horen — dat staat in `websites.json` en nergens anders. Staat een titel alleen in
+haar cluster (NU.nl, RTL), dan vullen AD, NU.nl, VK en HLN aan, want met één kolom
+valt er niets te vergelijken. `plus` zet er nog een titel bij die in een ander
+cluster hoort. Een expliciete `cmp` wint altijd.
 
 Over `t`: niet elke minuut heeft een opname, dus de viewer zoekt de opname die er
 het **dichtst bij** ligt — op de vergelijkpagina het moment dat er het dichtst bij
@@ -151,8 +160,13 @@ Nieuwsmonitor.
 
 ```
 https://screenshots.rigby.be/?site=hln&date=2026-09-02&t=14:35
+https://screenshots.rigby.be/?site=ad&view=vergelijk&plus=nos&date=2026-09-02&t=14:35
 https://screenshots.rigby.be/?view=vergelijk&cmp=ad,nu,vk,hln&date=2026-09-02&t=14:35
 ```
+
+De tweede link is wat de Nieuwsmonitor stuurt: *AD is mijn titel, NOS is het merk
+waarvan ik de regel aanklikte, en dit is het moment.* Het adres in de balk wordt
+daarna de derde vorm — met de volledige selectie erin, klaar om door te sturen.
 
 ## Automatisch publiceren
 
