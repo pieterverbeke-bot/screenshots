@@ -202,6 +202,23 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
     .account-slot a:hover { text-decoration: underline; }
     .account-slot #account-email { opacity: 0.95; }
 
+    /* Linkje naar de Nieuwsmonitor (chef.rigby.be): dezelfde tool-familie,
+       dus zichtbaar maar rustiger dan de eigen titel. */
+    .tool-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: #fff;
+      text-decoration: none;
+      background: rgba(255, 255, 255, 0.18);
+      padding: 0.28rem 0.75rem;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+    .tool-link:hover { background: rgba(255, 255, 255, 0.3); }
+
     /* Modern compact header */
     header {
       background: linear-gradient(135deg, #783c96 0%, #d23278 50%, #e6463c 80%, #fabb22 100%);
@@ -1236,6 +1253,9 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
         <h1>RI&amp;G Screenshots</h1>
       </div>
       <div class="header-right">
+        <!-- De twee tools horen bij elkaar: de Nieuwsmonitor toont wat er nu in
+             het nieuws is, deze pagina wat er toen op de homepages stond. -->
+        <a class="tool-link" href="https://chef.rigby.be/" title="RI&amp;G Nieuwsmonitor: wat er nu in het nieuws is">Nieuwsmonitor &#8599;</a>
         <p>Laatste update: ${new Date().toLocaleString('nl-BE', { timeZone: 'Europe/Brussels' })}</p>
         <!-- De Worker vult dit blok met het aangemelde account en toont het;
              zonder login blijft het verborgen. -->
@@ -1477,7 +1497,12 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
     const filterState = { cluster: null };
 
     // URL query parameters parsen voor deelbare links
-    // Gebruik: ?cluster=HLN&site=hln&date=2024-01-15
+    // Gebruik: ?cluster=HLN&site=hln&date=2024-01-15&t=14:35
+    //
+    // 't' is het tijdstip waarnaar een link wijst: niet elke opname heeft een
+    // eigen adres, dus de viewer zoekt de opname die er het dichtst bij ligt.
+    // Zo kan een andere tool (de Nieuwsmonitor op chef.rigby.be) doorlinken
+    // vanaf het moment dat een bericht verscheen naar de homepage van toen.
     function getUrlParams() {
       const params = new URLSearchParams(window.location.search);
       return {
@@ -1487,7 +1512,22 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
         mobile: params.get('mobile'),
         view: params.get('view'),
         cmp: params.get('cmp'),
+        t: params.get('t') || params.get('tijd'),
       };
+    }
+
+    // Een tijdstip uit een link of uit data-time lezen: '14:35', '14:35:07',
+    // '14-35-00' en '1435' geven alle vier hetzelfde aantal minuten na
+    // middernacht. Onleesbaar of onbestaand tijdstip -> null.
+    function parseClock(value) {
+      if (!value) return null;
+      // Let op: dit staat in een template literal, dus geen backslashes in
+      // het patroon ('\\d' zou hier als 'd' in de pagina belanden).
+      var m = /^([0-9]{1,2})[:.h-]?([0-9]{2})(?:[:.-]([0-9]{2}))?$/.exec(String(value).trim());
+      if (!m) return null;
+      var hh = parseInt(m[1], 10), mm = parseInt(m[2], 10), ss = m[3] ? parseInt(m[3], 10) : 0;
+      if (hh > 23 || mm > 59 || ss > 59) return null;
+      return hh * 60 + mm + ss / 60;
     }
 
     function updateUrl() {
@@ -1499,12 +1539,29 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
         params.set('view', 'vergelijk');
         if (cmpState.sites.length) params.set('cmp', cmpState.sites.join(','));
         if (cmpState.date) params.set('date', cmpState.date);
+        const moment = cmpState.moments[cmpState.index];
+        if (moment) params.set('t', moment.shots[0].time);
       } else if (activeTab && !isVirtualSite(activeSite)) {
         params.set('site', activeSite);
+        // Datum en tijdstip van de opname die nu in de hero staat, zodat het
+        // adres in de balk altijd terugleidt naar precies dit beeld.
+        const shown = document.querySelector('.website-section.active .fs-thumb.active');
+        if (shown && shown.dataset.date) {
+          params.set('date', shown.dataset.date);
+          if (shown.dataset.time) params.set('t', shown.dataset.time.slice(0, 5));
+        }
       }
       if (isMobileMode) params.set('mobile', '1');
       const qs = params.toString();
       history.replaceState(null, '', qs ? '?' + qs : window.location.pathname);
+    }
+
+    // Bladeren door de tijdlijn verandert het adres mee, maar niet bij elke
+    // pijltjestoets: wie doorklikt, schrijft pas als hij stilvalt.
+    var urlTimer = null;
+    function scheduleUrlUpdate() {
+      if (urlTimer) clearTimeout(urlTimer);
+      urlTimer = setTimeout(updateUrl, 250);
     }
 
     const urlParams = getUrlParams();
@@ -1793,6 +1850,29 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       }
     }
 
+    // Deeplink naar één opname: de opname van die dag die het dichtst bij het
+    // gevraagde tijdstip ligt. Zonder datum die van de nieuwste dag.
+    function jumpToMoment(date, minutes) {
+      const section = document.querySelector('.website-section.active');
+      if (!section) return false;
+      const thumbs = [...section.querySelectorAll('.fs-thumb')];
+      if (!thumbs.length) return false;
+      const day = date || thumbs[thumbs.length - 1].dataset.date;
+      const pool = thumbs.filter(function(t) { return t.dataset.date === day; });
+      if (!pool.length) return false;
+
+      let target = pool[0], best = Infinity;
+      for (let i = 0; i < pool.length; i++) {
+        const mins = parseClock(pool[i].dataset.time);
+        if (mins === null) continue;
+        const delta = Math.abs(mins - minutes);
+        if (delta < best) { best = delta; target = pool[i]; }
+      }
+      activateThumb(target);
+      scrollFilmstripToThumb(target);
+      return true;
+    }
+
     function applyClusterFilter() {
       const tabs = document.querySelectorAll('.tab');
       let firstVisible = null;
@@ -1978,6 +2058,7 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       updatePeeks(section, false);
       schedulePeeks(section);
       refreshDateTrigger();
+      scheduleUrlUpdate();
     }
 
     // Laad de peek-/preload-beelden pas na de hero (of na een korte time-out
@@ -2473,6 +2554,21 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       cmpState.index = index;
       cmpRenderMoment();
       cmpRenderGrid();
+      scheduleUrlUpdate();
+    }
+
+    // Het moment dat het dichtst bij een tijdstip uit de link ligt. Een moment
+    // is een venster, dus binnen dat venster is de afstand nul en erbuiten telt
+    // die tot de dichtstbijzijnde rand.
+    function cmpGotoTime(minutes) {
+      if (minutes === null || !cmpState.moments.length) return;
+      var best = 0, bestDelta = Infinity;
+      for (var i = 0; i < cmpState.moments.length; i++) {
+        var m = cmpState.moments[i];
+        var delta = minutes < m.start ? m.start - minutes : (minutes > m.end ? minutes - m.end : 0);
+        if (delta < bestDelta) { bestDelta = delta; best = i; }
+      }
+      cmpGoto(best);
     }
 
     // Pijltjestoetsen in de vergelijkweergave: vorig/volgend moment
@@ -2553,6 +2649,8 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       });
 
       cmpRefresh(true);
+      // Een link met een tijdstip opent op het moment dat er het dichtst bij ligt
+      cmpGotoTime(parseClock(urlParams.t));
     }
 
     // Standaard cluster selecteren bij openen (URL param overschrijft default)
@@ -2604,11 +2702,16 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
         }
       }
 
-      // Als een datum via URL is meegegeven, navigeer daarheen
-      if (urlParams.date && !wantsCompare) {
-        // Wacht tot filmstrip gerenderd is
+      // Datum en/of tijdstip uit de link: daarheen zodra de filmstrip er staat.
+      // Met een tijdstip landt de hero op de opname die er het dichtst bij ligt
+      // — een link vanuit de Nieuwsmonitor wijst naar het moment dat een bericht
+      // verscheen, en dat is zelden precies een opnametijdstip.
+      const wantedMinutes = parseClock(urlParams.t);
+      if ((urlParams.date || wantedMinutes !== null) && !wantsCompare) {
         requestAnimationFrame(() => {
-          scrollFilmstripToDate(urlParams.date);
+          if (wantedMinutes !== null) jumpToMoment(urlParams.date, wantedMinutes);
+          else scrollFilmstripToDate(urlParams.date);
+          refreshDateTrigger();
         });
       }
 

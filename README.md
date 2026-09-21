@@ -119,7 +119,40 @@ merken naast elkaar, telkens de opname die het dichtst bij hetzelfde moment ligt
   moment; "samen scrollen" houdt alle kolommen op dezelfde diepte
 - De datumknop opent een kalender (dezelfde als in de tijdlijn): dagen zonder opnames
   staan er grijs bij en zijn niet klikbaar
-- De link is deelbaar: `?view=vergelijk&cmp=hln,dm,humo&date=2026-03-05`
+- De link is deelbaar: `?view=vergelijk&cmp=hln,dm,humo&date=2026-03-05&t=09:00`
+
+## Deeplinks: naar één moment verwijzen
+
+Het adres in de balk is altijd een volledige verwijzing naar wat je ziet: kies een
+titel, een dag en een opname, en de link die je kopieert opent bij iemand anders
+precies dat beeld. Andersom kan een andere tool er ook een bouwen.
+
+| Parameter | Betekenis | Voorbeeld |
+|-----------|-----------|-----------|
+| `site` | de titel in de tijdlijn (het `name`-veld uit `websites.json`) | `site=hln` |
+| `cluster` | het clusterfilter; laat je het weg, dan volgt het de cluster van `site` | `cluster=ADR` |
+| `date` | de dag (`YYYY-MM-DD`) | `date=2026-09-02` |
+| `t` | het **tijdstip** waar de link naar wijst | `t=14:35` |
+| `view` | `vergelijk` opent de vergelijkpagina (net als het pad `/vergelijk`) | `view=vergelijk` |
+| `cmp` | de titels op de vergelijkpagina, met komma's | `cmp=ad,nu,vk,hln` |
+| `mobile` | `1` opent de mobiele opnames | `mobile=1` |
+
+Over `t`: niet elke minuut heeft een opname, dus de viewer zoekt de opname die er
+het **dichtst bij** ligt — op de vergelijkpagina het moment dat er het dichtst bij
+ligt. Een link mag dus gerust naar 14:35 wijzen terwijl er om 14:30 en 15:00
+gefotografeerd is. Geschreven mag worden `14:35`, `14:35:07`, `14-35-00` of `1435`;
+staat er iets onleesbaars, dan valt de viewer terug op de eerste opname van die dag.
+Zonder `date` geldt het tijdstip op de nieuwste dag. `tijd=` mag ook.
+
+Dit is de haak waarmee de **Nieuwsmonitor** (chef.rigby.be) doorlinkt: daar staat bij
+elk bericht hoe laat het verscheen, en die link opent hier de homepage van dat merk op
+dat moment. Andersom staat er bovenaan in de header een link terug naar de
+Nieuwsmonitor.
+
+```
+https://screenshots.rigby.be/?site=hln&date=2026-09-02&t=14:35
+https://screenshots.rigby.be/?view=vergelijk&cmp=ad,nu,vk,hln&date=2026-09-02&t=14:35
+```
 
 ## Automatisch publiceren
 

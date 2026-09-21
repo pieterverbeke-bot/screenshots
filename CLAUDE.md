@@ -218,6 +218,20 @@ Kan ook via GitHub Actions → "Miniaturen bijwerken" (workflow_dispatch).
   dan op beide plekken
 - `generate-index.js` bouwt twee datastructuren: desktop en mobiel (`_mobile.`-suffix).
   De knop "Mobiele versie" wisselt ertussen; de vergelijkpagina gebruikt altijd de mobiele
+- **Deeplinks** zijn het koppelvlak met de Nieuwsmonitor (chef.rigby.be, repo
+  `superchef`): `?site=&cluster=&date=&t=&view=vergelijk&cmp=&mobile=`. `t` (alias
+  `tijd`) is een tijdstip, geen opname: `parseClock()` leest `14:35`, `14:35:07`,
+  `14-35-00` en `1435`, en `jumpToMoment()` (tijdlijn) resp. `cmpGotoTime()`
+  (vergelijkpagina) kiest wat er het dichtst bij ligt. Onleesbaar of ontbrekend →
+  het oude gedrag (eerste opname van de dag / nieuwste opname). Wijzigt dit contract,
+  pas dan ook `screenshots.ts` in de superchef-repo aan, die deze links bouwt
+- `updateUrl()` schrijft in de tijdlijn nu óók `date` en `t` van de getoonde opname,
+  zodat het adres in de balk altijd terugleidt naar dat beeld; `activateThumb()` doet
+  dat via `scheduleUrlUpdate()` (250 ms debounce, anders schrijft elke pijltjestoets)
+- **Pas op met backslashes in het viewer-script**: dat staat in een template literal in
+  `generate-index.js`, dus `\d` belandt als `d` in de pagina en een regex als `/\d{2}/`
+  werkt daar niet. Schrijf `[0-9]` (of verdubbel de backslash). Zelfde reden waarom
+  `/\.webp$/` in de gegenereerde pagina `/.webp$/` is — daar toevallig onschadelijk
 
 ## Lazy Loading & Image Loading Strategy (`src/take-screenshots.js`)
 
