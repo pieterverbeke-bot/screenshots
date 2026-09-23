@@ -138,6 +138,8 @@ Located in `worker/`. Deployed separately from the main workflow.
 - `isViewerPath()` bepaalt welke paden dezelfde `index.html` uit R2 serveren: `/`,
   `/index.html` en `/vergelijk` (`/vergelijken`). Een nieuw pad hoort daar thuis, niet
   als apart object in de bucket
+- Cloudflare Web Analytics: de beacon-snippet staat vlak voor `</body>` in zowel de viewer
+  (`src/generate-index.js`) als de loginpagina (`worker/src/index.js`). Token wijzigen → op beide plekken
 - Google Cloud Console: create a "Web application" OAuth client with redirect URI `https://<worker-domain>/auth/callback`
 - Deploy: automatisch via `.github/workflows/deploy-worker.yml` bij elke push naar de
   standaardbranch die `worker/**` raakt; handmatig met `npm run deploy-worker`
