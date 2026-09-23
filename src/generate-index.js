@@ -3028,6 +3028,7 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       }
     });
   </script>
+  <!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "3f8864277c7d415eab6d36bcb0f9221a"}'></script><!-- End Cloudflare Web Analytics -->
 </body>
 </html>`;
 }

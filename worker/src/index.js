@@ -284,6 +284,7 @@ function loginPage(errorMessage, noticeMessage) {
       <a class="gsi-button" href="/auth/login">${GOOGLE_LOGO}<span>Inloggen met Google</span></a>
     </div>
   </div>
+  <!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "3f8864277c7d415eab6d36bcb0f9221a"}'></script><!-- End Cloudflare Web Analytics -->
 </body>
 </html>`;
 }
