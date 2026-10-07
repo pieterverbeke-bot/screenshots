@@ -93,7 +93,7 @@ Each entry has:
   - `interval: 60` → één run per uur: het hele uur, of het halve uur met `halfHour: true`
   - `interval > 60` → enkel als `(uur - offset) % (interval / 60) === 0`
 - **`halfHour` is het verdeelmechanisme**: het verplaatst werk van de ene run naar de
-  andere zonder het dagtotaal te wijzigen. Piek nu: 21 sites op het hele uur, 30 op het
+  andere zonder het dagtotaal te wijzigen. Piek nu: 23 sites op het hele uur, 30 op het
   halve uur (de 34 indebuurt-sites komen om de vier uur samen binnen, met `offset: 1`)
 - **Twee titels zijn enkel vergelijkbaar als ze in dezelfde run zitten.** Daarom staan alle
   ADR-titels op het hele uur; zet een nieuwe ADR-titel dus niet op `halfHour`
