@@ -55,6 +55,15 @@
     "interval": 60
   },
   {
+    "name": "standaard",
+    "label": "De Standaard",
+    "url": "https://www.standaard.be",
+    "land": "België",
+    "medium": "nieuwsmedia",
+    "cluster": "BE concurrentie",
+    "interval": 60
+  },
+  {
     "name": "rtl",
     "label": "RTL Nieuws",
     "url": "https://www.rtl.nl",
@@ -64,6 +73,15 @@
     "interval": 60,
     "halfHour": true,
     "skipHours": [0, 1, 2, 3, 4, 5]
+  },
+  {
+    "name": "telegraaf",
+    "label": "De Telegraaf",
+    "url": "https://www.telegraaf.nl",
+    "land": "Nederland",
+    "medium": "nieuwsmedia",
+    "cluster": "NL concurrentie",
+    "interval": 60
   },
   {
     "name": "nrc",
