@@ -1688,9 +1688,75 @@ async function dismissPopups(page) {
   }
 }
 
+// Herken een pagina die we niet willen opslaan: een bot-blok- of challengepagina, of een pagina
+// waarvan de opmaak niet geladen is. Geeft de reden terug, of null als de pagina in orde lijkt.
+// Met `opmaak: false` enkel de blok-/challengetekst — vlak na goto kan de CSS nog onderweg zijn.
+async function detectBlockedPage(page, { opmaak = true } = {}) {
+  return page.evaluate((opmaak) => {
+    const txt = (document.title || '') + ' ' + (document.body ? (document.body.innerText || '').slice(0, 1500) : '');
+    if (/you have been blocked|attention required!?\s*\|\s*cloudflare|access denied|pardon our interruption/i.test(txt)) {
+      return 'bot-blokpagina';
+    }
+    // Cloudflare-challenge die niet vanzelf verdween (De Telegraaf: "Performing security verification"
+    // met een "Verify you are human"-vakje). Die proberen we niet te passeren: zo'n opname vervalt.
+    if (/performing security verification|verify you are human|controleer of u een mens bent|just a moment(\.\.\.|…)|checking your browser/i.test(txt)) {
+      return 'Cloudflare-challenge';
+    }
+    if (!opmaak) return null;
+
+    const cssLinks = document.querySelectorAll('link[rel="stylesheet"]').length;
+    const loadedLinkedSheets = [...document.styleSheets].filter(s => s.href).length;
+    if (cssLinks > 0 && loadedLinkedSheets === 0) return 'stylesheets geblokkeerd (ongestylede pagina)';
+    // Nieuwsblad injecteert CSS via JS (geen <link>-tags), dus bovenstaande check mist het als
+    // die JS geblokkeerd is. Vangnet: tel stylesheets exclusief onze eigen geïnjecteerde styles —
+    // nul site-stylesheets betekent een kale, ongestylede pagina (geen echte site heeft géén CSS).
+    const siteSheets = [...document.styleSheets].filter(s => {
+      const n = s.ownerNode;
+      if (!n) return true;
+      if (n.id === '__dpg_gate_killer') return false;
+      if ((n.textContent || '').includes('content-visibility: visible')) return false;
+      return true;
+    }).length;
+    if (siteSheets === 0) return 'geen geladen stylesheets (ongestylede pagina)';
+
+    // Kijk naar het resultaat in plaats van naar de stylesheets: De Standaard, Nieuwsblad en De
+    // Telegraaf bleven ongestyled terwijl er wél stylesheets stonden (losse <style>-blokken van
+    // Didomi en CSS-modules, een font-CSS van een ander domein), dus de checks hierboven zagen niets.
+    // Zonder de CSS van de site staan links in de browserstandaard: blauw (rgb(0, 0, 238)) en
+    // onderstreept. Op een gestylede homepage is dat hoogstens een handvol links (RTL: 8 op 157).
+    const links = [...document.querySelectorAll('a[href]')].filter(a => {
+      const r = a.getBoundingClientRect();
+      return r.width > 0 && r.height > 0 && (a.textContent || '').trim();
+    }).slice(0, 200);
+    if (links.length >= 20) {
+      const kaal = links.filter(a => {
+        const s = getComputedStyle(a);
+        return s.color === 'rgb(0, 0, 238)' && s.textDecorationLine.includes('underline');
+      }).length;
+      if (kaal / links.length > 0.5) return `ongestylede pagina (${kaal}/${links.length} links in browserstandaard)`;
+    }
+    return null;
+  }, opmaak).catch(() => null);
+}
+
 // Laad pagina en maak klaar voor screenshot (consent-afhandeling, overlays, scroll).
 async function loadAndPrepare(page, website, waitUntil = 'networkidle2', { isMobile = false } = {}) {
   const { name, url } = website;
+
+  // Houd geweigerde stylesheets bij: bij een ongestylede pagina zegt de log dan wáárom
+  // (bv. "403 www.standaard.be ×6" = de bot-bescherming weigert de CSS, niet de pagina zelf).
+  const cssFouten = [];
+  const hostVan = u => { try { return new URL(u).host; } catch { return u.slice(0, 40); } };
+  page.on('response', res => {
+    if (res.status() >= 400 && res.request().resourceType() === 'stylesheet') {
+      cssFouten.push(`${res.status()} ${hostVan(res.url())}`);
+    }
+  });
+  page.on('requestfailed', req => {
+    if (req.resourceType() === 'stylesheet') {
+      cssFouten.push(`${req.failure()?.errorText || 'mislukt'} ${hostVan(req.url())}`);
+    }
+  });
 
   console.log(`📸 ${name}: Navigating to ${url} (waitUntil: ${waitUntil})`);
   await page.goto(url, {
@@ -1707,6 +1773,13 @@ async function loadAndPrepare(page, website, waitUntil = 'networkidle2', { isMob
 
   // Cloudflare "Verify you are human" challenge afhandelen
   await handleCloudflareChallenge(page);
+
+  // Vroege uitstap: een blok- of challengepagina hoeft niet eerst door alle consent- en
+  // lazy-load-passes hieronder (een halve minuut per poging) voor we hem toch weggooien.
+  const vroegBlok = await detectBlockedPage(page, { opmaak: false });
+  if (vroegBlok) {
+    throw new Error(`blocked page: ${vroegBlok}`);
+  }
 
   // DPG privacy gate afhandelen (redirect of iframe)
   await handleDPGPrivacyGate(page);
@@ -1812,32 +1885,14 @@ async function loadAndPrepare(page, website, waitUntil = 'networkidle2', { isMob
   await dismissConsentGate(page);
 
   // Bot-block detectie (Cloudflare/Akamai blokkeert GitHub-runner-IP's intermitterend, gezien op
-  // Nieuwsblad/GvA/VRT). Twee vormen: een expliciete blokpagina, of een pagina waarvan de CSS-assets
-  // geblokkeerd werden (links aanwezig maar geen enkele geladen stylesheet → ongestylede pagina).
-  // Een throw triggert de bestaande retry in takeScreenshot i.p.v. een kapotte screenshot op te slaan.
-  const blockReason = await page.evaluate(() => {
-    const txt = (document.title || '') + ' ' + (document.body ? (document.body.innerText || '').slice(0, 1500) : '');
-    if (/you have been blocked|attention required!?\s*\|\s*cloudflare|access denied|pardon our interruption/i.test(txt)) {
-      return 'bot-blokpagina';
-    }
-    const cssLinks = document.querySelectorAll('link[rel="stylesheet"]').length;
-    const loadedLinkedSheets = [...document.styleSheets].filter(s => s.href).length;
-    if (cssLinks > 0 && loadedLinkedSheets === 0) return 'stylesheets geblokkeerd (ongestylede pagina)';
-    // Nieuwsblad injecteert CSS via JS (geen <link>-tags), dus bovenstaande check mist het als
-    // die JS geblokkeerd is. Vangnet: tel stylesheets exclusief onze eigen geïnjecteerde styles —
-    // nul site-stylesheets betekent een kale, ongestylede pagina (geen echte site heeft géén CSS).
-    const siteSheets = [...document.styleSheets].filter(s => {
-      const n = s.ownerNode;
-      if (!n) return true;
-      if (n.id === '__dpg_gate_killer') return false;
-      if ((n.textContent || '').includes('content-visibility: visible')) return false;
-      return true;
-    }).length;
-    if (siteSheets === 0) return 'geen geladen stylesheets (ongestylede pagina)';
-    return null;
-  }).catch(() => null);
+  // Nieuwsblad/GvA/VRT/De Standaard/De Telegraaf): een blok- of challengepagina, of een pagina
+  // waarvan de CSS geweigerd werd. Een throw triggert de bestaande retry in takeScreenshot; lukt
+  // die ook niet, dan vervalt de opname (een gat in de tijdlijn i.p.v. een kapot beeld).
+  const blockReason = await detectBlockedPage(page);
   if (blockReason) {
-    throw new Error(`blocked page: ${blockReason}`);
+    const telling = cssFouten.reduce((m, f) => m.set(f, (m.get(f) || 0) + 1), new Map());
+    const css = [...telling].map(([f, n]) => (n > 1 ? `${f} ×${n}` : f)).join(', ');
+    throw new Error(`blocked page: ${blockReason}${css ? ` — CSS geweigerd: ${css}` : ''}`);
   }
 }
 
@@ -2155,7 +2210,7 @@ async function takeScreenshot(browser, website) {
       break;
     } catch (error) {
       if (attempt < maxAttempts && (error?.message?.includes('too small') || error?.message?.includes('blocked page'))) {
-        console.log(`⚠️  ${name}: ${error?.message?.includes('blocked page') ? 'Block detected' : 'Blank page detected'}, retrying (attempt ${attempt + 1}/${maxAttempts})...`);
+        console.log(`⚠️  ${name}: ${error?.message?.includes('blocked page') ? 'Block detected' : 'Blank page detected'} (${error?.message}), retrying (attempt ${attempt + 1}/${maxAttempts})...`);
         await new Promise(r => setTimeout(r, 5000));
         continue;
       }

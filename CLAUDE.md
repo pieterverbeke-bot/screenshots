@@ -179,7 +179,15 @@ Kan ook via GitHub Actions → "Miniaturen bijwerken" (workflow_dispatch).
 
 - Do **not** add a `schedule:` trigger back to the workflow — cron-job.org is the reliable scheduler
 - Chrome draait **headed onder xvfb** in de workflow (`xvfb-run` in screenshot.yml; `take-screenshots.js` detecteert `DISPLAY`). Dit vermijdt de headless-fingerprint waarop Cloudflare/Akamai GitHub-runners blokkeren (Nieuwsblad/GvA/VRT-blocks, geblokkeerde CSS/afbeeldingen). Niet terugzetten naar pure headless zonder hertest
-- `installConsentKiller` injecteert op document-start een permanente Sourcepoint-verberger (CSS + inline `!important`) én een in-page auto-clicker die de DPG privacy gate ("Jouw privacy-instellingen") accepteert zodra die verschijnt — ook ná alle Node-consent-passes (De Morgen, Humo). Bot-blokpagina's en ongestylede pagina's (CSS geblokkeerd) gooien `blocked page` en triggeren een retry
+- `installConsentKiller` injecteert op document-start een permanente Sourcepoint-verberger (CSS + inline `!important`) én een in-page auto-clicker die de DPG privacy gate ("Jouw privacy-instellingen") accepteert zodra die verschijnt — ook ná alle Node-consent-passes (De Morgen, Humo)
+- `detectBlockedPage()` beslist of een opname weg moet: een bot-blokpagina, een Cloudflare-challenge
+  ("Performing security verification", De Telegraaf) of een ongestylede pagina gooit `blocked page`
+  → één retry, en faalt die ook, dan vervalt de opname (gat in de tijdlijn i.p.v. een kapot beeld).
+  De opmaakcheck kijkt naar het resultaat, niet naar de stylesheets: staat meer dan de helft van
+  de zichtbare links in de browserstandaard (blauw `rgb(0, 0, 238)` + onderstreept), dan ontbreekt
+  de site-CSS. Dat vangt ook De Standaard/Nieuwsblad, waar losse `<style>`-blokken (Didomi,
+  CSS-modules) bleven staan terwijl de hoofd-CSS geweigerd werd. De log noemt de geweigerde
+  stylesheets (`CSS geweigerd: 403 www.standaard.be ×6`). Een challenge proberen we niet te passeren
 - The `screenshots/` directory is gitignored — never commit local screenshots
 - `get-refresh-token.js` is a legacy helper for Google Drive OAuth; Google Drive upload is no longer part of the active pipeline
 - The viewer (`index.html`) is generated client-side from a JSON data blob embedded in the HTML; it supports filtering by cluster, website, and date range
