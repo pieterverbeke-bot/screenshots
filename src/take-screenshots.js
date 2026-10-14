@@ -1002,8 +1002,10 @@ async function removeRemainingOverlays(page) {
       document.body.style.overflow = '';
       document.documentElement.style.position = '';
       document.body.style.position = '';
-      // Verwijder ook overflow:hidden classes die DPG sites vaak toevoegen
-      document.documentElement.classList.remove('has-overlay', 'modal-open', 'no-scroll', 'overflow-hidden');
+      // Verwijder ook overflow:hidden classes die DPG sites vaak toevoegen. `sp-message-open` is
+      // Sourcepoints eigen lock (`.sp-message-open body { position: fixed !important }`, VRT/Sporza):
+      // blijft die staan, dan is de pagina maar één scherm hoog en knipt de full-page screenshot af.
+      document.documentElement.classList.remove('has-overlay', 'modal-open', 'no-scroll', 'overflow-hidden', 'sp-message-open');
       document.body.classList.remove('has-overlay', 'modal-open', 'no-scroll', 'overflow-hidden');
 
       return removedElements;
@@ -1107,7 +1109,7 @@ async function dismissConsentGate(page) {
     // Herstel scrollen dat de gate vaak blokkeert
     document.documentElement.style.overflow = '';
     document.body.style.overflow = '';
-    document.documentElement.classList.remove('has-overlay', 'modal-open', 'no-scroll', 'overflow-hidden');
+    document.documentElement.classList.remove('has-overlay', 'modal-open', 'no-scroll', 'overflow-hidden', 'sp-message-open');
     document.body.classList.remove('has-overlay', 'modal-open', 'no-scroll', 'overflow-hidden');
     return n;
   }).catch(() => 0);
@@ -1406,7 +1408,7 @@ async function scrubGateBeforeShot(page) {
     // Herstel scroll-lock die de gate soms instelt
     document.documentElement.style.overflow = '';
     document.body.style.overflow = '';
-    document.documentElement.classList.remove('has-overlay', 'modal-open', 'no-scroll', 'overflow-hidden');
+    document.documentElement.classList.remove('has-overlay', 'modal-open', 'no-scroll', 'overflow-hidden', 'sp-message-open');
     document.body.classList.remove('has-overlay', 'modal-open', 'no-scroll', 'overflow-hidden');
     return report;
   }, GATE_KILL_SELECTOR).catch(() => []);

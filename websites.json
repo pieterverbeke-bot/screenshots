@@ -64,6 +64,15 @@
     "interval": 60
   },
   {
+    "name": "sporza",
+    "label": "Sporza",
+    "url": "https://sporza.be/nl/",
+    "land": "België",
+    "medium": "nieuwsmedia",
+    "cluster": "BE concurrentie",
+    "interval": 60
+  },
+  {
     "name": "rtl",
     "label": "RTL Nieuws",
     "url": "https://www.rtl.nl",
