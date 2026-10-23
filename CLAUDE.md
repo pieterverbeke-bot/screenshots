@@ -126,6 +126,18 @@ Each entry has:
 
 Located in `worker/`. Deployed separately from the main workflow.
 
+- **De viewer draait nu in de Nieuwsmonitor**, op `chef.rigby.be/homepages`, achter
+  de login en met de kop daarvan (`src/homepages.ts` in de repo `superchef`). Die
+  Worker leest dezelfde bucket (binding `SCREENSHOTS`), vervangt de `<header>` van
+  `index.html` door die van de monitor en serveert de opnames op hun gewone pad
+  `/{site}/{datum}/{bestand}`. Deze Worker stuurt de viewerpaden (`isViewerPath()`)
+  met hun query door naar dat blad (`/vergelijk` → `?view=vergelijk`); de
+  afbeeldingen blijft hij hier serveren voor oude directe links.
+  Gevolg voor de viewer: de opnames moeten paden vanaf de root blijven
+  (`baseUrl = ''`), en de `<header>` moet één blok blijven — die wordt in zijn
+  geheel vervangen. Wie de kop of het werkbalk-`top` aanpast, kijkt ook naar
+  `KOP_STYLE` daar
+
 - Acts as a **proxy** for the R2 bucket with optional **Google login (OAuth/OIDC)**
 - Access is restricted to verified Google accounts on the `persgroep.net` domain (`ALLOWED_DOMAIN` in `worker/src/index.js`)
 - OAuth uses the authorization code flow with PKCE; on success an HMAC-signed session cookie (HttpOnly) is set, living 30 days
@@ -228,7 +240,7 @@ Kan ook via GitHub Actions → "Miniaturen bijwerken" (workflow_dispatch).
   dan op beide plekken
 - `generate-index.js` bouwt twee datastructuren: desktop en mobiel (`_mobile.`-suffix).
   De knop "Mobiele versie" wisselt ertussen; de vergelijkpagina gebruikt altijd de mobiele
-- **Deeplinks** zijn het koppelvlak met de Nieuwsmonitor (chef.rigby.be, repo
+- **Deeplinks** zijn het koppelvlak met de Nieuwsmonitor (chef.rigby.be/homepages, repo
   `superchef`): `?site=&cluster=&date=&t=&view=vergelijk&cmp=&plus=&mobile=`. `t`
   (alias `tijd`) is een tijdstip, geen opname: `parseClock()` leest `14:35`,
   `14:35:07`, `14-35-00` en `1435`, en `jumpToMoment()` (tijdlijn) resp.
