@@ -7,6 +7,11 @@ const STATE_MAX_AGE = 60 * 10; // OAuth-state blijft 10 minuten geldig
 // Enkel Google-accounts van dit domein krijgen toegang
 const ALLOWED_DOMAIN = 'persgroep.net';
 
+// De viewer draait als blad van de Nieuwsmonitor, achter de login daarvan
+// (src/homepages.ts in de repo superchef). Dit adres stuurt de viewerpaden
+// daarheen; de afbeeldingen blijven hier bereikbaar voor oude directe links.
+const MONITOR_HOMEPAGES = 'https://chef.rigby.be/homepages';
+
 // Google OpenID Connect endpoints
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
@@ -296,6 +301,14 @@ function loginPage(errorMessage, noticeMessage) {
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+
+    // --- De viewer staat nu in de Nieuwsmonitor ---
+    // Bladwijzers en gedeelde links (ook de deeplinks met ?site=&t=) blijven
+    // werken: de query gaat mee, en /vergelijk wordt ?view=vergelijk.
+    if (isViewerPath(url.pathname) && (request.method === 'GET' || request.method === 'HEAD')) {
+      return Response.redirect(monitorUrl(url), 302);
+    }
+
     const clientId = env.GOOGLE_CLIENT_ID;
     const clientSecret = env.GOOGLE_CLIENT_SECRET;
     const authSecret = env.AUTH_SECRET;
@@ -540,6 +553,14 @@ function injectAccountBar(html, email) {
 function isViewerPath(pathname) {
   return pathname === '/' || pathname === '/index.html' ||
     pathname === '/vergelijk' || pathname === '/vergelijken';
+}
+
+/** Het adres van hetzelfde beeld in de Nieuwsmonitor. */
+function monitorUrl(url) {
+  const doel = new URL(MONITOR_HOMEPAGES);
+  doel.search = url.search;
+  if (url.pathname.startsWith('/vergelijk')) doel.searchParams.set('view', 'vergelijk');
+  return doel.toString();
 }
 
 /** Haal index.html uit R2, injecteer de account-balk en stuur het terug. */
