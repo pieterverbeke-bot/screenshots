@@ -2,9 +2,10 @@
 
 import puppeteer from 'puppeteer';
 import sharp from 'sharp';
-import { readFileSync, existsSync, mkdirSync, statSync, unlinkSync } from 'fs';
+import { readFileSync, existsSync, mkdirSync, statSync, unlinkSync, writeFileSync } from 'fs';
 import { basename, dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import { TITELS_SUFFIX, leesTitels, titelsBestand } from './titels.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = join(__dirname, '..');
@@ -2029,6 +2030,11 @@ async function capturePage(browser, website, timestamp) {
       throw new Error('Screenshot produced an empty buffer — page may not have rendered');
     }
 
+    // Welke artikels stonden er nu op? Ná de screenshot, zodat er niets tussen de
+    // laatste gate-scrub en de opname zit; de pagina is hier nog dezelfde. Faalt dit,
+    // dan is er geen titelbestand, maar de opname gaat gewoon door (zie titels.js).
+    const titels = await leesTitels(page, website);
+
     // Resize en comprimeer met sharp voor kleinere bestanden (target: 100-300 KB)
     const metadata = await sharp(rawBuffer).metadata();
     const targetWidth = CONFIG.resizeWidth;
@@ -2061,6 +2067,22 @@ async function capturePage(browser, website, timestamp) {
     }
 
     await writeThumbnail(filepath);
+
+    if (titels) {
+      // Van paginapixels naar pixels in de bewaarde webp, en hoe ver die reikt
+      const breedteBeeld = Math.min(metadata.width || CONFIG.desktopViewport.width, targetWidth);
+      const schaal = Math.round((breedteBeeld / CONFIG.desktopViewport.width) * 10000) / 10000;
+      const hoogte = Math.min(desktopCaptureHeight, Math.floor(maxHeight / schaal));
+      try {
+        writeFileSync(
+          filepath.replace(/\.webp$/, TITELS_SUFFIX),
+          JSON.stringify(titelsBestand(website, timestamp, titels, { breedte: CONFIG.desktopViewport.width, hoogte, schaal }))
+        );
+        console.log(`📰 ${name}: ${titels.artikels.length} titel(s) bewaard`);
+      } catch (error) {
+        console.log(`⚠️  ${name}: titelbestand schrijven mislukt — ${error.message}`);
+      }
+    }
 
     console.log(`✅ ${name}: Saved ${filename} (${fileSizeKB} KB)`);
     return filename;

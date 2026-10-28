@@ -16,13 +16,15 @@ export function createR2Client() {
   });
 }
 
-export async function listAllObjects(client, bucketName) {
+// Met `prefix` enkel de objecten daaronder (bv. `hln/2026-10-28/`), anders de hele bucket
+export async function listAllObjects(client, bucketName, prefix) {
   const objects = [];
   let continuationToken;
 
   do {
     const response = await client.send(new ListObjectsV2Command({
       Bucket: bucketName,
+      Prefix: prefix,
       ContinuationToken: continuationToken,
     }));
 
