@@ -10,6 +10,7 @@ Automated website screenshot monitoring system that captures full-page desktop s
 screenshots/
 ├── src/
 │   ├── take-screenshots.js   # Puppeteer screenshot capture (main entrypoint)
+│   ├── titels.js             # Leest de artikeltitels uit de geladen homepage
 │   ├── upload-to-r2.js       # Batch upload screenshots to Cloudflare R2
 │   ├── cleanup-r2.js         # Delete R2 objects older than retention period
 │   ├── generate-index.js     # Build and upload index.html viewer to R2
@@ -48,6 +49,7 @@ The workflow runs these steps sequentially:
 ```
 {websiteName}/{YYYY-MM-DD}/{websiteName}_{timestamp}.webp        # volledig screenshot
 {websiteName}/{YYYY-MM-DD}/{websiteName}_{timestamp}.thumb.webp  # miniatuur (tijdlijn)
+{websiteName}/{YYYY-MM-DD}/{websiteName}_{timestamp}.titels.json # artikels op de homepage (enkel desktop)
 ```
 Example: `hln/2026-03-05/hln_2026-03-05T10-00-00.webp`
 
@@ -55,6 +57,13 @@ Example: `hln/2026-03-05/hln_2026-03-05T10-00-00.webp`
   De viewer laadt die in de tijdlijn; ontbreekt de miniatuur (oudere opnames), dan
   valt hij terug op het volledige screenshot. `cleanup-r2.js` verwijdert een miniatuur
   samen met zijn bronscreenshot — miniaturen worden nooit apart uitgedund
+- Een titelbestand (`.titels.json`, formaat in de README onder "Titels op de homepage")
+  volgt zijn screenshot op dezelfde manier (`VOLG_SUFFIXEN` in `cleanup-r2.js`). Het is
+  een extraatje: `leesTitels()` in `src/titels.js` geeft bij een fout of na 5 s `null`
+  terug in plaats van te gooien, en `upload-to-r2.js` laat de run niet falen op een
+  mislukt titelbestand. Hou dat zo — een opname mag nooit sneuvelen op de titels.
+  Het uitlezen gebeurt bewust ná `page.screenshot()`: tussen de laatste gate-scrub en
+  de opname mag geen async-stap zitten
 - `index.html` at the bucket root is the viewer page (excluded from cleanup)
 - Images get `cache-control: public, max-age=31536000, immutable` (timestamp in filename = immutable)
 - `index.html` gets `cache-control: public, max-age=300, s-maxage=60`
@@ -83,7 +92,8 @@ Each entry has:
   "interval": 30,         // Screenshot interval in minutes (30, 60, 120, 180, 240)
   "halfHour": true,       // Optioneel: draai op het halve uur i.p.v. het hele
   "skipHours": [0, 1],    // Optioneel: sla deze uren over (Brusselse tijd)
-  "offset": 1             // Optioneel: faseverschuiving voor interval > 60
+  "offset": 1,            // Optioneel: faseverschuiving voor interval > 60
+  "artikelPatroon": "~a[0-9a-f]+/"  // Optioneel: regex; enkel links die matchen tellen als artikel (titels.json)
 }
 ```
 - `name` must be **lowercase, URL-safe** (used in filenames and R2 keys)

@@ -2,6 +2,7 @@ import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join, basename } from 'path';
 import { createR2Client } from './r2-client.js';
+import { TITELS_SUFFIX } from './titels.js';
 
 const SCREENSHOTS_DIR = './screenshots';
 const UPLOAD_CONCURRENCY = 6;
@@ -12,7 +13,9 @@ async function uploadFile(client, bucketName, filepath, key) {
 
   console.log(`📤 Uploading ${filename} (${Math.round(body.length / 1024)} KB) → ${key}`);
 
-  const contentType = filename.endsWith('.webp') ? 'image/webp' : 'image/jpeg';
+  const contentType = filename.endsWith('.webp') ? 'image/webp'
+    : filename.endsWith('.json') ? 'application/json'
+    : 'image/jpeg';
 
   await client.send(new PutObjectCommand({
     Bucket: bucketName,
@@ -25,25 +28,31 @@ async function uploadFile(client, bucketName, filepath, key) {
 }
 
 // Verwerk uploads in parallelle batches
+// Een mislukt titelbestand (`optional`) telt apart: de run faalt er niet op,
+// want de screenshot is wat telt — het titelbestand is een extraatje.
 async function uploadInBatches(tasks, concurrency) {
   let successCount = 0;
   let failCount = 0;
+  let optionalFailCount = 0;
 
   for (let i = 0; i < tasks.length; i += concurrency) {
     const batch = tasks.slice(i, i + concurrency);
     const results = await Promise.allSettled(batch.map(t => t.fn()));
 
-    for (const result of results) {
+    results.forEach((result, idx) => {
       if (result.status === 'fulfilled') {
         successCount++;
+      } else if (batch[idx].optional) {
+        console.log(`⚠️  Upload titelbestand mislukt (run gaat door): ${result.reason?.message}`);
+        optionalFailCount++;
       } else {
         console.error(`❌ Upload failed: ${result.reason?.message}`);
         failCount++;
       }
-    }
+    });
   }
 
-  return { successCount, failCount };
+  return { successCount, failCount, optionalFailCount };
 }
 
 async function main() {
@@ -60,7 +69,7 @@ async function main() {
   const client = createR2Client();
 
   // Get all screenshots
-  const files = readdirSync(SCREENSHOTS_DIR).filter(f => f.endsWith('.webp') || f.endsWith('.jpg'));
+  const files = readdirSync(SCREENSHOTS_DIR).filter(f => f.endsWith('.webp') || f.endsWith('.jpg') || f.endsWith(TITELS_SUFFIX));
 
   if (files.length === 0) {
     console.log('⚠️  No screenshots found in', SCREENSHOTS_DIR);
@@ -68,7 +77,8 @@ async function main() {
   }
 
   const thumbCount = files.filter(f => f.endsWith('.thumb.webp')).length;
-  console.log(`📸 Found ${files.length - thumbCount} screenshot(s) + ${thumbCount} miniatuur(en) to upload`);
+  const titelsCount = files.filter(f => f.endsWith(TITELS_SUFFIX)).length;
+  console.log(`📸 Found ${files.length - thumbCount - titelsCount} screenshot(s) + ${thumbCount} miniatuur(en) + ${titelsCount} titelbestand(en) to upload`);
   console.log(`⚡ Upload concurrency: ${UPLOAD_CONCURRENCY}\n`);
 
   // Datum voor subfolders
@@ -87,13 +97,14 @@ async function main() {
 
     const websiteName = file.split('_')[0];
     const key = `${websiteName}/${today}/${file}`;
-    tasks.push({ fn: () => uploadFile(client, bucketName, filepath, key) });
+    tasks.push({ fn: () => uploadFile(client, bucketName, filepath, key), optional: file.endsWith(TITELS_SUFFIX) });
   }
 
-  const { successCount, failCount } = await uploadInBatches(tasks, UPLOAD_CONCURRENCY);
+  const { successCount, failCount, optionalFailCount } = await uploadInBatches(tasks, UPLOAD_CONCURRENCY);
 
   console.log('\n' + '='.repeat(50));
-  console.log(`✨ Upload complete: ${successCount} successful, ${failCount} failed`);
+  console.log(`✨ Upload complete: ${successCount} successful, ${failCount} failed` +
+    (optionalFailCount > 0 ? `, ${optionalFailCount} titelbestand(en) niet geüpload` : ''));
 
   if (failCount > 0) {
     process.exit(1);

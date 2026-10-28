@@ -67,7 +67,8 @@ screenshots/
 ├── hln/
 │   ├── 2024-01-15/
 │   │   ├── hln_2024-01-15T10-00-00.webp        # volledig screenshot
-│   │   └── hln_2024-01-15T10-00-00.thumb.webp  # miniatuur voor de tijdlijn
+│   │   ├── hln_2024-01-15T10-00-00.thumb.webp  # miniatuur voor de tijdlijn
+│   │   └── hln_2024-01-15T10-00-00.titels.json # welke artikels er toen op stonden
 │   └── 2024-01-16/
 │       └── ...
 ├── ad/
@@ -97,6 +98,41 @@ npm run thumbs -- --dry-run      # enkel tellen
 Of via GitHub Actions → **Miniaturen bijwerken** → *Run workflow* (die werkt daarna
 ook meteen de viewer bij). Zonder miniatuur valt de viewer terug op het volledige
 screenshot, dus de tijdlijn blijft altijd werken.
+
+### Titels op de homepage
+
+Bij elke desktopscreenshot wordt ook bewaard wélke artikels er op dat moment op de
+homepage stonden: `hln_<tijd>.titels.json`, naast het beeld. Het wordt uitgelezen uit
+dezelfde, al geladen pagina, vlak na de opname — beeld en titels horen dus bij
+hetzelfde moment.
+
+```json
+{
+  "v": 1, "site": "hln", "tijd": "2026-10-28T13-50-51", "url": "https://www.hln.be/",
+  "breedte": 1366, "hoogte": 8000, "schaal": 0.7028,
+  "artikels": [
+    { "u": "https://www.hln.be/buitenland/…~ab558194/", "t": "Minstens 30 doden na …",
+      "x": 195, "y": 444, "b": 678, "h": 508 }
+  ]
+}
+```
+
+- `artikels` staat in paginavolgorde. `x`/`y`/`b`/`h` is de plek van de link op de
+  pagina, in pixels van de desktopviewport (1366 breed). Vermenigvuldig met `schaal`
+  voor pixels in de bewaarde webp; wat lager staat dan `hoogte` staat niet op het beeld.
+- `u` is de link zonder `#…` en zonder volgparameters (`utm_…`), zodat hij te koppelen
+  is aan de URL uit een RSS-feed. Koppel op URL, niet op titel: een teasertitel wijkt
+  vaak af van de artikeltitel.
+- Wat telt als artikel: een zichtbare link naar het eigen domein, buiten menu, kop en
+  voet van de site, met een titel van minstens 15 tekens en drie woorden. Haalt een site
+  te veel ruis binnen, zet dan `artikelPatroon` in `websites.json` (een regex op de URL).
+- Het is een extraatje, geen voorwaarde: het uitlezen heeft harde grenzen (5 seconden,
+  400 links, 300 tekens per titel). Lukt het niet, dan is er geen titelbestand en
+  blijft de screenshot gewoon staan; een mislukte upload van een titelbestand laat de
+  run niet falen. Typisch 10–40 KB en enkele tientallen milliseconden per opname.
+- Enkel desktop; de mobiele opnames krijgen (nog) geen titelbestand.
+- `cleanup-r2.js` behandelt het als de miniatuur: het volgt zijn screenshot en gaat mee
+  weg bij retentie of thinning.
 
 ## Vergelijk titels
 

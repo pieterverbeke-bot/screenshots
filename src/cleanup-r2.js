@@ -1,8 +1,14 @@
 import { DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import { createR2Client, listAllObjects } from './r2-client.js';
+import { TITELS_SUFFIX } from './titels.js';
 
 // Achtervoegsel van de miniaturen die de viewer in de tijdlijn toont
 const THUMB_SUFFIX = '.thumb.webp';
+
+// Bestanden die bij een screenshot horen en hem volgen: ze blijven zolang hun
+// bron blijft, en gaan mee weg als die verdwijnt (retentie of thinning).
+const VOLG_SUFFIXEN = [THUMB_SUFFIX, TITELS_SUFFIX];
+const volgSuffix = (key) => VOLG_SUFFIXEN.find(suffix => key.endsWith(suffix));
 
 // Aantal dagen waarna screenshots verwijderd worden
 const RETENTION_DAYS = 182; // 26 weken
@@ -95,10 +101,11 @@ async function main() {
   const objects = await listAllObjects(client, bucketName);
   console.log(`   Found ${objects.length} total object(s)\n`);
 
-  // Miniaturen (`*.thumb.webp`) volgen hun bronscreenshot: ze worden pas na de
-  // retentie- en thinning-beslissing behandeld, zodat er nooit wezen achterblijven.
-  const thumbKeys = objects.filter(obj => obj.Key.endsWith(THUMB_SUFFIX)).map(obj => obj.Key);
-  const sourceObjects = objects.filter(obj => !obj.Key.endsWith(THUMB_SUFFIX));
+  // Miniaturen (`*.thumb.webp`) en titelbestanden (`*.titels.json`) volgen hun
+  // bronscreenshot: ze worden pas na de retentie- en thinning-beslissing behandeld,
+  // zodat er nooit wezen achterblijven.
+  const followerKeys = objects.filter(obj => volgSuffix(obj.Key)).map(obj => obj.Key);
+  const sourceObjects = objects.filter(obj => !volgSuffix(obj.Key));
 
   // Filter objecten ouder dan de cutoff datum
   const toDelete = [];
@@ -173,20 +180,20 @@ async function main() {
   toKeep.length = 0;
   toKeep.push(...keptAfterThinning);
 
-  // Miniaturen blijven enkel bestaan zolang hun bronscreenshot bewaard blijft
+  // Miniaturen en titelbestanden blijven enkel bestaan zolang hun bronscreenshot bewaard blijft
   const keptSources = new Set(toKeep);
-  let orphanThumbs = 0;
-  for (const thumbKey of thumbKeys) {
-    const sourceKey = thumbKey.slice(0, -THUMB_SUFFIX.length) + '.webp';
+  let orphanFollowers = 0;
+  for (const followerKey of followerKeys) {
+    const sourceKey = followerKey.slice(0, -volgSuffix(followerKey).length) + '.webp';
     if (keptSources.has(sourceKey)) {
-      toKeep.push(thumbKey);
+      toKeep.push(followerKey);
     } else {
-      toDelete.push(thumbKey);
-      orphanThumbs++;
+      toDelete.push(followerKey);
+      orphanFollowers++;
     }
   }
-  if (orphanThumbs > 0) {
-    console.log(`🖼️  ${orphanThumbs} miniatuur(en) zonder bewaard screenshot worden mee verwijderd\n`);
+  if (orphanFollowers > 0) {
+    console.log(`🖼️  ${orphanFollowers} miniatuur(en)/titelbestand(en) zonder bewaard screenshot worden mee verwijderd\n`);
   }
 
   console.log(`📊 Results:`);
