@@ -134,7 +134,13 @@ hetzelfde moment.
 - `cleanup-r2.js` behandelt het als de miniatuur: het volgt zijn screenshot en gaat mee
   weg bij retentie of thinning.
 
-**Downloaden als CSV.** GitHub Actions → **Titels exporteren** → *Run workflow*, kies het
+**Downloaden als CSV.** Het makkelijkst in de Nieuwsmonitor zelf, op
+`chef.rigby.be/homepages/titels` (achter de login, niet gelinkt): één CSV per dag. Elke
+run zet daarvoor de titels van die run in één bestand, `titels/<datum>/run_<tijd>.csv`
+in de bucket; de Nieuwsmonitor plakt die van een dag aan elkaar. Die runbestanden
+worden niet uitgedund en blijven dus ook bestaan als de tussentijdse opnames na 15
+dagen wegvallen. Voor runs van vóór deze bestanden, of zonder login, kan het ook via
+GitHub Actions → **Titels exporteren** → *Run workflow*, kies het
 aantal dagen (en eventueel enkele sites). Onderaan de afgelopen run staat bij *Artifacts*
 `titels-export.zip`, met één CSV per dag: één rij per artikel per opname, met `site`,
 `merk`, `datum`, `tijd`, `positie` (volgorde op het scherm, van boven naar onder), `titel`,

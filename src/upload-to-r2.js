@@ -3,8 +3,10 @@ import { readFileSync, readdirSync, statSync } from 'fs';
 import { join, basename } from 'path';
 import { createR2Client } from './r2-client.js';
 import { TITELS_SUFFIX } from './titels.js';
+import { TITELS_MAP, csvTekst, rijenUitTitels } from './titels-csv.js';
 
 const SCREENSHOTS_DIR = './screenshots';
+const WEBSITES_FILE = new URL('../websites.json', import.meta.url);
 const UPLOAD_CONCURRENCY = 6;
 
 async function uploadFile(client, bucketName, filepath, key) {
@@ -55,6 +57,34 @@ async function uploadInBatches(tasks, concurrency) {
   return { successCount, failCount, optionalFailCount };
 }
 
+// Alle titels van deze run in één CSV: titels/<datum>/run_<tijd>.csv. De
+// Nieuwsmonitor plakt die per dag aan elkaar tot een download; zo hoeft hij geen
+// duizend losse titelbestanden te lezen. Net als de titelbestanden een extraatje:
+// lukt het niet, dan logt dit een waarschuwing en gaat de run gewoon door.
+async function uploadRunCsv(client, bucketName, titelsFiles, today) {
+  if (titelsFiles.length === 0) return;
+  try {
+    const websites = JSON.parse(readFileSync(WEBSITES_FILE, 'utf-8'));
+    const labels = Object.fromEntries(websites.map(w => [w.name, w.label || w.name]));
+    const opnames = titelsFiles
+      .map(f => JSON.parse(readFileSync(join(SCREENSHOTS_DIR, f), 'utf-8')))
+      .sort((a, b) => String(a.site).localeCompare(b.site) || String(a.tijd).localeCompare(b.tijd));
+    const rijen = opnames.flatMap(d => rijenUitTitels(d, labels[d.site]));
+
+    const tijd = new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Brussels' }).replace(' ', 'T').replace(/:/g, '-');
+    const key = `${TITELS_MAP}/${today}/run_${tijd}.csv`;
+    await client.send(new PutObjectCommand({
+      Bucket: bucketName,
+      Key: key,
+      Body: csvTekst(rijen, { bom: false }),
+      ContentType: 'text/csv; charset=utf-8',
+    }));
+    console.log(`📰 Titels van deze run: ${rijen.length} rij(en) → ${key}`);
+  } catch (error) {
+    console.log(`⚠️  CSV met titels van deze run niet geüpload (run gaat door): ${error.message}`);
+  }
+}
+
 async function main() {
   console.log('\n☁️  Cloudflare R2 Upload\n');
   console.log('='.repeat(50));
@@ -101,6 +131,7 @@ async function main() {
   }
 
   const { successCount, failCount, optionalFailCount } = await uploadInBatches(tasks, UPLOAD_CONCURRENCY);
+  await uploadRunCsv(client, bucketName, files.filter(f => f.endsWith(TITELS_SUFFIX)), today);
 
   console.log('\n' + '='.repeat(50));
   console.log(`✨ Upload complete: ${successCount} successful, ${failCount} failed` +

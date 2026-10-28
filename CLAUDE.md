@@ -11,6 +11,7 @@ screenshots/
 ├── src/
 │   ├── take-screenshots.js   # Puppeteer screenshot capture (main entrypoint)
 │   ├── titels.js             # Leest de artikeltitels uit de geladen homepage
+│   ├── titels-csv.js         # Titelbestanden → CSV (gedeeld door upload en export)
 │   ├── upload-to-r2.js       # Batch upload screenshots to Cloudflare R2
 │   ├── cleanup-r2.js         # Delete R2 objects older than retention period
 │   ├── generate-index.js     # Build and upload index.html viewer to R2
@@ -52,6 +53,7 @@ The workflow runs these steps sequentially:
 {websiteName}/{YYYY-MM-DD}/{websiteName}_{timestamp}.webp        # volledig screenshot
 {websiteName}/{YYYY-MM-DD}/{websiteName}_{timestamp}.thumb.webp  # miniatuur (tijdlijn)
 {websiteName}/{YYYY-MM-DD}/{websiteName}_{timestamp}.titels.json # artikels op de homepage (enkel desktop)
+titels/{YYYY-MM-DD}/run_{timestamp}.csv                           # alle titels van één run (upload-to-r2.js)
 ```
 Example: `hln/2026-03-05/hln_2026-03-05T10-00-00.webp`
 
@@ -66,6 +68,11 @@ Example: `hln/2026-03-05/hln_2026-03-05T10-00-00.webp`
   mislukt titelbestand. Hou dat zo — een opname mag nooit sneuvelen op de titels.
   Het uitlezen gebeurt bewust ná `page.screenshot()`: tussen de laatste gate-scrub en
   de opname mag geen async-stap zitten
+- `titels/<datum>/run_<tijd>.csv`: de titels van één run, zonder BOM. De Nieuwsmonitor
+  (`/homepages/titels`, `worker/src/titels-download.ts` in de repo `nieuwsmonitor`)
+  plakt de runbestanden van een dag aan elkaar en houdt de kopregel van het eerste.
+  Kolommen wijzigen kan dus, maar dan in `titels-csv.js` en niet midden op een dag als
+  het moet kloppen. `cleanup-r2.js` dunt deze map niet uit; de retentie geldt wel
 - `index.html` at the bucket root is the viewer page (excluded from cleanup)
 - Images get `cache-control: public, max-age=31536000, immutable` (timestamp in filename = immutable)
 - `index.html` gets `cache-control: public, max-age=300, s-maxage=60`
