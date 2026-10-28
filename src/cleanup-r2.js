@@ -1,6 +1,7 @@
 import { DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import { createR2Client, listAllObjects } from './r2-client.js';
 import { TITELS_SUFFIX } from './titels.js';
+import { TITELS_MAP } from './titels-csv.js';
 
 // Achtervoegsel van de miniaturen die de viewer in de tijdlijn toont
 const THUMB_SUFFIX = '.thumb.webp';
@@ -147,7 +148,10 @@ async function main() {
 
   for (const key of toKeep) {
     const objectDate = getDateFromKey(key);
-    if (!objectDate || objectDate >= thinningCutoff) {
+    // De CSV's met titels per run (titels/<datum>/run_<tijd>.csv) worden niet uitgedund:
+    // ze zijn klein, en ná de thinning het enige wat van de tussentijdse opnames overblijft.
+    // De retentie geldt wel.
+    if (!objectDate || objectDate >= thinningCutoff || key.startsWith(`${TITELS_MAP}/`)) {
       keptAfterThinning.push(key);
       continue;
     }
