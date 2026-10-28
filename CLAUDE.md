@@ -15,6 +15,7 @@ screenshots/
 │   ├── cleanup-r2.js         # Delete R2 objects older than retention period
 │   ├── generate-index.js     # Build and upload index.html viewer to R2
 │   ├── generate-thumbs-r2.js # One-off backfill of thumbnails for existing R2 objects
+│   ├── export-titels.js      # Titelbestanden uit R2 → CSV per dag (workflow "Titels exporteren")
 │   └── r2-client.js          # Shared R2/S3 client factory + listAllObjects helper
 ├── worker/
 │   ├── src/index.js          # Cloudflare Worker: auth + R2 proxy
@@ -23,6 +24,7 @@ screenshots/
 │   └── workflows/
 │       ├── screenshot.yml     # GitHub Actions workflow (workflow_dispatch only)
 │       ├── thumbnails.yml     # Manual thumbnail backfill (workflow_dispatch only)
+│       ├── export-titels.yml  # Titels als CSV downloaden (workflow_dispatch, artifact)
 │       ├── deploy-viewer.yml  # Publiceert index.html na een viewer-wijziging
 │       └── deploy-worker.yml  # Publiceert de Worker na een wijziging in worker/
 ├── websites.json             # List of websites to screenshot

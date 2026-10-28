@@ -134,6 +134,18 @@ hetzelfde moment.
 - `cleanup-r2.js` behandelt het als de miniatuur: het volgt zijn screenshot en gaat mee
   weg bij retentie of thinning.
 
+**Downloaden als CSV.** GitHub Actions → **Titels exporteren** → *Run workflow*, kies het
+aantal dagen (en eventueel enkele sites). Onderaan de afgelopen run staat bij *Artifacts*
+`titels-export.zip`, met één CSV per dag: één rij per artikel per opname, met `site`,
+`merk`, `datum`, `tijd`, `positie` (volgorde op het scherm, van boven naar onder), `titel`,
+`url`, de plek (`x`, `y`, `breedte`, `hoogte`) en `op_beeld` (staat het binnen de
+screenshot). Scheidingsteken `;`, zodat Excel hem met dubbelklikken goed opent. Lokaal
+kan het ook, met de R2-variabelen gezet:
+
+```bash
+npm run titels -- --days 15 --sites hln,nos   # schrijft naar ./export
+```
+
 ## Vergelijk titels
 
 De viewer heeft naast de tijdlijn per site een tweede pagina: **Vergelijk titels**
