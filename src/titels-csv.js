@@ -12,7 +12,12 @@
 // Map in de bucket voor de CSV's per run: titels/<YYYY-MM-DD>/run_<tijd>.csv
 export const TITELS_MAP = 'titels';
 
-export const KOLOMMEN = ['site', 'merk', 'datum', 'tijd', 'positie', 'titel', 'url', 'x', 'y', 'breedte', 'hoogte', 'op_beeld'];
+// Nieuwe kolommen altijd achteraan: de Nieuwsmonitor plakt oude en nieuwe
+// runbestanden aan elkaar en neemt de kopregel van het nieuwste.
+export const KOLOMMEN = [
+  'site', 'merk', 'datum', 'tijd', 'positie', 'titel', 'url', 'x', 'y', 'breedte', 'hoogte', 'op_beeld',
+  'blok', 'blok_label', 'blok_type', 'blok_volgorde', 'positie_in_blok', 'positie_bron', 'content_id', 'artikeltype', 'blok_bron',
+];
 
 // Een veld voor CSV: aanhalingstekens waar nodig, en een titel die met = + - @
 // begint krijgt een ' ervoor, zodat Excel er geen formule van maakt.
@@ -24,14 +29,30 @@ function csvVeld(waarde) {
 
 // De rijen van één titelbestand. `positie` is de volgorde op het scherm (van boven
 // naar onder, dan van links naar rechts), niet de volgorde in de HTML.
+//
+// `blok_volgorde` is de hoeveelste blok op het scherm, geteld op het eerste artikel
+// ervan. `positie_in_blok` is de nummering van de site zelf (data-position e.d.) als
+// die er is, en anders de schermvolgorde binnen het blok: `positie_bron` zegt welke
+// van de twee. Titelbestanden van vóór de blokken geven hier lege velden.
 export function rijenUitTitels(data, merk) {
   const [datum, klok = ''] = String(data.tijd || '').split('T');
   const tijd = klok.slice(0, 5).replace('-', ':');
   const artikels = [...(data.artikels || [])].sort((a, b) => a.y - b.y || a.x - b.x);
-  return artikels.map((a, i) => [
-    data.site, merk || data.site, datum, tijd, i + 1, a.t, a.u, a.x, a.y, a.b, a.h,
-    data.hoogte == null || a.y < data.hoogte ? 'ja' : 'nee',
-  ]);
+  const volgorde = new Map();
+  const geteld = new Map();
+  return artikels.map((a, i) => {
+    if (a.bk && !volgorde.has(a.bk)) volgorde.set(a.bk, volgorde.size + 1);
+    const inBlok = (geteld.get(a.bk) || 0) + 1;
+    geteld.set(a.bk, inBlok);
+    return [
+      data.site, merk || data.site, datum, tijd, i + 1, a.t, a.u, a.x, a.y, a.b, a.h,
+      data.hoogte == null || a.y < data.hoogte ? 'ja' : 'nee',
+      a.bk, a.bl, a.bt, volgorde.get(a.bk),
+      a.ip ?? (a.bk ? inBlok : ''),
+      a.ip != null ? 'site' : a.bk ? 'berekend' : '',
+      a.ci, a.ty, a.br,
+    ];
+  });
 }
 
 // Kopregel plus rijen. Met `bom` een BOM vooraan, zodat Excel de accenten goed leest;

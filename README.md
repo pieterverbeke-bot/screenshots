@@ -112,10 +112,43 @@ hetzelfde moment.
   "breedte": 1366, "hoogte": 8000, "schaal": 0.7028,
   "artikels": [
     { "u": "https://www.hln.be/buitenland/…~ab558194/", "t": "Minstens 30 doden na …",
-      "x": 195, "y": 444, "b": 678, "h": 508 }
+      "x": 195, "y": 444, "b": 678, "h": 508,
+      "bk": "hln_site_home_prios", "br": "data-list", "bt": "sixpack", "bl": "artikelgroep 1",
+      "ip": 2, "ci": "5ddefcb", "ty": "article" }
   ]
 }
 ```
+
+De velden `bk` t/m `ty` zeggen in welk blok de teaser staat. Ze zijn er alleen als de
+pagina ze geeft (en ontbreken in oudere bestanden):
+
+| Veld | CSV-kolom | Betekenis |
+|------|-----------|-----------|
+| `bk` | `blok` | De naam van het blok bij de site, ruw (`hln_site_home_prios`, `Homepage.Voorpagina`) |
+| `br` | `blok_bron` | Waar die naam vandaan komt (tabel hieronder) |
+| `bt` | `blok_type` | Het soort blok, als de site dat zegt (`sixpack`, `ticker`, `standard-flexible`) |
+| `bl` | `blok_label` | Het opschrift dat de lezer ziet: de kop boven de link of een `aria-label` |
+| `ip` | `positie_in_blok` | De nummering van de site zelf (`data-position`) |
+| `ci` | `content_id` | Het artikel-id bij de site |
+| `ty` | `artikeltype` | `article`, `video`, `interview`, … in de termen van de site |
+
+In de CSV komen daar nog bij: `blok_volgorde` (de hoeveelste blok op het scherm) en
+`positie_bron`: `site` als `positie_in_blok` van de site komt, `berekend` als het de
+schermvolgorde binnen het blok is.
+
+| Uitgever | `blok_bron` | Blok | Positie |
+|----------|-------------|------|---------|
+| DPG (HLN, AD, NU, De Morgen, Volkskrant, Trouw, Parool, Humo, indebuurt, Libelle, Margriet, …) | `data-list` | `data-list`, op de link of een element eromheen | `data-position` |
+| NOS | `data-tracking` | `nestId1` | `elementPos` |
+| NRC | `data-block`, `data-aside-action` | `data-block-role`/`-label`, zijkolom `data-aside-action` | `data-item-position` |
+| Sporza | `analyticsid`, anders `kop` | `analyticsid` | berekend |
+| Mediahuis (Nieuwsblad, GvA, De Standaard, De Telegraaf) | `section-id` | `section[id]` | berekend |
+| RTL | `data-block-type` | `data-block-type` | berekend |
+| VRT NWS, Linda | `kop`, `sectie-nummer` | de kop boven de link, of `sectie-<n>` | berekend |
+
+Bloknamen zijn de interne namen van de sites, en die kunnen zonder aankondiging
+veranderen; vergelijk ze dus binnen één merk, niet tussen merken. Een artikel dat in
+twee blokken staat, staat er ook twee keer in.
 
 - `artikels` staat in paginavolgorde. `x`/`y`/`b`/`h` is de plek van de link op de
   pagina, in pixels van de desktopviewport (1366 breed). Vermenigvuldig met `schaal`
@@ -124,7 +157,8 @@ hetzelfde moment.
   is aan de URL uit een RSS-feed. Koppel op URL, niet op titel: een teasertitel wijkt
   vaak af van de artikeltitel.
 - Wat telt als artikel: een zichtbare link naar het eigen domein, buiten menu, kop en
-  voet van de site, met een titel van minstens 15 tekens en drie woorden. Haalt een site
+  voet van de site (een `<header>` binnen een `<article>` hoort bij de teaser), met een
+  titel van minstens 15 tekens en drie woorden. Haalt een site
   te veel ruis binnen, zet dan `artikelPatroon` in `websites.json` (een regex op de URL).
 - Het is een extraatje, geen voorwaarde: het uitlezen heeft harde grenzen (5 seconden,
   400 links, 300 tekens per titel). Lukt het niet, dan is er geen titelbestand en
@@ -144,8 +178,8 @@ GitHub Actions → **Titels exporteren** → *Run workflow*, kies het
 aantal dagen (en eventueel enkele sites). Onderaan de afgelopen run staat bij *Artifacts*
 `titels-export.zip`, met één CSV per dag: één rij per artikel per opname, met `site`,
 `merk`, `datum`, `tijd`, `positie` (volgorde op het scherm, van boven naar onder), `titel`,
-`url`, de plek (`x`, `y`, `breedte`, `hoogte`) en `op_beeld` (staat het binnen de
-screenshot). Scheidingsteken `;`, zodat Excel hem met dubbelklikken goed opent. Lokaal
+`url`, de plek (`x`, `y`, `breedte`, `hoogte`), `op_beeld` (staat het binnen de
+screenshot) en het blok (`blok` t/m `blok_bron`, zie de tabellen hierboven). Scheidingsteken `;`, zodat Excel hem met dubbelklikken goed opent. Lokaal
 kan het ook, met de R2-variabelen gezet:
 
 ```bash
