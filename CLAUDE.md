@@ -70,9 +70,14 @@ Example: `hln/2026-03-05/hln_2026-03-05T10-00-00.webp`
   de opname mag geen async-stap zitten
 - `titels/<datum>/run_<tijd>.csv`: de titels van één run, zonder BOM. De Nieuwsmonitor
   (`/homepages/titels`, `worker/src/titels-download.ts` in de repo `nieuwsmonitor`)
-  plakt de runbestanden van een dag aan elkaar en houdt de kopregel van het eerste.
-  Kolommen wijzigen kan dus, maar dan in `titels-csv.js` en niet midden op een dag als
-  het moet kloppen. `cleanup-r2.js` dunt deze map niet uit; de retentie geldt wel
+  plakt de runbestanden aan elkaar en houdt de kopregel van het nieuwste. Nieuwe
+  kolommen dus altijd **achteraan** in `KOLOMMEN` (`titels-csv.js`): dan past die
+  kopregel ook op oudere, kortere rijen. Een kolom verplaatsen of verwijderen breekt
+  elke download over die datum heen. `cleanup-r2.js` dunt deze map niet uit; de retentie geldt wel
+- De blokinfo per teaser (`blokVan()` en de hulpjes in `titels.js`, tabel per uitgever in
+  de README) leest elke uitgever op zijn eigen manier; de eerste regel die iets vindt,
+  wint. Komt er een merk bij, kijk dan naar `blok_bron` in de CSV: `kop` of
+  `sectie-nummer` betekent dat er geen attribuut van de site gebruikt wordt
 - `index.html` at the bucket root is the viewer page (excluded from cleanup)
 - Images get `cache-control: public, max-age=31536000, immutable` (timestamp in filename = immutable)
 - `index.html` gets `cache-control: public, max-age=300, s-maxage=60`
