@@ -2,9 +2,9 @@
 // per opname. Gedeeld door export-titels.js (de download via GitHub Actions) en
 // upload-to-r2.js, dat per run één CSV in de bucket zet onder `titels/<datum>/`.
 // Die laatste leest de Nieuwsmonitor (`src/titels-download.ts` in de repo
-// `nieuwsmonitor`): hij plakt de runbestanden van een dag aan elkaar, met de
-// kopregel van het eerste bestand. Wijzigen de kolommen, dan verandert dus ook
-// wat daar te downloaden valt — de kopregel reist mee, de volgorde dus ook.
+// `nieuwsmonitor`): hij leest elk runbestand op kolomnaam, en zet de kolommen uit
+// zijn eigen lijst (`TITEL_KOLOMGROEPEN`) in de download. Een nieuwe kolom hier komt
+// daar dus pas in als ze ook in die lijst staat.
 //
 // `;` als scheidingsteken: zo opent Excel met Belgische of Nederlandse
 // instellingen het bestand met dubbelklikken.
@@ -12,8 +12,7 @@
 // Map in de bucket voor de CSV's per run: titels/<YYYY-MM-DD>/run_<tijd>.csv
 export const TITELS_MAP = 'titels';
 
-// Nieuwe kolommen altijd achteraan: de Nieuwsmonitor plakt oude en nieuwe
-// runbestanden aan elkaar en neemt de kopregel van het nieuwste.
+// Een kolom hernoemen of weghalen breekt de download in de Nieuwsmonitor: die leest op naam.
 export const KOLOMMEN = [
   'site', 'merk', 'datum', 'tijd', 'positie', 'titel', 'url', 'x', 'y', 'breedte', 'hoogte', 'op_beeld',
   'blok', 'blok_label', 'blok_type', 'blok_volgorde', 'positie_in_blok', 'positie_bron', 'content_id', 'artikeltype', 'blok_bron',

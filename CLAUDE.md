@@ -70,10 +70,13 @@ Example: `hln/2026-03-05/hln_2026-03-05T10-00-00.webp`
   de opname mag geen async-stap zitten
 - `titels/<datum>/run_<tijd>.csv`: de titels van één run, zonder BOM. De Nieuwsmonitor
   (`/homepages/titels`, `worker/src/titels-download.ts` in de repo `nieuwsmonitor`)
-  plakt de runbestanden aan elkaar en houdt de kopregel van het nieuwste. Nieuwe
-  kolommen dus altijd **achteraan** in `KOLOMMEN` (`titels-csv.js`): dan past die
-  kopregel ook op oudere, kortere rijen. Een kolom verplaatsen of verwijderen breekt
-  elke download over die datum heen. `cleanup-r2.js` dunt deze map niet uit; de retentie geldt wel
+  leest elk runbestand op kolomnaam en zet de kolommen uit zijn eigen lijst
+  (`TITEL_KOLOMGROEPEN`) in de download; `blok_soort` rekent hij zelf uit. Een nieuwe
+  kolom in `KOLOMMEN` (`titels-csv.js`) komt daar dus pas in als ze ook in die lijst
+  staat, en een kolom hernoemen breekt de download. `cleanup-r2.js` dunt deze map niet
+  uit; de retentie geldt wel
+- De `.titels.json` naast een opname voedt ook de homepagevergelijker in de Nieuwsmonitor
+  (`/homepages/opbouw`): de velden `y`, `bk`, `bl`, `bt`, `br`, `ty`, `u` en `t` zijn dus een koppelvlak
 - De blokinfo per teaser (`blokVan()` en de hulpjes in `titels.js`, tabel per uitgever in
   de README) leest elke uitgever op zijn eigen manier; de eerste regel die iets vindt,
   wint. Komt er een merk bij, kijk dan naar `blok_bron` in de CSV: `kop` of
