@@ -1040,6 +1040,25 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
     .cmp-col-time.drift { color: #d23278; }
     .cmp-col-time.missing { color: #a898b8; font-weight: 500; }
 
+    /* Vastzetten: een kolom die op haar eigen tijdstip blijft staan, met eigen pijltjes */
+    .cmp-col-ctl { display: inline-flex; align-items: center; gap: 0.15rem; flex: none; }
+    .cmp-col-btn {
+      border: none;
+      background: transparent;
+      color: #9a8aaa;
+      font-family: inherit;
+      font-size: 0.72rem;
+      line-height: 1;
+      padding: 0.1rem 0.2rem;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .cmp-col-btn:hover { color: #783c96; background: rgba(120,60,150,0.1); }
+    .cmp-col-time.pinned { color: #fff; background: #783c96; border-radius: 4px; padding: 0.05rem 0.3rem; }
+    .cmp-col.pinned { border-color: #c8b0dc; }
+    .cmp-col.pinned .cmp-col-head { background: #f3edf8; }
+    .cmp-chip-pin { font-variant-numeric: tabular-nums; color: #783c96; }
+
     .cmp-shot {
       flex: 1 1 auto;
       min-height: 0;
@@ -2233,6 +2252,69 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
 
     var cmpState = { sites: [], date: null, tol: 15, index: 0, moments: [], sync: true };
 
+    // Een kolom is een titel ('nu') of een titel vastgezet op een tijdstip
+    // ('nu@08:00'). Een vastgezette kolom volgt het moment niet: zo staat
+    // dezelfde titel naast zichzelf, om acht, om twaalf en nu.
+    var CMP_PIN = /^([0-9]{2}):([0-9]{2})$/;
+    function cmpSite(col) { return col.split('@')[0]; }
+    function cmpPin(col) {
+      var pin = col.split('@')[1] || '';
+      return CMP_PIN.test(pin) ? pin : null;
+    }
+    function cmpColumnOk(col) {
+      var site = cmpSite(col);
+      return !!(site && mobileScreenshotData[site] && meta[site]) && (col.indexOf('@') === -1 || !!cmpPin(col));
+    }
+    // De titels die met het moment meeschuiven, elk één keer
+    function cmpLiveSites() {
+      var out = [];
+      for (var i = 0; i < cmpState.sites.length; i++) {
+        var col = cmpState.sites[i];
+        if (!cmpPin(col) && out.indexOf(col) === -1) out.push(col);
+      }
+      return out;
+    }
+    function cmpAllSites() {
+      var out = [];
+      for (var i = 0; i < cmpState.sites.length; i++) {
+        var site = cmpSite(cmpState.sites[i]);
+        if (out.indexOf(site) === -1) out.push(site);
+      }
+      return out;
+    }
+    function cmpClock(minutes) {
+      var m = Math.max(0, Math.min(23 * 60 + 59, Math.round(minutes)));
+      return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+    }
+    // Alle opnames van één titel op de gekozen dag, oud naar nieuw
+    function cmpShotsOf(site) {
+      var dates = mobileScreenshotData[site];
+      var entries = (dates && dates[cmpState.date]) || [];
+      var out = [];
+      for (var i = 0; i < entries.length; i++) {
+        var shot = cmpEntryTime(entries[i], site, cmpState.date);
+        if (shot) out.push(shot);
+      }
+      out.sort(function(a, b) { return a.minutes - b.minutes; });
+      return out;
+    }
+    // De opname van een vastgezette kolom: die het dichtst bij het tijdstip ligt
+    function cmpPinnedShot(col) {
+      var shots = cmpShotsOf(cmpSite(col));
+      var target = parseClock(cmpPin(col));
+      var best = null;
+      for (var i = 0; i < shots.length; i++) {
+        if (!best || Math.abs(shots[i].minutes - target) < Math.abs(best.minutes - target)) best = shots[i];
+      }
+      return best;
+    }
+    // Het tijdstip waarop het moment nu staat, of anders het laatste van de dag
+    function cmpNowMinutes() {
+      var moment = cmpState.moments[cmpState.index];
+      if (moment) return (moment.start + moment.end) / 2;
+      return 23 * 60 + 59;
+    }
+
     // Alle sites met mobiele opnames, gesorteerd op label, eventueel binnen cluster
     function cmpSitesWithMobile(cluster) {
       return Object.keys(mobileScreenshotData).filter(function(site) {
@@ -2269,9 +2351,12 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
     // opnames hoogstens tol minuten van elkaar liggen. Per titel telt de eerste
     // opname in het venster; vensters die volledig in een ander venster passen,
     // voegen niets toe en vallen weg.
+    // Zijn de andere kolommen vastgezet, dan is één meeschuivende titel genoeg:
+    // elke opname van die titel is dan een moment.
     function cmpBuildMoments() {
-      var sites = cmpState.sites, date = cmpState.date, tol = cmpState.tol;
-      if (!date || sites.length < 2) return [];
+      var sites = cmpLiveSites(), date = cmpState.date, tol = cmpState.tol;
+      if (!date || !sites.length || cmpState.sites.length < 2) return [];
+      var minimum = Math.min(2, sites.length);
 
       var all = [];
       for (var i = 0; i < sites.length; i++) {
@@ -2293,7 +2378,7 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
           taken[all[e].site] = true;
           picked.push(all[e]);
         }
-        if (picked.length < 2) continue;
+        if (picked.length < minimum) continue;
         var sig = picked.map(function(p) { return p.site + '@' + p.time; }).join('|');
         if (seen[sig]) continue;
         seen[sig] = true;
@@ -2323,16 +2408,29 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       if (!wrap) return;
       var html = '';
       for (var i = 0; i < cmpState.sites.length; i++) {
-        var site = cmpState.sites[i];
+        var col = cmpState.sites[i];
+        var site = cmpSite(col);
         var label = meta[site] ? meta[site].label : site;
-        html += '<span class="cmp-chip">' + label +
-          '<button type="button" data-remove="' + site + '" title="Verwijder uit de vergelijking">&times;</button></span>';
+        var pin = cmpPin(col);
+        html += '<span class="cmp-chip">' + label + (pin ? ' <span class="cmp-chip-pin">' + pin + '</span>' : '') +
+          '<button type="button" data-remove="' + i + '" title="Verwijder uit de vergelijking">&times;</button></span>';
       }
 
-      var remaining = cmpSitesWithMobile(null).filter(function(site) { return cmpState.sites.indexOf(site) === -1; });
+      // Een titel die er al staat, mag er nog eens bij: dan komt ze vastgezet
+      // een uur vroeger, om dezelfde homepage door de tijd te volgen.
+      var chosen = cmpAllSites();
+      var remaining = cmpSitesWithMobile(null);
       var full = cmpState.sites.length >= CMP_MAX_SITES;
       html += '<select class="cmp-add" id="cmp-add"' + (full || !remaining.length ? ' disabled' : '') + '>';
       html += '<option value="">+ titel</option>';
+      if (chosen.length) {
+        html += '<optgroup label="Nog eens, een uur vroeger">';
+        for (var d = 0; d < chosen.length; d++) {
+          html += '<option value="' + chosen[d] + '">' + (meta[chosen[d]].label || chosen[d]) + ' (eerder)</option>';
+        }
+        html += '</optgroup>';
+      }
+      remaining = remaining.filter(function(site) { return chosen.indexOf(site) === -1; });
       var clusters = {};
       for (var r = 0; r < remaining.length; r++) {
         var cluster = meta[remaining[r]].cluster || 'Overig';
@@ -2357,16 +2455,30 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
 
       var add = document.getElementById('cmp-add');
       if (add) add.addEventListener('change', function() {
-        if (!this.value || cmpState.sites.indexOf(this.value) > -1) return;
-        cmpState.sites.push(this.value);
+        var site = this.value;
+        if (!site || cmpState.sites.length >= CMP_MAX_SITES) return;
+        if (cmpAllSites().indexOf(site) === -1) {
+          cmpState.sites.push(site);
+        } else {
+          // Een uur vóór de vroegste kolom van deze titel die er al staat
+          var earliest = Infinity;
+          for (var i = 0; i < cmpState.sites.length; i++) {
+            var col = cmpState.sites[i];
+            if (cmpSite(col) !== site) continue;
+            var pin = cmpPin(col);
+            earliest = Math.min(earliest, pin ? parseClock(pin) : cmpNowMinutes());
+          }
+          var extra = site + '@' + cmpClock(earliest - 60);
+          if (cmpState.sites.indexOf(extra) === -1) cmpState.sites.push(extra);
+        }
         cmpRefresh(false);
         updateUrl();
       });
 
       wrap.querySelectorAll('button[data-remove]').forEach(function(btn) {
         btn.addEventListener('click', function() {
-          var site = btn.dataset.remove;
-          cmpState.sites = cmpState.sites.filter(function(s) { return s !== site; });
+          var index = parseInt(btn.dataset.remove, 10);
+          cmpState.sites = cmpState.sites.filter(function(s, i) { return i !== index; });
           cmpRefresh(false);
           updateUrl();
         });
@@ -2383,8 +2495,10 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
         return;
       }
 
+      // Zonder meeschuivende titel (alles vastgezet) is er geen moment nodig
       var moment = cmpState.moments[cmpState.index];
-      if (!moment) {
+      var live = cmpLiveSites().length > 0;
+      if (!moment && live) {
         grid.style.display = 'block';
         grid.innerHTML = '<div class="cmp-empty">Geen vergelijkbare momenten op ' + (cmpState.date || 'deze dag') + '.' +
           '<br>Probeer een andere dag, een ruimere marge of andere titels.</div>';
@@ -2393,23 +2507,40 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
 
       grid.style.display = '';
       var byShot = {};
-      for (var i = 0; i < moment.shots.length; i++) byShot[moment.shots[i].site] = moment.shots[i];
-      var midpoint = (moment.start + moment.end) / 2;
+      if (moment) for (var i = 0; i < moment.shots.length; i++) byShot[moment.shots[i].site] = moment.shots[i];
+      var midpoint = moment ? (moment.start + moment.end) / 2 : null;
 
       var html = '';
       for (var s = 0; s < cmpState.sites.length; s++) {
-        var site = cmpState.sites[s];
+        var col = cmpState.sites[s];
+        var site = cmpSite(col);
+        var pin = cmpPin(col);
         var label = meta[site] ? meta[site].label : site;
-        var shot = byShot[site];
-        html += '<div class="cmp-col">';
+        var shot = pin ? cmpPinnedShot(col) : byShot[site];
+        html += '<div class="cmp-col' + (pin ? ' pinned' : '') + '">';
         html += '<div class="cmp-col-head"><span class="cmp-col-label">' + label + '</span>';
         if (shot) {
-          var drift = Math.abs(shot.minutes - midpoint) > CMP_DRIFT_MIN ? ' drift' : '';
+          var drift = !pin && Math.abs(shot.minutes - midpoint) > CMP_DRIFT_MIN ? ' drift' : '';
           var url = screenshotBaseUrl + '/' + site + '/' + cmpState.date + '/' + shot.filename;
-          html += '<span class="cmp-col-time' + drift + '">' + shot.time + '</span></div>';
+          // Een vastgezette kolom heeft haar eigen pijltjes; een gewone kan je
+          // vastzetten op het tijdstip dat ze nu toont.
+          html += '<span class="cmp-col-ctl">';
+          if (pin) {
+            html += '<button type="button" class="cmp-col-btn" data-step="-1" data-col="' + s + '" title="Vorige opname van deze titel">&#8249;</button>';
+            html += '<span class="cmp-col-time pinned" title="Vastgezet: volgt het moment niet">' + shot.time + '</span>';
+            html += '<button type="button" class="cmp-col-btn" data-step="1" data-col="' + s + '" title="Volgende opname van deze titel">&#8250;</button>';
+            html += '<button type="button" class="cmp-col-btn" data-unpin="' + s + '" title="Losmaken: weer met het moment meeschuiven">&#10005;</button>';
+          } else {
+            html += '<span class="cmp-col-time' + drift + '">' + shot.time + '</span>';
+            html += '<button type="button" class="cmp-col-btn" data-pin="' + s + '" data-time="' + shot.time + '" title="Vastzetten op ' + shot.time + ': deze kolom blijft staan als je verder schuift">&#128204;</button>';
+          }
+          html += '</span></div>';
           html += '<div class="cmp-shot" data-url="' + url + '" data-time="' + shot.time + '">';
           html += '<img src="' + url + '" decoding="async" alt="' + label + ' ' + shot.time + '">';
           html += '</div>';
+        } else if (pin) {
+          html += '<span class="cmp-col-time missing">geen opname</span></div>';
+          html += '<div class="cmp-missing">Geen opname van deze titel op ' + (cmpState.date || 'deze dag') + '</div>';
         } else {
           html += '<span class="cmp-col-time missing">geen opname</span></div>';
           html += '<div class="cmp-missing">Geen opname binnen ' + cmpState.tol + ' min van dit moment</div>';
@@ -2487,10 +2618,10 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
         }
       }
       if (metaEl) {
-        if (!moment) metaEl.textContent = '';
+        if (!moment) metaEl.textContent = cmpState.sites.length > 1 && !cmpLiveSites().length ? 'alle kolommen vastgezet' : '';
         else {
           var spread = Math.round(moment.end - moment.start);
-          metaEl.textContent = moment.shots.length + '/' + cmpState.sites.length + ' titels · spreiding ' +
+          metaEl.textContent = moment.shots.length + '/' + cmpLiveSites().length + ' titels · spreiding ' +
             spread + ' min · moment ' + (cmpState.index + 1) + '/' + total;
         }
       }
@@ -2509,7 +2640,7 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
     }
 
     function cmpDates() {
-      return cmpAvailableDates(cmpState.sites.length ? cmpState.sites : cmpSitesWithMobile(null));
+      return cmpAvailableDates(cmpState.sites.length ? cmpAllSites() : cmpSitesWithMobile(null));
     }
 
     function cmpSetDate(date) {
@@ -2548,6 +2679,35 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       cmpRenderChips();
       cmpRenderMoment();
       cmpRenderGrid();
+    }
+
+    // De knoppen in de kop van een kolom: vastzetten, losmaken, of een
+    // vastgezette kolom een opname verder of terug zetten.
+    function cmpColumnAction(btn) {
+      var index, col;
+      if (btn.dataset.pin !== undefined) {
+        index = parseInt(btn.dataset.pin, 10);
+        col = cmpSite(cmpState.sites[index]) + '@' + btn.dataset.time;
+      } else if (btn.dataset.unpin !== undefined) {
+        index = parseInt(btn.dataset.unpin, 10);
+        col = cmpSite(cmpState.sites[index]);
+      } else {
+        index = parseInt(btn.dataset.col, 10);
+        var current = cmpState.sites[index];
+        var shots = cmpShotsOf(cmpSite(current));
+        var shot = cmpPinnedShot(current);
+        var at = shot ? shots.findIndex(function(s) { return s.filename === shot.filename; }) : -1;
+        var next = shots[at + parseInt(btn.dataset.step, 10)];
+        if (!next) return;
+        col = cmpSite(current) + '@' + next.time;
+      }
+      if (!cmpState.sites[index]) return;
+      // Dezelfde kolom twee keer heeft geen zin: dan valt de oude weg
+      var twin = cmpState.sites.findIndex(function(c, i) { return i !== index && c === col; });
+      cmpState.sites[index] = col;
+      if (twin > -1) cmpState.sites.splice(twin, 1);
+      cmpRefresh(false);
+      updateUrl();
     }
 
     function cmpGoto(index) {
@@ -2619,15 +2779,16 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
 
     function cmpSetCluster() {
       cmpState.sites = cmpClusterSites();
-      var dates = cmpAvailableDates(cmpState.sites);
+      var dates = cmpAvailableDates(cmpAllSites());
       if (!cmpState.date || dates.indexOf(cmpState.date) === -1) cmpState.date = dates[dates.length - 1] || null;
       cmpRefresh(true);
     }
 
     function cmpInit() {
       // Selectie en datum uit de URL, anders het actieve cluster van vandaag
-      var fromUrl = (urlParams.cmp || '').split(',').filter(function(site) {
-        return site && mobileScreenshotData[site] && meta[site];
+      // cmp=nu,nu@08:00,nu@12:00: een titel met @tijdstip is een vastgezette kolom
+      var fromUrl = (urlParams.cmp || '').split(',').filter(function(col, i, all) {
+        return col && cmpColumnOk(col) && all.indexOf(col) === i;
       });
       // Zonder cmp maar mét een titel: de vergelijking wordt rond die titel
       // gebouwd. Dat is wat een link uit de Nieuwsmonitor meegeeft — alleen de
@@ -2636,7 +2797,7 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
       var around = cmpSitesAround(urlParams.site, (urlParams.plus || '').split(','));
       cmpState.sites = fromUrl.length ? fromUrl.slice(0, CMP_MAX_SITES) : (around || cmpDefaultSites());
 
-      var dates = cmpAvailableDates(cmpState.sites);
+      var dates = cmpAvailableDates(cmpAllSites());
       cmpState.date = (urlParams.date && dates.indexOf(urlParams.date) > -1)
         ? urlParams.date
         : (dates[dates.length - 1] || null);
@@ -2672,6 +2833,8 @@ function generateHTML(desktopStructure, mobileStructure, publicUrl, websitesMeta
 
       var grid = document.getElementById('cmp-grid');
       if (grid) grid.addEventListener('click', function(e) {
+        var btn = e.target.closest('.cmp-col-btn');
+        if (btn) { cmpColumnAction(btn); return; }
         var shot = e.target.closest('.cmp-shot');
         if (shot) openLightbox(shot);
       });
