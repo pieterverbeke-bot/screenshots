@@ -208,11 +208,17 @@ merken naast elkaar, telkens de opname die het dichtst bij hetzelfde moment ligt
 - De datumknop opent een kalender (dezelfde als in de tijdlijn): dagen zonder opnames
   staan er grijs bij en zijn niet klikbaar
 - **Dezelfde titel op meer momenten.** Het speldje boven een kolom zet ze vast op het
-  tijdstip dat ze toont: die kolom schuift dan niet meer mee met het moment, en heeft
-  eigen pijltjes om een opname verder of terug te gaan (het kruisje maakt ze weer los).
-  In "+ titel" staan de gekozen titels ook onder *Nog eens, een uur vroeger*: zo staat
-  NU.nl naast NU.nl van een uur eerder. In de link is een vastgezette kolom
-  `titel@uu:mm`: `cmp=nu,nu@08:00,nu@12:00`
+  moment dat ze toont, met haar eigen dag: die kolom schuift dan niet meer mee, en heeft
+  eigen pijltjes: ‹ › een opname verder of terug (ook over middernacht heen), « » hetzelfde
+  uur op de vorige of volgende dag met opnames (het kruisje maakt ze weer los). In
+  "+ titel" staat elke gekozen titel nog eens, *een uur*, *een dag* of *een week eerder*
+  dan haar vroegste kolom (een dag zonder opnames schuift naar de dag ervoor). Bij een
+  andere dag dan die van de datumknop zegt de kop de dag erbij (`wo 11/11 09:35`).
+- De kolommen staan **van oud naar nieuw**, oudste links. Er wordt opnieuw gesorteerd
+  bij elke wijziging (titel erbij, vastzetten, pijltjes), niet bij het schuiven.
+- In de link is een vastgezette kolom `titel@jjjj-mm-ddTuu:mm`; de korte vorm
+  `titel@uu:mm` (de dag van de datumknop) blijft werken:
+  `cmp=nu@2026-11-05T08:00,nu@2026-11-11T08:00,nu`
 - De link is deelbaar: `?view=vergelijk&cmp=hln,dm,humo&date=2026-03-05&t=09:00`
 
 ## Deeplinks: naar één moment verwijzen
@@ -228,7 +234,7 @@ precies dat beeld. Andersom kan een andere tool er ook een bouwen.
 | `date` | de dag (`YYYY-MM-DD`) | `date=2026-09-02` |
 | `t` | het **tijdstip** waar de link naar wijst | `t=14:35` |
 | `view` | `vergelijk` opent de vergelijkpagina (net als het pad `/vergelijk`) | `view=vergelijk` |
-| `cmp` | de titels op de vergelijkpagina, met komma's — een volledige selectie; `titel@uu:mm` is een vastgezette kolom | `cmp=ad,nu,vk,hln` |
+| `cmp` | de titels op de vergelijkpagina, met komma's — een volledige selectie; `titel@jjjj-mm-ddTuu:mm` (of `titel@uu:mm`) is een vastgezette kolom | `cmp=ad,nu,vk,hln` |
 | `plus` | titels die er sowieso bij moeten, naast de titel uit `site` | `plus=nos` |
 | `mobile` | `1` opent de mobiele opnames | `mobile=1` |
 
