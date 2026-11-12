@@ -812,10 +812,20 @@ async function tryConsentBeforeRemoval(page) {
         /alle cookies/i, /consent/i, /ga verder/i, /doorgaan/i,
         /i understand/i, /got it/i, /continue/i, /^ok$/i,
       ];
+      // Een link naar een andere pagina is nooit een consentknop, maar een teaser:
+      // de video "Akkoord met links over belastingplan" op NU.nl (nov 2026) werd zo
+      // aangeklikt, en dan fotografeerden we de videopagina in plaats van de homepage.
+      const gaatWeg = (el) => {
+        if (location.hostname.includes('myprivacy')) return false;
+        const a = el.closest('a[href]');
+        const href = a ? a.getAttribute('href') || '' : '';
+        return !!a && href !== '' && !href.startsWith('#') && !/^javascript:/i.test(href);
+      };
       const buttons = [...document.querySelectorAll('button, a, [role="button"], input[type="submit"]')];
       for (const btn of buttons) {
         const text = (btn.textContent || btn.value || '').trim();
         if (text.length > 50 || text.length === 0) continue; // Skip lange teksten en lege knoppen
+        if (gaatWeg(btn)) continue;
         if (acceptPatterns.some(p => p.test(text))) {
           const rect = btn.getBoundingClientRect();
           const style = window.getComputedStyle(btn);
@@ -1439,8 +1449,16 @@ async function clickAcceptButton(context) {
     ];
 
     // Inclusief div/span voor Sourcepoint mobiel (rendert soms geen <button> elementen)
+    // Geen links naar een andere pagina: dat is een teaser, geen consentknop (zie tryConsentBeforeRemoval)
+    const gaatWeg = (el) => {
+      if (location.hostname.includes('myprivacy')) return false;
+      const a = el.closest('a[href]');
+      const href = a ? a.getAttribute('href') || '' : '';
+      return !!a && href !== '' && !href.startsWith('#') && !/^javascript:/i.test(href);
+    };
     const elements = [...document.querySelectorAll('button, a, [role="button"], input[type="submit"], input[type="button"], div[class*="button"], span[class*="button"]')];
     for (const el of elements) {
+      if (gaatWeg(el)) continue;
       const text = (el.textContent || el.value || '').trim();
       if (acceptPatterns.some(p => p.test(text))) {
         const rect = el.getBoundingClientRect();
@@ -1661,8 +1679,15 @@ async function dismissPopups(page) {
             /^weigeren$/i,
           ];
 
+          // Geen links naar een andere pagina (zie tryConsentBeforeRemoval)
+          const gaatWeg = (el) => {
+            const a = el.closest('a[href]');
+            const href = a ? a.getAttribute('href') || '' : '';
+            return !!a && href !== '' && !href.startsWith('#') && !/^javascript:/i.test(href);
+          };
           const buttons = [...document.querySelectorAll('button, a[role="button"], [class*="button"]')];
           for (const btn of buttons) {
+            if (gaatWeg(btn)) continue;
             const text = (btn.textContent || '').trim();
             if (textPatterns.some(pattern => pattern.test(text))) {
               const rect = btn.getBoundingClientRect();
@@ -1743,6 +1768,27 @@ async function detectBlockedPage(page, { opmaak = true } = {}) {
 }
 
 // Laad pagina en maak klaar voor screenshot (consent-afhandeling, overlays, scroll).
+// Staan we nog op de pagina waar we binnenkwamen? Een klik in de consentrondes kan
+// op een teaser belanden (NU.nl, nov 2026: een video met "Akkoord" in de titel), en
+// dan fotograferen we een video- of artikelpagina. Vergeleken wordt met het adres na
+// de redirects en de DPG-gate (vk.nl wordt volkskrant.nl), op host en pad. Geeft het
+// nieuwe adres terug als we weg zijn, anders null.
+function weggeklikt(page, binnen) {
+  if (!binnen) return null;
+  try {
+    const nu = new URL(page.url());
+    const start = new URL(binnen);
+    if (nu.hostname.includes('myprivacy')) return null; // die handelt capturePage nog af
+    const pad = (u) => u.pathname.replace(/\/+$/, '');
+    // Alleen dieper de site in (of naar een ander domein) telt: een site die zijn
+    // eigen adres achteraf inkort of herschrijft, is niet weggeklikt.
+    const dieper = pad(nu) !== pad(start) && pad(nu).length > pad(start).length;
+    return nu.hostname === start.hostname && !dieper ? null : page.url();
+  } catch {
+    return null;
+  }
+}
+
 async function loadAndPrepare(page, website, waitUntil = 'networkidle2', { isMobile = false } = {}) {
   const { name, url } = website;
 
@@ -1786,6 +1832,9 @@ async function loadAndPrepare(page, website, waitUntil = 'networkidle2', { isMob
 
   // DPG privacy gate afhandelen (redirect of iframe)
   await handleDPGPrivacyGate(page);
+
+  // Hier staan we op de homepage zelf: wat hierna nog van adres verandert, is weggeklikt
+  const binnen = page.url().includes('myprivacy.dpgmedia') ? null : page.url();
 
   if (isMobile) {
     // Mobiel: extra wachttijd voor consent-iframes die later laden op kleinere viewports
@@ -1897,6 +1946,11 @@ async function loadAndPrepare(page, website, waitUntil = 'networkidle2', { isMob
     const css = [...telling].map(([f, n]) => (n > 1 ? `${f} ×${n}` : f)).join(', ');
     throw new Error(`blocked page: ${blockReason}${css ? ` — CSS geweigerd: ${css}` : ''}`);
   }
+
+  // Weggeklikt naar een andere pagina: liever opnieuw (takeScreenshot probeert nog eens)
+  // dan een beeld van de verkeerde pagina onder de naam van de homepage.
+  const weg = weggeklikt(page, binnen);
+  if (weg) throw new Error(`weggeklikt van de homepage naar ${weg.slice(0, 100)}`);
 }
 
 // Schrijf een miniatuur naast het screenshot (`naam.thumb.webp`).
@@ -2233,7 +2287,7 @@ async function takeScreenshot(browser, website) {
       desktopResult = { success: true, name, filename };
       break;
     } catch (error) {
-      if (attempt < maxAttempts && (error?.message?.includes('too small') || error?.message?.includes('blocked page'))) {
+      if (attempt < maxAttempts && (error?.message?.includes('too small') || error?.message?.includes('blocked page') || error?.message?.includes('weggeklikt'))) {
         console.log(`⚠️  ${name}: ${error?.message?.includes('blocked page') ? 'Block detected' : 'Blank page detected'} (${error?.message}), retrying (attempt ${attempt + 1}/${maxAttempts})...`);
         await new Promise(r => setTimeout(r, 5000));
         continue;
@@ -2250,7 +2304,7 @@ async function takeScreenshot(browser, website) {
       mobileFilename = await capturePageMobile(browser, website, timestamp);
       break;
     } catch (error) {
-      if (attempt < maxAttempts && (error?.message?.includes('too small') || error?.message?.includes('empty buffer') || error?.message?.includes('blocked page'))) {
+      if (attempt < maxAttempts && (error?.message?.includes('too small') || error?.message?.includes('empty buffer') || error?.message?.includes('blocked page') || error?.message?.includes('weggeklikt'))) {
         console.log(`⚠️  ${name}: Mobile screenshot failed (${error?.message}), retrying (attempt ${attempt + 1}/${maxAttempts})...`);
         await new Promise(r => setTimeout(r, 5000));
         continue;
