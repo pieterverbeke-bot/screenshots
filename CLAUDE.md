@@ -244,6 +244,9 @@ Kan ook via GitHub Actions → "Miniaturen bijwerken" (workflow_dispatch).
   groepeert de opnames van de gekozen titels in "momenten": vensters waarin alle opnames
   hoogstens `cmpState.tol` minuten (standaard 15) uit elkaar liggen, per titel de eerste
   opname in dat venster. Vensters die volledig in een ander venster passen, vallen weg.
+  `cmpState.modus` is `'titels'` of `'tijd'`; in `'tijd'` is elke kolom vastgezet
+  (`titel@jjjj-mm-ddTuu:mm`, altijd met dag), van één titel, en zijn er geen momenten:
+  de rij `#cmp-moment-row` maakt plaats voor `#cmp-tijd-row` (`cmpRenderModus()`).
   Wie `isVirtualSite()` uitbreidt, moet ook de plekken nalopen die een tijdlijn of hero
   verwachten (`renderFilmstrip`, `initSectionHero`, `navigateHero`, de mobielknop)
 - De datumkeuze is één kalender-popover (`calOpen()`/`calToggle()`, markup `#cal-pop`) die

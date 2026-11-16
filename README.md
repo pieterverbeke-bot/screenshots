@@ -207,18 +207,25 @@ merken naast elkaar, telkens de opname die het dichtst bij hetzelfde moment ligt
   moment; "samen scrollen" houdt alle kolommen op dezelfde diepte
 - De datumknop opent een kalender (dezelfde als in de tijdlijn): dagen zonder opnames
   staan er grijs bij en zijn niet klikbaar
-- **Dezelfde titel op meer momenten.** Het speldje boven een kolom zet ze vast op het
-  moment dat ze toont, met haar eigen dag: die kolom schuift dan niet meer mee, en heeft
-  eigen pijltjes: ‹ › een opname verder of terug (ook over middernacht heen), « » hetzelfde
-  uur op de vorige of volgende dag met opnames (het kruisje maakt ze weer los). In
-  "+ titel" staat elke gekozen titel nog eens, *een uur*, *een dag* of *een week eerder*
-  dan haar vroegste kolom (een dag zonder opnames schuift naar de dag ervoor). Bij een
-  andere dag dan die van de datumknop zegt de kop de dag erbij (`wo 11/11 09:35`).
+- **Twee standen**, als tabs bovenaan (zoals in de homepagevergelijker van de
+  Nieuwsmonitor): *Titels naast elkaar* (alles hierboven) en *Eén titel door de tijd*.
+- **Eén titel door de tijd** (`modus=tijd`): één titel op verschillende dagen en uren.
+  Ze opent op hetzelfde uur op de gekozen dag, de dag ervoor, twee dagen en een week
+  eerder (een dag zonder opnames schuift naar de dag ervoor). In de rij erboven kies je
+  de titel (de momenten blijven staan), zet **+ dag** dezelfde titel op een dag uit de
+  kalender erbij, op het uur van de nieuwste kolom, en zet **+ eerder** er een kolom
+  *een uur*, *een dag* of *een week* vóór de oudste bij. Elke kolom heeft eigen pijltjes:
+  ‹ › een opname verder of terug (ook over middernacht heen), « » hetzelfde uur op de
+  vorige of volgende dag met opnames. De kop zegt de dag, met het uur ernaast.
+- In *Titels naast elkaar* kan je een kolom nog altijd vastzetten met het speldje: ze
+  schuift dan niet meer mee, met dezelfde pijltjes (het kruisje maakt ze weer los).
+  Dezelfde titel nog eens erbij kiezen kan daar niet meer: dat is de andere stand.
 - De kolommen staan **van oud naar nieuw**, oudste links. Er wordt opnieuw gesorteerd
-  bij elke wijziging (titel erbij, vastzetten, pijltjes), niet bij het schuiven.
+  bij elke wijziging (titel of moment erbij, vastzetten, pijltjes), niet bij het schuiven.
 - In de link is een vastgezette kolom `titel@jjjj-mm-ddTuu:mm`; de korte vorm
-  `titel@uu:mm` (de dag van de datumknop) blijft werken:
-  `cmp=nu@2026-11-05T08:00,nu@2026-11-11T08:00,nu`
+  `titel@uu:mm` (de dag van de datumknop) blijft werken. Een link met één titel op meer
+  momenten opent vanzelf door de tijd:
+  `?view=vergelijk&modus=tijd&cmp=nu@2026-11-05T08:00,nu@2026-11-11T08:00`
 - De link is deelbaar: `?view=vergelijk&cmp=hln,dm,humo&date=2026-03-05&t=09:00`
 
 ## Deeplinks: naar één moment verwijzen
@@ -236,6 +243,7 @@ precies dat beeld. Andersom kan een andere tool er ook een bouwen.
 | `view` | `vergelijk` opent de vergelijkpagina (net als het pad `/vergelijk`) | `view=vergelijk` |
 | `cmp` | de titels op de vergelijkpagina, met komma's — een volledige selectie; `titel@jjjj-mm-ddTuu:mm` (of `titel@uu:mm`) is een vastgezette kolom | `cmp=ad,nu,vk,hln` |
 | `plus` | titels die er sowieso bij moeten, naast de titel uit `site` | `plus=nos` |
+| `modus` | `tijd` opent de vergelijkpagina op *Eén titel door de tijd* (met `site`: die titel) | `modus=tijd` |
 | `mobile` | `1` opent de mobiele opnames | `mobile=1` |
 
 **Een vergelijking rond één titel.** `site` + `view=vergelijk` zonder `cmp` bouwt de
