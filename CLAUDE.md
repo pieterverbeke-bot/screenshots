@@ -219,6 +219,11 @@ Kan ook via GitHub Actions → "Miniaturen bijwerken" (workflow_dispatch).
 - Do **not** add a `schedule:` trigger back to the workflow — cron-job.org is the reliable scheduler
 - Chrome draait **headed onder xvfb** in de workflow (`xvfb-run` in screenshot.yml; `take-screenshots.js` detecteert `DISPLAY`). Dit vermijdt de headless-fingerprint waarop Cloudflare/Akamai GitHub-runners blokkeren (Nieuwsblad/GvA/VRT-blocks, geblokkeerde CSS/afbeeldingen). Niet terugzetten naar pure headless zonder hertest
 - `installConsentKiller` injecteert op document-start een permanente Sourcepoint-verberger (CSS + inline `!important`) én een in-page auto-clicker die de DPG privacy gate ("Jouw privacy-instellingen") accepteert zodra die verschijnt — ook ná alle Node-consent-passes (De Morgen, Humo)
+- `scrubGateBeforeShot()` verbergt vlak voor de opname ook promobalken die onderaan het venster
+  vastgeplakt zijn (DPG/pexi `temptation-module` met `position: fixed`, bv. de Black Friday-balk
+  op AD/HLN, plus elke andere fixed balk aan de onderrand). In een full-page screenshot landen die
+  anders midden in de pagina, over de artikels. Inline temptation-modules (de knop "Abonneren" in
+  de kop) en vastgezette koppen bovenaan blijven staan
 - `detectBlockedPage()` beslist of een opname weg moet: een bot-blokpagina, een Cloudflare-challenge
   ("Performing security verification", De Telegraaf) of een ongestylede pagina gooit `blocked page`
   → één retry, en faalt die ook, dan vervalt de opname (gat in de tijdlijn i.p.v. een kapot beeld).
