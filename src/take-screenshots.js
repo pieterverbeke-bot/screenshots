@@ -1416,6 +1416,29 @@ async function scrubGateBeforeShot(page) {
         el = el.parentElement;
       }
     }
+    // Promobalken die onderaan het scherm vastgeplakt zijn (DPG "temptation-module" van pexi,
+    // bv. de Black Friday-balk SUBSCRIBE_BLACKFRIDAY_PAGE_BOTTOM_AD/_HL). Een fixed element
+    // landt in een full-page screenshot midden in de pagina en dekt daar artikels af.
+    // Enkel de fixed varianten: de inline temptation-modules (knop "Abonneren" in de kop) blijven.
+    document.querySelectorAll('[data-pexi-template], [data-module="temptation-module"]').forEach(el => {
+      const s = window.getComputedStyle(el);
+      if (s.position === 'fixed' || s.position === 'sticky') {
+        hide(el, `promo<${el.getAttribute('data-pexi-template') || el.getAttribute('data-tm-third-party-template') || 'temptation-module'}>`);
+      }
+    });
+    // Algemeen vangnet: een fixed balk die aan de onderrand van het venster hangt (promo,
+    // app-banner, nieuwsbrief). Bovenaan vastgezette koppen blijven staan — die horen bij de site
+    // en komen in een opname vanaf y=0 gewoon bovenaan terecht.
+    const vh = window.innerHeight;
+    for (const el of document.querySelectorAll('body *')) {
+      const s = window.getComputedStyle(el);
+      if (s.position !== 'fixed' || s.display === 'none' || s.visibility === 'hidden') continue;
+      const r = el.getBoundingClientRect();
+      if (r.width < 200 || r.height < 40) continue;
+      if (r.bottom < vh - 4 || r.bottom > vh + 4) continue; // niet aan de onderrand
+      if (r.top < vh * 0.4) continue;                         // te hoog: geen balk maar een paneel/menu
+      hide(el, `onderbalk<${el.tagName.toLowerCase()}.${(el.className || '').toString().slice(0, 40)}>`);
+    }
     // Herstel scroll-lock die de gate soms instelt
     document.documentElement.style.overflow = '';
     document.body.style.overflow = '';
